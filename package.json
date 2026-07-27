@@ -1,0 +1,43 @@
+{
+  "name": "toiec",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "import:oxford5000": "node scripts/import_oxford5000_csv.js",
+    "import:oxford5000:bg": "node scripts/run_oxford5000_background.js",
+    "import:listening-audio": "node scripts/import_listening_audio.js",
+    "align:listening-timestamps": "node scripts/align_listening_timestamps_local.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@iamtraction/google-translate": "^2.0.1",
+    "@supabase/supabase-js": "^2.110.7",
+    "dotenv": "^17.4.2",
+    "framer-motion": "^12.42.2",
+    "jsdom": "^29.1.1",
+    "lucide-react": "^1.25.0",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.1.200",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1",
+    "react-youtube": "^10.1.0",
+    "sqlite3": "^6.0.1",
+    "ytdl-core": "^4.11.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.1.1",
+    "youtube-transcript": "^1.3.1"
+  }
+}

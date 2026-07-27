@@ -1,0 +1,203 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ===== Design Tokens ===== */
+@theme {
+  --font-sans: var(--font-app);
+
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-surface-hover: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-text: #334155;
+  --color-text-light: #64748b;
+  --color-text-heading: #0f172a;
+}
+
+:root {
+  --font-app: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+:root.locale-vi {
+  --font-app: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+}
+
+/* Thu nhỏ toàn bộ giao diện trên Desktop (~85% so với gốc) để gọn gàng hơn */
+html {
+  font-size: 16px;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 13.5px;
+  }
+}
+
+/* ===== Base Styles ===== */
+body {
+  margin: 0;
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-display {
+  font-family: var(--font-display);
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Skeleton Loading Animation ===== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+
+  75% {
+    transform: translateX(-5px);
+  }
+}
+
+/* ===== Custom Scrollbar ===== */
+/* Webkit (Chrome, Edge, Safari) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark * {
+  scrollbar-color: #334155 transparent;
+}
+
+
+@layer components {
+
+  .nav-link,
+  .admin-nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-colors;
+    @apply text-slate-600 dark:text-slate-200 hover:bg-pink-50 dark:hover:bg-fuchsia-900 hover:text-slate-900 dark:hover:text-slate-200;
+  }
+
+  .nav-link-active,
+  .nav-link-active-admin {
+    @apply bg-pink-200 dark:bg-fuchsia-600/30 text-slate-600 dark:text-slate-200;
+  }
+
+  .admin-nav-link-active {
+    @apply bg-pink-200 dark:bg-fuchsia-600/30 text-slate-600 dark:text-slate-200 shadow-sm;
+  }
+
+  /* Level Tabs / Generic Tabs */
+  .tab-btn {
+    @apply px-6 py-2 rounded-full font-bold transition-all text-sm;
+    @apply bg-slate-200 dark:bg-[#3A2F43] text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-[#32263C];
+  }
+
+  .tab-btn-active {
+    @apply bg-fuchsia-600 text-white shadow-md shadow-fuchsia-600/20;
+  }
+
+  /* Topbar Buttons */
+  .icon-btn {
+    @apply p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer;
+  }
+
+  .dropdown-btn {
+    @apply w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#232736] transition-colors cursor-pointer;
+  }
+}

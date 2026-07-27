@@ -1,0 +1,68 @@
+# ===== Dependencies =====
+node_modules/
+
+# ===== Build output =====
+dist/
+dist-ssr/
+build/
+out/
+.next/
+
+# ===== Environment variables & secrets =====
+.env
+.env.*
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+
+# ===== Logs =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===== OS generated files =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===== Editor directories and files =====
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===== Misc =====
+*.local
+*.tsbuildinfo
+
+# ===== Temp/test files with hardcoded data =====
+test_data.js
+backup_full.sql
+replace_bg*.cjs
+
+# ===== Scripts & Data Upload =====
+# Không đẩy các file dùng để đẩy dữ liệu lên github
+scripts/
+tmp/
+tools/
+supabase/migrations/
+supabase/.temp/
+supabase/functions/admin-import-youtube/
+openapi.json
+
+# ===== Raw data assets =====
+src/assets/*.csv
+src/assets/*.pdf
+src/assets/Audio*/
+src/assets/*Audio*/
