@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { BookType, ArrowRight, CheckCircle2, Lock, Unlock } from 'lucide-react';
+import { BookType, ArrowRight, CheckCircle2, Lock, Unlock, PlayCircle, Star, Sparkles, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
+import useSWR from 'swr';
 
 const COPY = {
   vi: {
@@ -49,69 +50,70 @@ export default function TenseList() {
   const { user } = useAuth();
   const { locale } = useLocale();
   const text = COPY[locale];
-  const [tenses, setTenses] = useState([]);
-  const [progressData, setProgressData] = useState({});
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchTensesAndProgress();
-  }, [user]);
+  const fetchTensesData = async () => {
+    const { data: tensesData, error: tensesError } = await supabase
+      .from('tenses')
+      .select('*')
+      .order('id', { ascending: true });
+      
+    if (tensesError) throw tensesError;
 
-  const fetchTensesAndProgress = async () => {
-    try {
-      setLoading(true);
-      const { data: tensesData, error: tensesError } = await supabase
-        .from('tenses')
-        .select('*')
-        .order('id', { ascending: true });
+    let progressMap = {};
+    if (user) {
+      const { data: exercisesData } = await supabase
+        .from('tense_exercises')
+        .select('id, tense_id');
+
+      const { data: completedData } = await supabase
+        .from('user_tense_exercises')
+        .select('exercise_id')
+        .eq('user_id', user.id);
+
+      if (exercisesData && completedData) {
+        const completedSet = new Set(completedData.map(c => c.exercise_id));
         
-      if (tensesError) throw tensesError;
-      setTenses(tensesData || []);
+        tensesData.forEach(t => {
+          progressMap[t.id] = { total: 0, completed: 0, percentage: 0 };
+        });
 
-      if (user) {
-        const { data: exercisesData } = await supabase
-          .from('tense_exercises')
-          .select('id, tense_id');
-
-        const { data: completedData } = await supabase
-          .from('user_tense_exercises')
-          .select('exercise_id')
-          .eq('user_id', user.id);
-
-        if (exercisesData && completedData) {
-          const completedSet = new Set(completedData.map(c => c.exercise_id));
-          const progressMap = {};
-          
-          tensesData.forEach(t => {
-            progressMap[t.id] = { total: 0, completed: 0, percentage: 0 };
-          });
-
-          exercisesData.forEach(ex => {
-            if (progressMap[ex.tense_id]) {
-              progressMap[ex.tense_id].total++;
-              if (completedSet.has(ex.id)) {
-                progressMap[ex.tense_id].completed++;
-              }
+        exercisesData.forEach(ex => {
+          if (progressMap[ex.tense_id]) {
+            progressMap[ex.tense_id].total++;
+            if (completedSet.has(ex.id)) {
+              progressMap[ex.tense_id].completed++;
             }
-          });
+          }
+        });
 
-          Object.keys(progressMap).forEach(key => {
-            const data = progressMap[key];
-            if (data.total > 0) {
-              data.percentage = Math.round((data.completed / data.total) * 100);
-            }
-          });
-
-          setProgressData(progressMap);
-        }
+        Object.keys(progressMap).forEach(key => {
+          const data = progressMap[key];
+          data.percentage = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+        });
       }
-    } catch (error) {
-      console.error('Error fetching tenses:', error.message);
-    } finally {
-      setLoading(false);
     }
+    
+    return {
+      tenses: tensesData || [],
+      progressData: progressMap
+    };
   };
+
+  const { data, isLoading } = useSWR(
+    `tenses_data_${user?.id || 'guest'}`,
+    fetchTensesData,
+    { 
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      dedupingInterval: 120000, // 2 phút — dữ liệu ngữ pháp ít thay đổi
+    }
+  );
+
+  const tenses = data?.tenses || [];
+  const progressData = data?.progressData || {};
+  const loading = isLoading && !data;
 
   if (loading) {
     return (

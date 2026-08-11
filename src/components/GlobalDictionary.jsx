@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, BookOpen, Volume2, Loader2, Clock } from 'lucide-react';
+import { Search, X, BookOpen, Volume2, Loader2, Clock, Bookmark, Check } from 'lucide-react';
 import { lookupDictionaryWord } from '../lib/gemini';
+import { supabase } from '../lib/supabaseClient';
 
 export default function GlobalDictionary() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,8 +11,11 @@ export default function GlobalDictionary() {
   const [result, setResult] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   
   const inputRef = useRef(null);
+  const searchRequestRef = useRef(0);
 
   useEffect(() => {
     // Load recent searches from local storage
@@ -32,12 +36,16 @@ export default function GlobalDictionary() {
   };
 
   const handleSearch = async (searchWord) => {
+    if (isSearching) return;
     const wordToSearch = (searchWord || query).trim();
     if (!wordToSearch) return;
+
+    const requestId = ++searchRequestRef.current;
 
     setIsSearching(true);
     setError('');
     setResult(null);
+    setIsSaved(false);
 
     if (searchWord) {
       setQuery(searchWord);
@@ -45,6 +53,7 @@ export default function GlobalDictionary() {
 
     try {
       const data = await lookupDictionaryWord(wordToSearch);
+      if (requestId !== searchRequestRef.current) return;
       if (data && !data.error && data.word) {
         setResult(data);
         // Extract a brief meaning for the recent searches list
@@ -54,9 +63,44 @@ export default function GlobalDictionary() {
         setError('Không tìm thấy kết quả hoặc từ không hợp lệ.');
       }
     } catch (err) {
+      if (requestId !== searchRequestRef.current) return;
       setError('Đã xảy ra lỗi khi tra từ. Vui lòng thử lại.');
     } finally {
-      setIsSearching(false);
+      if (requestId === searchRequestRef.current) setIsSearching(false);
+    }
+  };
+
+  const handleSaveWord = async () => {
+    if (!result) return;
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Vui lòng đăng nhập để lưu từ vựng!");
+        return;
+      }
+      
+      const briefMeaning = result.partsOfSpeech?.[0]?.meanings?.[0]?.definition || '';
+      const example = result.partsOfSpeech?.[0]?.meanings?.[0]?.englishExample || '';
+
+      const { error } = await supabase
+        .from('user_vocabulary')
+        .insert([{
+          user_id: user.id,
+          word: result.word,
+          meaning: briefMeaning,
+          phonetic: result.phonetic,
+          example_sentence: example,
+          source: 'AI Dictionary'
+        }]);
+        
+      if (error) throw error;
+      setIsSaved(true);
+    } catch (err) {
+      console.error("Lỗi khi lưu từ vựng:", err);
+      alert("Không thể lưu từ. Vui lòng thử lại sau.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -182,6 +226,18 @@ export default function GlobalDictionary() {
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-[#3A2F43] hover:bg-slate-200 dark:hover:bg-[#32263C] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
                           US <Volume2 size={14} className="text-fuchsia-500 dark:text-fuchsia-400 transition-colors" />
+                        </button>
+                        <button
+                          onClick={handleSaveWord}
+                          disabled={isSaving || isSaved}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            isSaved 
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
+                              : 'bg-fuchsia-100 dark:bg-fuchsia-900/30 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900/50 text-fuchsia-600 dark:text-fuchsia-400'
+                          }`}
+                        >
+                          {isSaving ? <Loader2 size={14} className="animate-spin" /> : (isSaved ? <Check size={14} /> : <Bookmark size={14} />)}
+                          {isSaved ? 'Đã lưu' : 'Lưu lại'}
                         </button>
                       </div>
                     </div>

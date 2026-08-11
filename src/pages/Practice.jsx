@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import useSWR from 'swr';
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { fetchLearnedPracticeWords } from '../lib/api';
+import { supabase } from '../lib/supabaseClient';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { getShortMeaning } from '../utils/dictionaryParser';
 const WORDS_PER_ROUND = 10;
@@ -105,14 +107,11 @@ export default function Practice() {
   const text = COPY[locale];
   const noMeaning = text.noMeaning;
   const loadError = text.loadError;
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [screen, setScreen] = useState('mode');
   const [selectedMode, setSelectedMode] = useState(null);
   const [selectedScope, setSelectedScope] = useState(null);
   const [scopeQuery, setScopeQuery] = useState('');
-  const [learnedWords, setLearnedWords] = useState([]);
-  const [topics, setTopics] = useState([]);
+  
   const [practicePool, setPracticePool] = useState([]);
   const [usedWordIds, setUsedWordIds] = useState([]);
   const [currentRoundItems, setCurrentRoundItems] = useState([]);
@@ -126,49 +125,77 @@ export default function Practice() {
   const [typingInput, setTypingInput] = useState('');
   const [typingFeedback, setTypingFeedback] = useState(null);
   const [typingAnswers, setTypingAnswers] = useState({});
+
+  const fetchPracticeData = async () => {
+    if (!user) throw new Error('Missing user');
+    const [data, personalData] = await Promise.all([
+      fetchLearnedPracticeWords(user.id),
+      supabase
+        .from('user_vocabulary')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_learned', true)
+        .order('created_at', { ascending: false }),
+    ]);
+    
+    const personalWords = (personalData.data || [])
+      .filter((w) => w.word && w.meaning)
+      .map((w) => ({
+        id: `pv_${w.id}`,
+        word: w.word,
+        meaning: w.meaning,
+        pro: w.phonetic || '',
+        example: w.example_sentence || '',
+      }));
+
+    const formattedById = new Map();
+    const formattedWords = (data.words || [])
+      .map((word) => {
+        const formatted = formatPracticeWord(word, noMeaning);
+        formattedById.set(formatted.id, formatted);
+        return formatted;
+      })
+      .filter((word) => word.id && word.word);
+
+    const formattedTopics = (data.topics || [])
+      .map((topic) => ({
+        ...topic,
+        words: (topic.words || [])
+          .map((word) => formattedById.get(word.id) || formatPracticeWord(word, noMeaning))
+          .filter((word) => word.id && word.word),
+      }))
+      .filter((topic) => topic.words.length > 0);
+
+    return {
+      learnedWords: formattedWords,
+      topics: formattedTopics,
+      personalVocabWords: personalWords
+    };
+  };
+
+  const { data, error: swrError, isLoading } = useSWR(
+    user ? `practice_data_${user.id}` : null,
+    fetchPracticeData,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      dedupingInterval: 60000,
+    }
+  );
+
+  const learnedWords = data?.learnedWords || [];
+  const topics = data?.topics || [];
+  const personalVocabWords = data?.personalVocabWords || [];
+  const loading = isLoading && !data;
+  const error = swrError ? loadError : null;
+
   usePracticeSessionTimer(
     'vocabulary',
     user,
-    screen !== 'mode' && learnedWords.length > 0,
+    screen !== 'mode' && (learnedWords?.length > 0)
   );
-  useEffect(() => {
-    let ignore = false;
-    const loadPracticeData = async () => {
-      if (!user) return;
-      setLoading(true);
-      setError('');
-      const data = await fetchLearnedPracticeWords(user.id);
-      if (ignore) return;
-      const formattedById = new Map();
-      const formattedWords = (data.words || [])
-        .map((word) => {
-          const formatted = formatPracticeWord(word, noMeaning);
-          formattedById.set(formatted.id, formatted);
-          return formatted;
-        })
-        .filter((word) => word.id && word.word);
-      const formattedTopics = (data.topics || [])
-        .map((topic) => ({
-          ...topic,
-          words: (topic.words || [])
-            .map((word) => formattedById.get(word.id) || formatPracticeWord(word, noMeaning))
-            .filter((word) => word.id && word.word),
-        }))
-        .filter((topic) => topic.words.length > 0);
-      setLearnedWords(formattedWords);
-      setTopics(formattedTopics);
-      setLoading(false);
-    };
-    loadPracticeData().catch((err) => {
-      if (ignore) return;
-      console.error('Error loading practice page:', err);
-      setError(loadError);
-      setLoading(false);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [user?.id, noMeaning, loadError]);
+
   const modeConfig = PRACTICE_MODES.find((mode) => mode.id === selectedMode);
   const allMatched = selectedMode === 'matching' && leftItems.length > 0 && links.length === leftItems.length;
   const matchedCount = links.length;
@@ -220,7 +247,7 @@ export default function Practice() {
     setScreen('scope');
   };
   const chooseScope = (scope) => {
-    const pool = scope.type === 'all' ? learnedWords : scope.words;
+    const pool = scope.type === 'all' ? [...learnedWords, ...personalVocabWords] : scope.words;
     if (pool.length === 0) return;
     setSelectedScope(scope);
     setPracticePool(pool);
@@ -358,7 +385,7 @@ export default function Practice() {
       </div>
     );
   }
-  if (learnedWords.length === 0) {
+  if (learnedWords.length === 0 && personalVocabWords.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 bg-[#fff4fa] dark:bg-[#160B1E] transition-colors">
         <div className="max-w-md w-full bg-white dark:bg-[#1E1226] border border-pink-200 dark:border-pink-500/20 rounded-2xl p-8 text-center shadow-xl shadow-pink-100/60 dark:shadow-none">
@@ -387,7 +414,7 @@ export default function Practice() {
               {text.chooseMode}
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-2">
-              {text.ready(learnedWords.length)}
+              {text.ready(learnedWords.length + personalVocabWords.length)}
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
@@ -470,6 +497,31 @@ export default function Practice() {
             </div>
             <ArrowRight className="shrink-0" />
           </button>
+          {personalVocabWords.length > 0 && (
+            <button
+              onClick={() =>
+                chooseScope({
+                  type: 'personal',
+                  id: 'personal',
+                  name: locale === 'vi' ? 'S\u1ed5 tay t\u1eeb v\u1ef1ng' : 'My Vocabulary',
+                  categoryName: locale === 'vi' ? 'C\u00e1 nh\u00e2n' : 'Personal',
+                  words: personalVocabWords,
+                })
+              }
+              className="w-full text-left bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white rounded-2xl p-5 mb-6 flex items-center justify-between gap-4 hover:from-fuchsia-500 hover:to-purple-500 transition-colors cursor-pointer shadow-xl shadow-fuchsia-300/50 dark:shadow-fuchsia-950/25"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                  <BookOpen size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{locale === 'vi' ? 'S\u1ed5 tay t\u1eeb v\u1ef1ng c\u1ee7a t\u00f4i' : 'My Personal Vocabulary'}</h2>
+                  <p className="text-white/70 text-sm">{text.learnedWords(personalVocabWords.length)}</p>
+                </div>
+              </div>
+              <ArrowRight className="shrink-0" />
+            </button>
+          )}
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredTopics.map((topic) => (
               <button

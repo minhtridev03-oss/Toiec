@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import useSWR from 'swr';
 import { ArrowLeft, BookOpen, AlertCircle } from 'lucide-react';
 
 export default function SubCategories() {
@@ -9,58 +10,59 @@ export default function SubCategories() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [subCategories, setSubCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stats, setStats] = useState({});
+  const fetchSubCategoriesData = async () => {
+    if (!user || !mainGroupName) throw new Error('Missing dependencies');
 
-  useEffect(() => {
-    if (user && mainGroupName) {
-      fetchSubCategories();
-    }
-  }, [user, mainGroupName]);
+    const { data: catData, error: catError } = await supabase
+      .from('categories')
+      .select('id, name, icon, color, bg')
+      .ilike('name', `${mainGroupName}||%`)
+      .order('created_at', { ascending: true });
 
-  const fetchSubCategories = async () => {
-    setLoading(true);
-    setError(null);
+    if (catError) throw catError;
+    const categories = catData || [];
 
-    try {
-      const { data: catData, error: catError } = await supabase
-        .from('categories')
-        .select('id, name, icon, color, bg')
-        .ilike('name', `${mainGroupName}||%`)
-        .order('created_at', { ascending: true });
+    const statsMap = {};
+    await Promise.all(categories.map(async (cat) => {
+      const { count: totalCount } = await supabase
+        .from('topic_vocabularies')
+        .select('id', { count: 'exact', head: true })
+        .eq('category_id', cat.id);
 
-      if (catError) throw catError;
-      setSubCategories(catData || []);
+      const { data: learnedData } = await supabase
+        .from('user_topic_vocabularies')
+        .select('vocabulary_id, topic_vocabularies!inner(category_id)')
+        .eq('user_id', user.id)
+        .eq('is_learned', true)
+        .eq('topic_vocabularies.category_id', cat.id);
 
-      const statsMap = {};
-      await Promise.all((catData || []).map(async (cat) => {
-        const { count: totalCount } = await supabase
-          .from('topic_vocabularies')
-          .select('id', { count: 'exact', head: true })
-          .eq('category_id', cat.id);
+      statsMap[cat.id] = {
+        total: totalCount || 0,
+        learned: learnedData ? learnedData.length : 0,
+      };
+    }));
 
-        const { data: learnedData } = await supabase
-          .from('user_topic_vocabularies')
-          .select('vocabulary_id, topic_vocabularies!inner(category_id)')
-          .eq('user_id', user.id)
-          .eq('is_learned', true)
-          .eq('topic_vocabularies.category_id', cat.id);
-
-        statsMap[cat.id] = {
-          total: totalCount || 0,
-          learned: learnedData ? learnedData.length : 0,
-        };
-      }));
-      setStats(statsMap);
-    } catch (err) {
-      console.error('Lỗi khi tải danh mục con:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    return {
+      subCategories: categories,
+      stats: statsMap
+    };
   };
+
+  const { data, error: swrError, isLoading } = useSWR(
+    user?.id && mainGroupName ? `subcategories_${user.id}_${mainGroupName}` : null,
+    fetchSubCategoriesData,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      dedupingInterval: 60000,
+    }
+  );
+
+  const subCategories = data?.subCategories || [];
+  const stats = data?.stats || {};
+  const loading = isLoading && !data;
+  const error = swrError ? swrError.message : null;
 
   if (loading) {
     return (

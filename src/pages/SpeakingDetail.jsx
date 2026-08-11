@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon } from 'lucide-react';
-import { chatSpeaking, translateText, getSpeakingSuggestions, evaluateSpeaking } from '../lib/gemini';
+import { chatSpeaking, translateText, evaluateSpeaking } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -145,34 +145,20 @@ export default function SpeakingDetail() {
         `[SYSTEM: The user just started the conversation. Start naturally with a greeting. Keep it short (1-2 sentences).]`,
         []
       );
-      const aiText = typeof greeting === 'string' ? greeting : (greeting?.response || `Hi there! I'm ${scenario.partner.name}. Nice to meet you!`);
+      const aiText = typeof greeting === 'string' ? greeting : (greeting?.reply || `Hi there! I'm ${scenario.partner.name}. Nice to meet you!`);
+      const initialSuggestions = Array.isArray(greeting?.suggestions) && greeting.suggestions.length > 0
+        ? greeting.suggestions
+        : (Array.isArray(scenario.suggestions) ? scenario.suggestions : []);
       const initialMessages = [{ role: 'ai', content: aiText }];
       setMessages(initialMessages);
+      setSuggestions(initialSuggestions);
       playAudio(aiText);
-      // Get initial dynamic suggestions
-      fetchSuggestions(initialMessages);
     } catch {
       const fallbackMsg = [{ role: 'ai', content: `Hi there! I'm ${scenario.partner.name}. Nice to meet you!` }];
       setMessages(fallbackMsg);
-      fetchSuggestions(fallbackMsg);
+      setSuggestions(Array.isArray(scenario.suggestions) ? scenario.suggestions : []);
     } finally {
       setIsAIThinking(false);
-    }
-  };
-
-  const fetchSuggestions = async (currentMessages) => {
-    try {
-      const newSuggestions = await getSpeakingSuggestions(
-        scenario.title,
-        scenario.description,
-        scenario.partner.name,
-        currentMessages
-      );
-      if (Array.isArray(newSuggestions) && newSuggestions.length > 0) {
-        setSuggestions(newSuggestions);
-      }
-    } catch (e) {
-      console.error('Error fetching suggestions:', e);
     }
   };
 
@@ -206,20 +192,19 @@ export default function SpeakingDetail() {
         scenario.partner.name,
         scenario.partner.role,
         text,
-        newMessages,
+        messages,
         scenario.level
       );
-      const aiText = typeof aiReply === 'string' ? aiReply : (aiReply?.response || "Could you repeat that?");
+      const aiText = typeof aiReply === 'string' ? aiReply : (aiReply?.reply || "Could you repeat that?");
+      const nextSuggestions = Array.isArray(aiReply?.suggestions) ? aiReply.suggestions : [];
       const updatedMessages = [...newMessages, { role: 'ai', content: aiText }];
       setMessages(updatedMessages);
+      setSuggestions(nextSuggestions);
       playAudio(aiText);
-      // Get new contextual suggestions after AI responds
-      fetchSuggestions(updatedMessages);
     } catch (error) {
       console.error(error);
       const fallback = [...newMessages, { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" }];
       setMessages(fallback);
-      fetchSuggestions(fallback);
     } finally {
       setIsAIThinking(false);
     }

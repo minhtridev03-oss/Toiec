@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, XCircle, ArrowRight, RotateCcw, Highlighter } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { explainReadingMistake } from '../lib/gemini';
+import { explainReadingMistakes } from '../lib/gemini';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 const MemoizedContent = React.memo(({ content }) => {
   return (
@@ -25,6 +25,7 @@ export default function ReadingDetail() {
   // Thêm state mới
   const [explanations, setExplanations] = useState({});
   const [isEvaluatingAI, setIsEvaluatingAI] = useState(false);
+  const [explanationError, setExplanationError] = useState('');
   const [allCorrect, setAllCorrect] = useState(false);
   // Tính thời gian luyện đọc vào leaderboard
   usePracticeSessionTimer('reading', user, Boolean(lesson && questions.length > 0));
@@ -32,6 +33,7 @@ export default function ReadingDetail() {
     setIsSubmitted(false);
     setAnswers({});
     setExplanations({});
+    setExplanationError('');
     setAllCorrect(false);
     fetchLesson();
   }, [id]);
@@ -82,24 +84,60 @@ export default function ReadingDetail() {
       }
     } else {
       setAllCorrect(false);
+      setExplanationError('');
+      const availableExplanations = {};
+      const questionsNeedingExplanation = [];
+
+      incorrectQs.forEach((q) => {
+        if (typeof q.explanation === 'string' && q.explanation.trim()) {
+          availableExplanations[q.id] = q.explanation.trim();
+          return;
+        }
+
+        questionsNeedingExplanation.push({
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correct_answer,
+          userAnswer: answers[q.id]
+        });
+      });
+
+      setExplanations(availableExplanations);
+
+      if (questionsNeedingExplanation.length === 0) return;
+
       setIsEvaluatingAI(true);
       try {
-        const promises = incorrectQs.map(async (q) => {
-          const exp = await explainReadingMistake(
-            lesson.content,
-            q.question,
-            q.options,
-            q.correct_answer,
-            answers[q.id]
-          );
-          return { id: q.id, exp };
+        const result = await explainReadingMistakes(
+          lesson.content,
+          questionsNeedingExplanation
+        );
+        const items = Array.isArray(result)
+          ? result
+          : Array.isArray(result?.explanations)
+            ? result.explanations
+            : result?.id != null
+              ? [result]
+              : Object.entries(result || {}).map(([questionId, explanation]) => ({
+                  id: questionId,
+                  explanation
+                }));
+        const aiExplanations = {};
+
+        items.forEach((item) => {
+          if (item?.id != null && typeof item.explanation === 'string' && item.explanation.trim()) {
+            aiExplanations[item.id] = item.explanation.trim();
+          }
         });
-        const results = await Promise.all(promises);
-        const newExps = {};
-        results.forEach(r => newExps[r.id] = r.exp);
-        setExplanations(newExps);
+
+        setExplanations(prev => ({ ...prev, ...aiExplanations }));
+        if (Object.keys(aiExplanations).length < questionsNeedingExplanation.length) {
+          setExplanationError('Một số lời giải thích chưa tải được. Vui lòng làm lại để thử lại.');
+        }
       } catch (err) {
         console.error("Lỗi khi gọi AI giải thích:", err);
+        setExplanationError('Không thể tải lời giải thích lúc này. Vui lòng làm lại để thử lại.');
       } finally {
         setIsEvaluatingAI(false);
       }
@@ -109,6 +147,7 @@ export default function ReadingDetail() {
     setIsSubmitted(false);
     setAnswers({});
     setExplanations({});
+    setExplanationError('');
     setAllCorrect(false);
   };
   const handleNextLesson = async () => {
@@ -295,12 +334,16 @@ export default function ReadingDetail() {
                           ) : explanations[q.id] ? (
                             <div>
                               <div className="flex items-center gap-2 mb-3 font-bold text-orange-700 dark:text-orange-400 text-lg border-b border-orange-200 dark:border-orange-500/20 pb-2">
-                                Giải thích từ AI
+                                Giải thích đáp án
                               </div>
                               <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-medium">
                                 {explanations[q.id]}
                               </p>
                             </div>
+                          ) : explanationError ? (
+                            <p className="text-orange-700 dark:text-orange-400 font-medium">
+                              {explanationError}
+                            </p>
                           ) : null}
                         </div>
                       )}

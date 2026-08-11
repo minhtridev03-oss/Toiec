@@ -13,6 +13,8 @@ const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const Auth = React.lazy(() => import('./pages/Auth'));
 const Categories = React.lazy(() => import('./pages/Categories'));
 const SubCategories = React.lazy(() => import('./pages/SubCategories'));
+const PersonalVocabulary = React.lazy(() => import('./pages/PersonalVocabulary'));
+const PersonalVocabReview = React.lazy(() => import('./pages/PersonalVocabReview'));
 const TFlat = React.lazy(() => import('./pages/TFlat'));
 const WordList = React.lazy(() => import('./pages/WordList'));
 const VocabularyDetail = React.lazy(() => import('./pages/VocabularyDetail'));
@@ -149,6 +151,22 @@ export default function App() {
           element={
             <PrivateRoute>
               <MainLayout><Categories /></MainLayout>
+            </PrivateRoute>
+          } 
+        />
+        <Route 
+          path="/my-vocabulary" 
+          element={
+            <PrivateRoute>
+              <MainLayout><PersonalVocabulary /></MainLayout>
+            </PrivateRoute>
+          } 
+        />
+        <Route 
+          path="/my-vocabulary/review/:index" 
+          element={
+            <PrivateRoute>
+              <MainLayout><PersonalVocabReview /></MainLayout>
             </PrivateRoute>
           } 
         />

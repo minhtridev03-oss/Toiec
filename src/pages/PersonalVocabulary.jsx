@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import useSWR from 'swr';
-import { getShortMeaning } from '../utils/dictionaryParser';
-import { ArrowLeft, CheckCircle2, Circle, Search, Volume2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import WordDetailModal from '../components/vocab/WordDetailModal';
+import { ArrowLeft, Search, Volume2, Loader2, ChevronLeft, ChevronRight, BookOpen, CheckCircle2, Circle } from 'lucide-react';
+
+const PAGE_SIZE = 50;
 
 // Custom hook for debounce
 function useDebounce(value, delay) {
@@ -19,105 +19,45 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
-const PAGE_SIZE = 50;
-
-export default function WordList() {
-  const { id: categoryId } = useParams();
+export default function PersonalVocabulary() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const [page, setPage] = useState(1);
+  
+  const [deletingId, setDeletingId] = useState(null);
+  
+  // Search & pagination
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
-  const [filterMode, setFilterMode] = useState('all');
-  const [selectedWord, setSelectedWord] = useState(null);
+  const [page, setPage] = useState(1);
 
-  // ─── FETCH DỮ LIỆU BẰNG SWR ─────────────────────────────────────────
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery]);
+
   const fetchWordsData = async () => {
-    if (!user || !categoryId) throw new Error('Missing user or categoryId');
-
-    // 1. Fetch sub category name and main category name
-    const { data: subCatData } = await supabase
-      .from('sub_categories')
-      .select('name, categories(name)')
-      .eq('id', categoryId)
-      .single();
-
-    let catName = '';
-    let groupName = null;
-    if (subCatData) {
-      catName = subCatData.name;
-      groupName = subCatData.categories?.name || null;
-    }
-
-    // 2. Build Query for Vocabularies with Pagination
+    if (!user) throw new Error('Missing user');
     let query = supabase
-      .from('topic_vocabularies')
-      .select('id, word, pro, pos, mean, example, example_mean', { count: 'exact' })
-      .eq('sub_category_id', categoryId)
-      .order('word', { ascending: true })
+      .from('user_vocabulary')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-    // Apply Search
     if (debouncedSearchQuery) {
-      query = query.ilike('word', `${debouncedSearchQuery}%`);
+      query = query.ilike('word', `%${debouncedSearchQuery}%`);
     }
 
-    // 3. Handle 'learned' filter
-    if (filterMode === 'learned') {
-      const { data: learnedData } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, topic_vocabularies!inner(sub_category_id)')
-        .eq('user_id', user.id)
-        .eq('is_learned', true)
-        .eq('topic_vocabularies.sub_category_id', categoryId);
-        
-      const learnedIds = learnedData ? learnedData.map(d => d.vocabulary_id) : [];
-      
-      if (learnedIds.length === 0) {
-        return {
-          categoryName: catName,
-          mainGroupName: groupName,
-          words: [],
-          totalCount: 0,
-          learnedMap: {}
-        };
-      } else {
-        query = query.in('id', learnedIds);
-      }
-    }
-
-    const { data: vocabData, count, error: vocabError } = await query;
-    if (vocabError) throw vocabError;
-
-    // 4. Fetch learned status for the current page's words
-    let map = {};
-    if (vocabData && vocabData.length > 0) {
-      const vocabIds = vocabData.map(v => v.id);
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, is_learned')
-        .eq('user_id', user.id)
-        .in('vocabulary_id', vocabIds);
-
-      if (!progressError && progressData) {
-        progressData.forEach(p => {
-          map[p.vocabulary_id] = p.is_learned;
-        });
-      }
-    }
-
+    const { data, count, error } = await query;
+    if (error) throw error;
+    
     return {
-      categoryName: catName,
-      mainGroupName: groupName,
-      words: vocabData || [],
-      totalCount: count || 0,
-      learnedMap: map
+      words: data || [],
+      totalCount: count || 0
     };
   };
 
   const { data, isLoading, mutate } = useSWR(
-    user && categoryId ? `words_${categoryId}_${page}_${debouncedSearchQuery}_${filterMode}_${user.id}` : null,
+    user ? `personal_vocab_${user.id}_${page}_${debouncedSearchQuery}` : null,
     fetchWordsData,
     {
       revalidateOnFocus: false,
@@ -127,10 +67,7 @@ export default function WordList() {
     }
   );
 
-  const categoryName = data?.categoryName || '';
-  const mainGroupName = data?.mainGroupName || null;
   const words = data?.words || [];
-  const learnedMap = data?.learnedMap || {};
   const totalCount = data?.totalCount || 0;
   const loading = isLoading && !data;
 
@@ -140,62 +77,72 @@ export default function WordList() {
 
     // Optimistic update
     mutate(
-      data => ({ ...data, learnedMap: { ...data.learnedMap, [vocabId]: newStatus } }),
+      data => ({ ...data, words: data.words.map(w => w.id === vocabId ? { ...w, is_learned: newStatus } : w) }),
       false
     );
 
     const { error } = await supabase
-      .from('user_topic_vocabularies')
-      .upsert(
-        {
-          user_id: user.id,
-          vocabulary_id: vocabId,
-          is_learned: newStatus,
-        },
-        { onConflict: 'user_id,vocabulary_id' }
-      );
+      .from('user_vocabulary')
+      .update({ is_learned: newStatus })
+      .eq('id', vocabId)
+      .eq('user_id', user.id);
 
     if (error) {
-      console.error('Lỗi khi cập nhật trạng thái đã học:', error);
-      // Revert optimistic update
+      console.error('Error toggling learned status:', error);
+      // Revert on error
       mutate(
-        data => ({ ...data, learnedMap: { ...data.learnedMap, [vocabId]: currentStatus } }),
+        data => ({ ...data, words: data.words.map(w => w.id === vocabId ? { ...w, is_learned: currentStatus } : w) }),
         false
       );
     }
   };
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
-
-  const handleBack = () => {
-    navigate('/categories');
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Bạn có chắc chắn muốn xóa từ này khỏi sổ tay?")) return;
+    
+    setDeletingId(id);
+    try {
+      const { error } = await supabase
+        .from('user_vocabulary')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setWords(prev => prev.filter(w => w.id !== id));
+      setTotalCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error deleting word:', error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  // ─── RENDER ──────────────────────────────────────────────────
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
+
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full">
       {/* Nút quay lại */}
       <button
-        onClick={handleBack}
+        onClick={() => navigate('/categories')}
         className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 mb-6 transition-colors cursor-pointer w-fit"
       >
         <ArrowLeft size={20} />
-        <span className="font-medium">Back to {mainGroupName || 'Categories'}</span>
+        <span className="font-medium">Quay lại chủ đề</span>
       </button>
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100">
-          {categoryName || 'Topic'}
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+          <BookOpen className="text-fuchsia-500" size={28} />
+          Sổ tay từ vựng của tôi
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Showing {totalCount} words
+          {totalCount} từ đã lưu
         </p>
       </div>
 
-      {/* Toolbar: Search + Filter */}
+      {/* Toolbar: Search */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {/* Search */}
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={18} className="text-slate-400" />
@@ -204,33 +151,23 @@ export default function WordList() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm từ vựng trong chủ đề..."
+            placeholder="Tìm kiếm từ vựng trong sổ tay..."
             className="block w-full pl-10 pr-3 py-2.5 border border-pink-200 dark:border-[#3A2F43] rounded-xl bg-white dark:bg-[#1E1226] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 text-sm text-slate-800 dark:text-slate-200 transition-colors"
           />
         </div>
 
-        {/* Filter buttons */}
-        <div className="flex items-center gap-1 bg-pink-100 dark:bg-[#160B1E] border border-pink-200 dark:border-[#3A2F43] p-1 rounded-xl shrink-0 transition-colors">
-          {[
-            { key: 'all', label: 'Tất cả' },
-            { key: 'learned', label: 'Đã học' },
-          ].map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilterMode(f.key)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer
-                ${filterMode === f.key
-                  ? 'bg-white dark:bg-[#2A1F33] text-slate-800 dark:text-slate-200 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {/* Start review button */}
+        {totalCount > 0 && (
+          <button
+            onClick={() => navigate('/my-vocabulary/review/0')}
+            className="px-5 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold text-sm rounded-xl transition-colors cursor-pointer shrink-0 shadow-sm"
+          >
+            Ôn tập Flashcard
+          </button>
+        )}
       </div>
 
-      {/* Danh sách từ vựng */}
+      {/* Word list */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5, 6].map(i => (
@@ -239,12 +176,14 @@ export default function WordList() {
         </div>
       ) : words.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-[#1E1226] rounded-2xl border border-pink-200 dark:border-[#3A2F43] transition-colors">
-          <Search size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Không tìm thấy từ phù hợp</p>
+          <BookOpen size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            {searchQuery ? 'Không tìm thấy từ phù hợp' : 'Chưa có từ vựng nào. Hãy tra từ bằng AI Dictionary và bấm "Lưu lại" để thêm từ vào sổ tay.'}
+          </p>
         </div>
       ) : (
         <div className="bg-white dark:bg-[#1E1226] rounded-2xl shadow-sm border border-pink-200 dark:border-[#3A2F43] overflow-hidden transition-colors">
-          {/* Header bảng (ẩn trên mobile) */}
+          {/* Table header (hidden on mobile) */}
           <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto] gap-4 px-5 py-3 bg-pink-50 dark:bg-[#160B1E] border-b border-pink-100 dark:border-[#3A2F43] text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider transition-colors">
             <span>Từ vựng</span>
             <span className="w-20 text-center">Phát âm</span>
@@ -252,32 +191,34 @@ export default function WordList() {
           </div>
 
           <div className="divide-y divide-pink-100 dark:divide-[#3A2F43] transition-colors">
-            {words.map(word => {
-              const isLearned = !!learnedMap[word.id];
+            {words.map((word, index) => {
+              // Calculate global index for flashcard navigation
+              const globalIndex = (page - 1) * PAGE_SIZE + index;
+              const isLearned = !!word.is_learned;
               return (
-                  <div
-                    key={word.id}
-                    onClick={() => navigate(`/vocabularies/${word.id}`)}
-                    className="flex items-center justify-between p-4 sm:p-5 hover:bg-pink-50 dark:hover:bg-[#2A1F33] transition-colors cursor-pointer group"
-                  >
-                    {/* Cột trái: Từ + Nghĩa */}
-                    <div className="flex-1 min-w-0 mr-4">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors truncate">
-                          {word.word}
-                        </h3>
-                      {word.pro && (
+                <div
+                  key={word.id}
+                  onClick={() => navigate(`/my-vocabulary/review/${globalIndex}`)}
+                  className="flex items-center justify-between p-4 sm:p-5 hover:bg-pink-50 dark:hover:bg-[#2A1F33] transition-colors cursor-pointer group"
+                >
+                  {/* Left: Word + Meaning */}
+                  <div className="flex-1 min-w-0 mr-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors truncate">
+                        {word.word}
+                      </h3>
+                      {word.phonetic && (
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-mono hidden sm:inline shrink-0">
-                          {word.pro.split('#')[0]}
+                          {word.phonetic}
                         </span>
                       )}
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                      {getShortMeaning(word)}
+                      {word.meaning}
                     </p>
                   </div>
 
-                  {/* Nút phát âm */}
+                  {/* Play audio button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -297,7 +238,7 @@ export default function WordList() {
                   {/* Checkbox "Đã học" */}
                   <button
                     onClick={(e) => toggleLearned(e, word.id, isLearned)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer shrink-0 min-w-[60px]
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer shrink-0 min-w-[60px] mr-2
                       ${isLearned
                         ? 'text-green-500 dark:text-green-400 bg-green-50 dark:bg-green-500/10 hover:bg-green-100 dark:hover:bg-green-500/20'
                         : 'text-slate-300 dark:text-slate-500 hover:text-slate-500 dark:hover:text-slate-300 hover:bg-pink-100 dark:hover:bg-[#3A2F43]'
@@ -317,7 +258,7 @@ export default function WordList() {
             })}
           </div>
 
-          {/* Footer phân trang */}
+          {/* Footer pagination */}
           <div className="px-5 py-4 bg-pink-50 dark:bg-[#160B1E] border-t border-pink-100 dark:border-[#3A2F43] flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
             <span className="text-sm text-slate-500 dark:text-slate-400">
               Hiển thị từ {(page - 1) * PAGE_SIZE + 1} đến {Math.min(page * PAGE_SIZE, totalCount)} trong số {totalCount} từ
@@ -348,13 +289,6 @@ export default function WordList() {
             </div>
           </div>
         </div>
-      )}
-
-      {selectedWord && (
-        <WordDetailModal
-          word={selectedWord}
-          onClose={() => setSelectedWord(null)}
-        />
       )}
     </div>
   );

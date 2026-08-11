@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.110.7'
 
 export const MAX_PAYLOAD_BYTES = 1_000_000
 
@@ -126,6 +126,7 @@ export const errorResponse = (req: Request, error: unknown) => {
   }
 
   if (typeof error === 'object' && error && 'issues' in error) {
+    console.error('Zod Validation Error:', JSON.stringify(error.issues, null, 2))
     return jsonResponse(req, { error: 'Dữ liệu gửi lên không hợp lệ.' }, 400)
   }
 
@@ -184,7 +185,7 @@ export const createAdminClient = () => {
 }
 
 export const consumeRateLimit = async (
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: ReturnType<typeof createAdminClient>,
   key: string,
   limit: number,
   windowSeconds: number,
@@ -202,8 +203,13 @@ export const consumeRateLimit = async (
     throw new HttpError(503, 'Chưa thể kiểm tra tần suất request. Vui lòng thử lại sau.')
   }
 
-  if (!data?.allowed) {
-    const retryAfter = Number(data?.retry_after_seconds || windowSeconds)
+  const rateLimitResult = data as {
+    allowed?: boolean
+    retry_after_seconds?: number
+  } | null
+
+  if (!rateLimitResult?.allowed) {
+    const retryAfter = Number(rateLimitResult?.retry_after_seconds || windowSeconds)
     throw new HttpError(
       429,
       `Bạn thao tác quá nhanh. Vui lòng thử lại sau ${retryAfter} giây.`,

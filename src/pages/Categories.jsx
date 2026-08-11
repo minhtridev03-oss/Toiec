@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useSWR from 'swr';
 import { AlertCircle, BookOpen, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
+
 const FALLBACK_IMAGES = {
   destination: '/assets/vocab-covers/destination-archive.jpg',
   oxford: '/assets/vocab-covers/oxford-archive.jpg',
@@ -120,14 +122,61 @@ export default function Categories() {
       errorTitle: 'Unable to load data', retry: 'Try again', title: 'Vocabulary Categories', subtitle: 'Choose a topic to start learning', empty: 'There are no topics yet.',
       viewSets: (name) => `View vocabulary sets in ${name}`, sets: 'sets', words: 'words', learned: 'learned', setsLabel: 'Vocabulary sets', chooseSet: 'Choose a set to start learning.', close: 'Close', closeDialog: 'Close vocabulary sets',
     };
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stats, setStats] = useState({});
   const [selectedGroup, setSelectedGroup] = useState(null);
-  useEffect(() => {
-    if (user) fetchCategoriesWithStats();
-  }, [user?.id]);
+
+  const fetchCategoriesData = async () => {
+    if (!user?.id) throw new Error('No user');
+    const { data: catData, error: catError } = await supabase
+      .from('categories')
+      .select('*, sub_categories(*)')
+      .order('created_at', { ascending: true });
+    if (catError) throw catError;
+    const formattedCategories = (catData || []).map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      img: cat.img,
+      description: cat.description || cat.desc || '',
+      subCategories: [...(cat.sub_categories || [])]
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+    }));
+    const { data: progressRows, error: progressError } = await supabase
+      .rpc('get_sub_category_progress', { p_user_id: user.id });
+    if (progressError) throw progressError;
+    const statsMap = {};
+    (progressRows || []).forEach((row) => {
+      statsMap[row.sub_category_id] = {
+        total: Number(row.total_count) || 0,
+        learned: Number(row.learned_count) || 0,
+      };
+    });
+    const { count: pCount, error: pError } = await supabase
+      .from('user_vocabulary')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+    return {
+      categories: formattedCategories,
+      stats: statsMap,
+      personalVocabCount: pError ? 0 : (pCount || 0)
+    };
+  };
+
+  const { data, error: swrError, isLoading, mutate } = useSWR(
+    user?.id ? `categories_${user.id}` : null,
+    fetchCategoriesData,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      dedupingInterval: 60000,
+    }
+  );
+
+  const categories = data?.categories || [];
+  const stats = data?.stats || {};
+  const personalVocabCount = data?.personalVocabCount || 0;
+  const loading = isLoading && !data;
+  const error = swrError ? (locale === 'vi' ? 'Không thể tải danh sách chủ đề. Vui lòng thử lại.' : 'Could not load the topic list. Please try again.') : null;
+
   useEffect(() => {
     if (!selectedGroup) return undefined;
     const handleKeyDown = (event) => {
@@ -136,41 +185,7 @@ export default function Categories() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedGroup]);
-  const fetchCategoriesWithStats = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: catData, error: catError } = await supabase
-        .from('categories')
-        .select('*, sub_categories(*)')
-        .order('created_at', { ascending: true });
-      if (catError) throw catError;
-      setCategories((catData || []).map((cat) => ({
-        id: cat.id,
-        name: cat.name,
-        img: cat.img,
-        description: cat.description || cat.desc || '',
-        subCategories: [...(cat.sub_categories || [])]
-          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
-      })));
-      const { data: progressRows, error: progressError } = await supabase
-        .rpc('get_sub_category_progress', { p_user_id: user.id });
-      if (progressError) throw progressError;
-      const statsMap = {};
-      (progressRows || []).forEach((row) => {
-        statsMap[row.sub_category_id] = {
-          total: Number(row.total_count) || 0,
-          learned: Number(row.learned_count) || 0,
-        };
-      });
-      setStats(statsMap);
-    } catch (err) {
-      console.error('Error loading vocabulary categories:', err);
-      setError(locale === 'vi' ? 'Không thể tải danh sách chủ đề. Vui lòng thử lại.' : 'Could not load the topic list. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+
   const getGroupStats = (group) => group.subCategories.reduce((total, sub) => {
     const subStats = stats[sub.id] || { total: 0, learned: 0 };
     return {
@@ -237,8 +252,34 @@ export default function Categories() {
           <p className="font-medium text-slate-500 dark:text-[#b8aab6]">{text.empty}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {categories.map((group) => {
+        <div className="space-y-8">
+          {/* Personal Vocabulary Banner */}
+          <div
+            onClick={() => navigate('/my-vocabulary')}
+            className="group relative flex flex-col sm:flex-row items-center gap-6 overflow-hidden rounded-[24px] border border-fuchsia-200 bg-white p-6 sm:p-8 transition-all hover:-translate-y-1 hover:border-fuchsia-400 hover:shadow-xl hover:shadow-fuchsia-200/50 cursor-pointer dark:border-fuchsia-900/40 dark:bg-[#1E1226] dark:hover:border-fuchsia-700/70"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-50/80 to-transparent dark:from-fuchsia-950/20 pointer-events-none" />
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-400 to-purple-600 text-white shadow-lg shadow-fuchsia-500/30">
+              <BookOpen size={36} />
+            </div>
+            <div className="relative flex-1 text-center sm:text-left">
+              <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white">
+                Sổ tay từ vựng của tôi
+              </h2>
+              <p className="mt-2 text-base font-medium text-slate-500 dark:text-slate-400 max-w-xl">
+                Danh sách các từ vựng cá nhân bạn đã lưu từ AI Dictionary và các bài học.
+              </p>
+            </div>
+            <div className="relative flex items-center gap-3 rounded-2xl bg-fuchsia-50 px-6 py-4 dark:bg-fuchsia-950/40 border border-fuchsia-100 dark:border-fuchsia-900/30 sm:ml-auto">
+              <span className="text-3xl font-black text-fuchsia-600 dark:text-fuchsia-400">{personalVocabCount}</span>
+              <span className="text-sm font-bold text-fuchsia-800/60 dark:text-fuchsia-300/60 leading-tight">
+                từ<br />đã lưu
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {categories.map((group) => {
             const meta = getCategoryMeta(group.name, locale);
             // Ưu tiên: 1) Ảnh từ Supabase Storage, 2) Cột img trong DB, 3) Fallback local
             const storageUrl = getStorageImageUrl(group.id);
@@ -306,6 +347,7 @@ export default function Categories() {
               </article>
             );
           })}
+        </div>
         </div>
       )}
       {selectedGroup && (
