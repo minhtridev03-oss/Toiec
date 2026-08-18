@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, RotateCcw, Target, PenTool, ChevronRight, ChevronLeft, AlertCircle, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { evaluateTranslation } from '../lib/gemini';
+import { praiseLearningBot } from '../lib/learningBot';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
@@ -67,6 +68,9 @@ export default function WritingDetail() {
         lesson.title // Pass examType to apply TOEIC or IELTS rubrics
       );
       setFeedback(result);
+      praiseLearningBot(result?.is_correct
+        ? 'Câu dịch chính xác rồi! Bạn tiến bộ rất tốt 💖'
+        : 'Không sao, hãy xem góp ý rồi thử lại nhé. Bạn làm được mà ✨');
 
       // Tối ưu UI (Optimistic): Lưu ngầm tiến độ, không dùng await để hiện feedback ngay lập tức
       if (result && result.accuracy >= 80 && user) {

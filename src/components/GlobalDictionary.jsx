@@ -4,7 +4,7 @@ import { Search, X, BookOpen, Volume2, Loader2, Clock, Bookmark, Check } from 'l
 import { lookupDictionaryWord } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
 
-export default function GlobalDictionary() {
+export default function GlobalDictionary({ showTrigger = true }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -27,6 +27,12 @@ export default function GlobalDictionary() {
         console.error(e);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const openDictionary = () => setIsOpen(true);
+    window.addEventListener('global-dictionary:open', openDictionary);
+    return () => window.removeEventListener('global-dictionary:open', openDictionary);
   }, []);
 
   const saveRecentSearch = (word, meaning) => {
@@ -126,14 +132,14 @@ export default function GlobalDictionary() {
   return (
     <>
       {/* Floating Action Button */}
-      <motion.button
+      {showTrigger && <motion.button
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-tr from-pink-500 to-fuchsia-600 rounded-full shadow-lg shadow-pink-500/40 flex items-center justify-center text-white hover:scale-110 transition-transform"
         onClick={() => setIsOpen(true)}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
       >
         <BookOpen size={24} />
-      </motion.button>
+      </motion.button>}
 
       {/* Dictionary Modal */}
       <AnimatePresence>

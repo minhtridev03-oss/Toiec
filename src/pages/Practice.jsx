@@ -25,6 +25,7 @@ import { useLocale } from '../contexts/LocaleContext';
 import { fetchLearnedPracticeWords } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
+import { praiseLearningBot } from '../lib/learningBot';
 import { getShortMeaning } from '../utils/dictionaryParser';
 const WORDS_PER_ROUND = 10;
 const PAIR_COLORS = [
@@ -314,6 +315,9 @@ export default function Practice() {
     // Check against English word
     const isCorrect = normalizeAnswer(typingInput) === normalizeAnswer(currentTypingWord.word);
     setTypingFeedback(isCorrect ? 'correct' : 'incorrect');
+    praiseLearningBot(isCorrect
+      ? 'Đúng rồi! Bạn nhớ từ rất tốt 🌟'
+      : 'Chưa đúng cũng không sao, mình thử lại một lần nữa nhé 💪');
     setTypingAnswers((prev) => ({
       ...prev,
       [currentTypingWord.id]: {

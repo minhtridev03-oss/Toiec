@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, XCircle, ArrowRight, RotateCcw, Highlighter } 
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { explainReadingMistakes } from '../lib/gemini';
+import { praiseLearningBot } from '../lib/learningBot';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 const MemoizedContent = React.memo(({ content }) => {
   return (
@@ -74,6 +75,7 @@ export default function ReadingDetail() {
     const incorrectQs = questions.filter(q => answers[q.id] !== q.correct_answer);
     if (incorrectQs.length === 0) {
       setAllCorrect(true);
+      praiseLearningBot('Chính xác toàn bộ! Bạn làm Reading rất tốt, tuyệt vời lắm ✨');
       if (user) {
         supabase
           .from('user_reading_progress')

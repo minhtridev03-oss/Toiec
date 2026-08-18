@@ -18,6 +18,7 @@ const TFlat = React.lazy(() => import('./pages/TFlat'));
 const WordList = React.lazy(() => import('./pages/WordList'));
 const GlobalDictionary = React.lazy(() => import('./components/GlobalDictionary'));
 const GlobalFeedback = React.lazy(() => import('./components/GlobalFeedback'));
+const LearningBotDock = React.lazy(() => import('./components/layout/LearningBotDock'));
 const VocabularyDetail = React.lazy(() => import('./pages/VocabularyDetail'));
 const Practice = React.lazy(() => import('./pages/Practice'));
 const KidsZone = React.lazy(() => import('./pages/KidsZone'));
@@ -105,8 +106,9 @@ const MainLayout = ({ children }) => {
         <Footer />
       </div>
       <Suspense fallback={null}>
-        <GlobalDictionary />
-        <GlobalFeedback />
+        <LearningBotDock />
+        <GlobalDictionary showTrigger={false} />
+        <GlobalFeedback showTrigger={false} />
       </Suspense>
     </div>
   );

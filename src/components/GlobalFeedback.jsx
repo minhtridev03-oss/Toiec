@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquarePlus, X, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function GlobalFeedback() {
+export default function GlobalFeedback({ showTrigger = true }) {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { user } = useAuth();
+
+  useEffect(() => {
+    const openFeedback = () => setIsOpen(true);
+    window.addEventListener('global-feedback:open', openFeedback);
+    return () => window.removeEventListener('global-feedback:open', openFeedback);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +55,7 @@ export default function GlobalFeedback() {
   return (
     <>
       {/* Nút Góp ý - Nằm trên nút Từ điển (bottom-24 thay vì bottom-6) */}
-      <motion.button
+      {showTrigger && <motion.button
         className="fixed bottom-[5.5rem] right-6 z-40 w-12 h-12 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-full shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white hover:scale-110 transition-transform"
         onClick={() => setIsOpen(true)}
         whileHover={{ scale: 1.1 }}
@@ -57,7 +63,7 @@ export default function GlobalFeedback() {
         title="Góp ý phát triển"
       >
         <MessageSquarePlus size={20} />
-      </motion.button>
+      </motion.button>}
 
       {/* Modal Góp ý */}
       <AnimatePresence>
