@@ -5,21 +5,19 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  KeyRound,
   Languages,
   LockKeyhole,
   Mail,
   Moon,
   Sparkles,
   Sun,
-  UserPlus,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { signInWithEmail, signUpWithEmail } from '../lib/authApi';
-import shinTLogo from '../assets/shinT.jpg';
+import appLogo from '../assets/log.jpg';
 import TransparentImage from '../components/TransparentImage';
 const COPY = {
   vi: {
@@ -182,15 +180,14 @@ export default function Auth() {
   };
   const fieldClass = 'w-full rounded-2xl border-2 border-pink-100/50 bg-[#fffafd] py-3 pl-11 pr-4 text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-pink-500 focus:bg-white focus:ring-4 focus:ring-pink-500/10 dark:border-pink-500/20 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-pink-400 dark:focus:bg-white/10 hover:border-pink-300 dark:hover:border-pink-500/40';
   return (
-    <main className="min-h-screen bg-[#fff5fa] px-4 py-4 lg:py-8 text-slate-900 transition-colors dark:bg-[#100813] dark:text-white sm:px-6 sm:py-6 flex flex-col items-center justify-center">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between mb-6 lg:mb-8 z-10 relative">
-        <Link to="/login" className="flex items-center gap-2 font-extrabold tracking-wide text-[#31162d] dark:text-white">
-          <div className="flex h-9 w-9 items-center justify-center">
-            <TransparentImage src={shinTLogo} alt="Logo" className="h-full w-full scale-125 object-contain" tolerance={245} />
+    <main className="min-h-screen bg-[#fff5fa] px-4 py-2 text-slate-900 transition-colors dark:bg-[#100813] dark:text-white sm:px-6 sm:py-3 lg:py-4 flex flex-col items-center justify-center">
+      <div className="relative z-10 mx-auto mb-3 flex w-full max-w-5xl items-center justify-between lg:mb-4">
+        <Link to="/login" aria-label="Trang đăng nhập" className="hidden items-center justify-center lg:flex">
+          <div className="flex h-16 w-28 items-center justify-center sm:h-20 sm:w-32">
+            <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
           </div>
-          <span>TENGLISH</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center rounded-lg border border-pink-200 bg-white p-1 text-xs font-bold shadow-sm dark:border-pink-500/20 dark:bg-white/5">
             <Languages size={15} className="ml-1.5 mr-1 text-pink-500" aria-hidden="true" />
             <button type="button" onClick={() => setLocale('vi')} className={`rounded-md px-2.5 py-1.5 transition-colors ${locale === 'vi' ? 'bg-pink-500 text-white' : 'text-slate-500 hover:text-pink-600 dark:text-slate-400 dark:hover:text-pink-200'}`}>VI</button>
@@ -214,17 +211,13 @@ export default function Auth() {
           <div className="w-full">
             <div className="mb-10 relative">
               {/* Premium Mobile Icon/Badge */}
-              <div className="mb-8 flex flex-col items-start lg:hidden">
-                <div className="relative flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-pink-500 to-fuchsia-500 opacity-20 blur-xl"></div>
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-white to-pink-50 border border-pink-100 shadow-xl shadow-pink-900/5 dark:from-[#231526] dark:to-[#1a0f1d] dark:border-[#3A2F43] dark:shadow-black/50">
-                    <Sparkles className="absolute top-2 right-2 text-pink-400 opacity-60" size={12} />
-                    {isLogin ? <KeyRound size={28} className="text-pink-600 dark:text-pink-400" /> : <UserPlus size={28} className="text-fuchsia-600 dark:text-fuchsia-400" />}
-                  </div>
+              <div className="mb-8 flex justify-center lg:hidden">
+                <div className="flex h-20 w-32 items-center justify-center">
+                  <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
                 </div>
               </div>
               
-              <div className="inline-flex items-center gap-2 rounded-full border border-pink-200/60 bg-pink-50/50 px-3 py-1 mb-4 dark:border-pink-500/20 dark:bg-pink-500/10">
+              <div className="hidden items-center gap-2 rounded-full border border-pink-200/60 bg-pink-50/50 px-3 py-1 mb-4 dark:border-pink-500/20 dark:bg-pink-500/10 lg:inline-flex">
                 <div className="h-1.5 w-1.5 rounded-full bg-pink-500 animate-pulse"></div>
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-pink-600 dark:text-pink-400">Tenglish</p>
               </div>

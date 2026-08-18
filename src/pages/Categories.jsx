@@ -128,7 +128,7 @@ export default function Categories() {
     if (!user?.id) throw new Error('No user');
     const { data: catData, error: catError } = await supabase
       .from('categories')
-      .select('*, sub_categories(*)')
+      .select('id, name, img, created_at, sub_categories(id, name, created_at)')
       .order('created_at', { ascending: true });
     if (catError) throw catError;
     const formattedCategories = (catData || []).map((cat) => ({
@@ -151,7 +151,7 @@ export default function Categories() {
     });
     const { count: pCount, error: pError } = await supabase
       .from('user_vocabulary')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id);
     return {
       categories: formattedCategories,
@@ -226,7 +226,7 @@ export default function Categories() {
             <p className="mt-1 text-sm text-red-300">{error}</p>
             <button
               type="button"
-              onClick={fetchCategoriesWithStats}
+              onClick={() => mutate()}
               className="mt-3 cursor-pointer rounded-xl bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/30"
             >
               {text.retry}
@@ -308,7 +308,7 @@ export default function Categories() {
                   <img
                     src={imageSrc}
                     alt={group.name}
-                    loading="eager"
+                    loading="lazy"
                     onError={(event) => {
                       event.currentTarget.onerror = null;
                       event.currentTarget.src = fallbackSrc;

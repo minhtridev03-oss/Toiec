@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-  BookOpen, PenTool, Headphones, FileText, BookType,
+  BookOpen, LibraryBig, PenTool, Headphones, FileText, BookType,
   TrendingUp, Database
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -17,6 +17,7 @@ export default function AdminDashboard() {
     tense_exercises: 0,
     vocab_categories: 0,
     vocabularies: 0,
+    library_books: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -36,6 +37,7 @@ export default function AdminDashboard() {
         supabase.from('tense_exercises').select('id', { count: 'exact', head: true }),
         supabase.from('categories').select('id', { count: 'exact', head: true }),
         supabase.from('vocabularies').select('id', { count: 'exact', head: true }),
+        supabase.from('library_books').select('id', { count: 'exact', head: true }),
       ];
 
       const results = await Promise.all(queries);
@@ -50,6 +52,7 @@ export default function AdminDashboard() {
         tense_exercises: results[6].count || 0,
         vocab_categories: results[7].count || 0,
         vocabularies: results[8].count || 0,
+        library_books: results[9].count || 0,
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -108,6 +111,15 @@ export default function AdminDashboard() {
         { label: 'Từ vựng', value: stats.vocabularies },
       ],
     },
+    {
+      title: 'Thư viện sách',
+      to: '/admin/library',
+      icon: LibraryBig,
+      color: 'fuchsia',
+      stats: [
+        { label: 'Sách', value: stats.library_books },
+      ],
+    },
   ];
 
   const colorMap = {
@@ -135,6 +147,11 @@ export default function AdminDashboard() {
       bg: 'bg-rose-50 dark:bg-rose-500/10',
       icon: 'text-rose-600 dark:text-rose-400',
       badge: 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300',
+    },
+    fuchsia: {
+      bg: 'bg-fuchsia-50 dark:bg-fuchsia-500/10',
+      icon: 'text-fuchsia-600 dark:text-fuchsia-400',
+      badge: 'bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300',
     },
   };
 

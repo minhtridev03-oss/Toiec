@@ -12,6 +12,7 @@ export const messages = {
       speaking: 'Luyện nói',
       reading: 'Luyện đọc',
       writing: 'Luyện viết',
+      library: 'Thư viện',
       admin: 'Quản trị',
     },
     common: {
@@ -35,6 +36,7 @@ export const messages = {
       speaking: 'Speaking',
       reading: 'Reading',
       writing: 'Writing',
+      library: 'Library',
       admin: 'Admin Panel',
     },
     common: {

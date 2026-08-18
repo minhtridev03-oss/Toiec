@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useLocale } from '../contexts/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
 import LessonMediaPlayer from './LessonMediaPlayer';
@@ -154,6 +155,8 @@ export default function VideoDictationPlayer({ videoData, segments }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [availableQualities, setAvailableQualities] = useState(['default']);
   const [quality, setQuality] = useState('default');
+
+  usePracticeSessionTimer('dictation', user, Boolean(videoData && segments.length > 0), isPlaying);
 
   const playerRef = useRef(null);
   const intervalRef = useRef(null);

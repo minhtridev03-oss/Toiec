@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 export const PRACTICE_SKILLS = [
@@ -12,6 +12,12 @@ export const PRACTICE_SKILLS = [
 
 const MIN_SESSION_SECONDS = 10;
 const MAX_SESSION_SECONDS = 4 * 60 * 60;
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const IDLE_TIMEOUT_MS = 60_000;
+const ACTIVITY_CACHE_TTL_MS = 30_000;
+
+const activityCache = new Map();
+const activityInflight = new Map();
 
 const pad2 = (value) => String(value).padStart(2, '0');
 
@@ -58,7 +64,55 @@ export const fetchPracticeActivityLast7Days = async (userId, skill, locale = 'vi
   start.setDate(start.getDate() - 6);
   start.setHours(0, 0, 0, 0);
 
-  try {
+  const timezone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch {
+      return 'UTC';
+    }
+  })();
+  const cacheKey = `${userId}:${skill}:${locale}:${start.toISOString()}:${timezone}`;
+  const cached = activityCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data.map((day) => ({ ...day }));
+  }
+  if (activityInflight.has(cacheKey)) return activityInflight.get(cacheKey);
+
+  const request = (async () => {
+    const dayMap = new Map(days.map((day) => [day.key, day]));
+    const addRowsToDays = (rows, aggregated = false) => {
+      (rows || []).forEach((session) => {
+        // RPC returns a date already converted to the user's timezone. The
+        // fallback query returns timestamps and is grouped in the browser.
+        const key = aggregated
+          ? String(session.practice_date).slice(0, 10)
+          : getLocalDateKey(new Date(session.created_at));
+        const seconds = aggregated ? session.total_seconds : session.duration_seconds;
+        const day = dayMap.get(key);
+        if (!day) return;
+
+        day.seconds += Number(seconds) || 0;
+        day.minutes = Number((day.seconds / 60).toFixed(1));
+      });
+    };
+
+    try {
+      const { data: aggregatedData, error: aggregateError } = await supabase.rpc('get_practice_activity', {
+        p_skill: skill,
+        p_since: start.toISOString(),
+        p_timezone: timezone,
+      });
+
+      if (!aggregateError) {
+        addRowsToDays(aggregatedData, true);
+        activityCache.set(cacheKey, { data: days, expiresAt: Date.now() + ACTIVITY_CACHE_TTL_MS });
+        return days.map((day) => ({ ...day }));
+      }
+    } catch {
+      // The RPC is deployed separately from the frontend. Fall back while a
+      // deployment is in progress or when an older project has no RPC yet.
+    }
+
     const { data, error } = await supabase
       .from('user_practice_sessions')
       .select('duration_seconds, created_at')
@@ -68,21 +122,19 @@ export const fetchPracticeActivityLast7Days = async (userId, skill, locale = 'vi
       .order('created_at', { ascending: true });
 
     if (error) throw error;
+    addRowsToDays(data, false);
+    activityCache.set(cacheKey, { data: days, expiresAt: Date.now() + ACTIVITY_CACHE_TTL_MS });
+    return days.map((day) => ({ ...day }));
+  })();
 
-    const dayMap = new Map(days.map((day) => [day.key, day]));
-    (data || []).forEach((session) => {
-      const key = getLocalDateKey(new Date(session.created_at));
-      const day = dayMap.get(key);
-      if (!day) return;
-
-      day.seconds += Number(session.duration_seconds) || 0;
-      day.minutes = Number((day.seconds / 60).toFixed(1));
-    });
-
-    return days;
+  activityInflight.set(cacheKey, request);
+  try {
+    return await request;
   } catch (error) {
     console.warn('Practice activity data is unavailable:', error.message || error);
     return days;
+  } finally {
+    activityInflight.delete(cacheKey);
   }
 };
 
@@ -115,44 +167,117 @@ export const recordPracticeSession = async ({ userId, skill, durationSeconds }) 
 
   if (error) {
     console.warn('Could not record practice session:', error.message || error);
+    return;
+  }
+
+  for (const key of activityCache.keys()) {
+    if (key.startsWith(`${userId}:${skill}:`)) activityCache.delete(key);
   }
 };
 
-export const usePracticeSessionTimer = (skill, user, enabled = true) => {
-  const startRef = useRef(Date.now());
-  const flushedRef = useRef(false);
-
+export const usePracticeSessionTimer = (skill, user, enabled = true, mediaPlaying = false) => {
   useEffect(() => {
     if (!enabled || !user?.id || !skill) return undefined;
 
-    startRef.current = Date.now();
-    flushedRef.current = false;
+    // Count active segments instead of the whole time the page stays open.
+    // This prevents background tabs, idle time and long pauses from inflating
+    // the dashboard while still allowing reading sessions without constant
+    // mouse/keyboard input (the idle grace period is one minute).
+    let segmentStartedAt = document.visibilityState === 'visible' ? Date.now() : null;
+    let lastActivityAt = Date.now();
+    let isIdle = false;
+    let unsavedSeconds = 0;
+    let writeQueue = Promise.resolve();
 
-    const flushSession = () => {
-      if (flushedRef.current) return;
+    const queueWrite = () => {
+      const wholeSeconds = Math.floor(unsavedSeconds);
+      if (wholeSeconds < MIN_SESSION_SECONDS) return;
 
-      const durationSeconds = (Date.now() - startRef.current) / 1000;
-      if (durationSeconds < MIN_SESSION_SECONDS) return;
+      unsavedSeconds -= wholeSeconds;
+      writeQueue = writeQueue
+        .then(() => recordPracticeSession({
+          userId: user.id,
+          skill,
+          durationSeconds: wholeSeconds,
+        }))
+        .catch((error) => {
+          // Keep the timer alive if a single write fails. The error is already
+          // logged by recordPracticeSession, so this avoids an unhandled promise.
+          console.warn('Practice session write failed:', error?.message || error);
+        });
+    };
 
-      flushedRef.current = true;
-      recordPracticeSession({
-        userId: user.id,
-        skill,
-        durationSeconds,
-      });
+    const pauseSegment = () => {
+      if (segmentStartedAt === null) return;
+      unsavedSeconds += Math.max(0, (Date.now() - segmentStartedAt) / 1000);
+      segmentStartedAt = null;
+      queueWrite();
+    };
+
+    const resumeSegment = () => {
+      if (document.visibilityState !== 'visible' || isIdle || segmentStartedAt !== null) return;
+      segmentStartedAt = Date.now();
+    };
+
+    const markActivity = () => {
+      lastActivityAt = Date.now();
+      if (isIdle) {
+        isIdle = false;
+        resumeSegment();
+      }
+    };
+
+    const checkIdle = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (mediaPlaying) {
+        lastActivityAt = Date.now();
+        if (isIdle) {
+          isIdle = false;
+          resumeSegment();
+        }
+        return;
+      }
+      if (!isIdle && Date.now() - lastActivityAt >= IDLE_TIMEOUT_MS) {
+        isIdle = true;
+        pauseSegment();
+      }
+    };
+
+    const heartbeat = () => {
+      if (segmentStartedAt !== null) {
+        unsavedSeconds += Math.max(0, (Date.now() - segmentStartedAt) / 1000);
+        segmentStartedAt = Date.now();
+      }
+      queueWrite();
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flushSession();
+      if (document.visibilityState === 'hidden') {
+        pauseSegment();
+        return;
+      }
+
+      lastActivityAt = Date.now();
+      isIdle = false;
+      resumeSegment();
     };
 
-    window.addEventListener('pagehide', flushSession);
+    const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'scroll', 'wheel'];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
+    window.addEventListener('pagehide', pauseSegment);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    const idleInterval = window.setInterval(checkIdle, 15_000);
+    const heartbeatInterval = window.setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
+
     return () => {
-      window.removeEventListener('pagehide', flushSession);
+      window.clearInterval(idleInterval);
+      window.clearInterval(heartbeatInterval);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+      window.removeEventListener('pagehide', pauseSegment);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      flushSession();
+      pauseSegment();
+      queueWrite();
     };
-  }, [enabled, skill, user?.id]);
+  }, [enabled, mediaPlaying, skill, user?.id]);
 };

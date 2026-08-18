@@ -66,3 +66,7 @@ src/assets/*.csv
 src/assets/*.pdf
 src/assets/Audio*/
 src/assets/*Audio*/
+
+# ===== Databases & SQL Scripts =====
+*.db
+*.sql

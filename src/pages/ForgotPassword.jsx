@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { requestPasswordReset } from '../lib/authApi';
 import { useLocale } from '../contexts/LocaleContext';
-import shinTLogo from '../assets/shinT.jpg';
+import appLogo from '../assets/log.jpg';
 import TransparentImage from '../components/TransparentImage';
 import { useTheme } from '../contexts/ThemeContext';
 const COPY = {
@@ -98,15 +98,14 @@ export default function ForgotPassword() {
   };
   const fieldClass = 'w-full rounded-2xl border-2 border-pink-100/50 bg-[#fffafd] py-3 pl-11 pr-4 text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-pink-500 focus:bg-white focus:ring-4 focus:ring-pink-500/10 dark:border-pink-500/20 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-pink-400 dark:focus:bg-white/10 hover:border-pink-300 dark:hover:border-pink-500/40';
   return (
-    <main className="min-h-screen bg-[#fff5fa] px-4 py-4 lg:py-8 text-slate-900 transition-colors dark:bg-[#100813] dark:text-white sm:px-6 sm:py-6 flex flex-col items-center justify-center">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between mb-6 lg:mb-8 z-10 relative">
-        <Link to="/login" className="flex items-center gap-2 font-extrabold tracking-wide text-[#31162d] dark:text-white">
-          <div className="flex h-9 w-9 items-center justify-center">
-            <TransparentImage src={shinTLogo} alt="Logo" className="h-full w-full scale-125 object-contain" tolerance={245} />
+    <main className="min-h-screen bg-[#fff5fa] px-4 py-2 text-slate-900 transition-colors dark:bg-[#100813] dark:text-white sm:px-6 sm:py-3 lg:py-4 flex flex-col items-center justify-center">
+      <div className="relative z-10 mx-auto mb-3 flex w-full max-w-5xl items-center justify-between lg:mb-4">
+        <Link to="/login" aria-label="Trang đăng nhập" className="hidden items-center justify-center lg:flex">
+          <div className="flex h-16 w-28 items-center justify-center sm:h-20 sm:w-32">
+            <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
           </div>
-          <span>TENGLISH</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center rounded-lg border border-pink-200 bg-white p-1 text-xs font-bold shadow-sm dark:border-pink-500/20 dark:bg-white/5">
             <Languages size={15} className="ml-1.5 mr-1 text-pink-500" aria-hidden="true" />
             <button type="button" onClick={() => setLocale('vi')} className={`rounded-md px-2.5 py-1.5 transition-colors ${locale === 'vi' ? 'bg-pink-500 text-white' : 'text-slate-500 hover:text-pink-600 dark:text-slate-400 dark:hover:text-pink-200'}`}>VI</button>
@@ -144,7 +143,12 @@ export default function ForgotPassword() {
             ) : (
               <>
                 <div className="mb-8">
-                  <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-100 text-pink-600 dark:bg-pink-500/15 dark:text-pink-200"><KeyRound size={24} /></div>
+                  <div className="mb-6 flex justify-center lg:hidden">
+                    <div className="flex h-20 w-32 items-center justify-center">
+                      <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
+                    </div>
+                  </div>
+                  <div className="mb-6 hidden h-12 w-12 items-center justify-center rounded-2xl bg-pink-100 text-pink-600 dark:bg-pink-500/15 dark:text-pink-200 lg:flex"><KeyRound size={24} /></div>
                   <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-pink-500">{text.eyebrow}</p>
                   <h2 className="app-display text-2xl font-extrabold text-[#261321] dark:text-white">{text.title}</h2>
                   <p className="mt-3 max-w-md leading-6 text-slate-500 dark:text-slate-400">{text.description}</p>

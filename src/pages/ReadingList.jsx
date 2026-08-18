@@ -1,12 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
+import { useInfiniteScroll } from '../lib/useInfiniteScroll';
 
 const LEVELS = ['All', 'Basic', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Toeic', 'IELTS'];
+const PAGE_SIZE = 24;
+const readingLessonsCache = new Map();
+const readingLessonsInflight = new Map();
+
+const getReadingLessonsPage = async (level, page) => {
+  const cacheKey = `${level}:${page}`;
+  const cached = readingLessonsCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  if (readingLessonsInflight.has(cacheKey)) return readingLessonsInflight.get(cacheKey);
+
+  let query = supabase
+    .from('reading_lessons')
+    .select('id, title, level, created_at')
+    .order('created_at', { ascending: true })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+  if (level !== 'All') query = query.ilike('level', level);
+
+  const request = query
+    .then(({ data, error }) => {
+      if (error) throw error;
+      const rows = data || [];
+      readingLessonsCache.set(cacheKey, { data: rows, expiresAt: Date.now() + 60_000 });
+      return rows;
+    })
+    .finally(() => readingLessonsInflight.delete(cacheKey));
+
+  readingLessonsInflight.set(cacheKey, request);
+  return request;
+};
 
 const COPY = {
   vi: {
@@ -35,52 +65,58 @@ export default function ReadingList() {
   const [activeTab, setActiveTab] = useState('All');
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(0);
   const [completedLessons, setCompletedLessons] = useState(new Set());
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchLessons();
-    if (user) {
-      fetchProgress();
-    }
-  }, [user]);
-
-  const fetchProgress = async () => {
+  const fetchProgress = useCallback(async () => {
+    if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from('user_reading_progress')
         .select('lesson_id')
-        .eq('user_id', user?.id);
-        
+        .eq('user_id', user.id);
+
       if (error) throw error;
-      if (data) {
-        setCompletedLessons(new Set(data.map(d => d.lesson_id)));
-      }
+      setCompletedLessons(new Set((data || []).map(d => d.lesson_id)));
     } catch (error) {
       console.error('Error fetching progress:', error.message);
     }
-  };
+  }, [user?.id]);
 
-  const fetchLessons = async () => {
+  const fetchLessons = useCallback(async (reset = false) => {
     try {
-      const { data, error } = await supabase
-        .from('reading_lessons')
-        .select('id, title, level, created_at')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setLessons(data || []);
+      if (reset) {
+        setLoading(true);
+        pageRef.current = 0;
+      } else {
+        setLoadingMore(true);
+      }
+      const nextPage = reset ? 0 : pageRef.current + 1;
+      const rows = await getReadingLessonsPage(activeTab, nextPage);
+      setLessons((current) => reset ? rows : [...current, ...rows]);
+      pageRef.current = nextPage;
+      setHasMore(rows.length === PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching reading lessons:', error.message);
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+      else setLoadingMore(false);
     }
-  };
+  }, [activeTab]);
 
-  const filteredLessons = activeTab === 'All'
-    ? lessons
-    : lessons.filter(l => (l.level || 'basic').toLowerCase() === activeTab.toLowerCase());
+  useEffect(() => {
+    fetchLessons(true);
+    if (user) {
+      fetchProgress();
+    }
+  }, [fetchLessons, fetchProgress, user]);
+
+  const loadMore = useCallback(() => fetchLessons(false), [fetchLessons]);
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore, loadingMore);
 
   if (loading) {
     return (
@@ -120,7 +156,7 @@ export default function ReadingList() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredLessons.map((lesson) => {
+            {lessons.map((lesson) => {
               const isCompleted = completedLessons.has(lesson.id);
               
               return (
@@ -128,7 +164,7 @@ export default function ReadingList() {
                 key={lesson.id}
                 whileHover={{ y: -4 }}
                 onClick={() => navigate(`/reading/${lesson.id}`)}
-                className={`bg-white dark:bg-[#1E1226] rounded-3xl overflow-hidden shadow-sm border ${isCompleted ? 'border-green-500 shadow-green-100 dark:shadow-green-900/20' : 'border-pink-100 dark:border-[#3A2F43]'} hover:shadow-xl hover:border-fuchsia-200 dark:hover:border-fuchsia-500/50 transition-all cursor-pointer group flex flex-col relative`}
+                className={`defer-render bg-white dark:bg-[#1E1226] rounded-3xl overflow-hidden shadow-sm border ${isCompleted ? 'border-green-500 shadow-green-100 dark:shadow-green-900/20' : 'border-pink-100 dark:border-[#3A2F43]'} hover:shadow-xl hover:border-fuchsia-200 dark:hover:border-fuchsia-500/50 transition-all cursor-pointer group flex flex-col relative`}
               >
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-5 transition-colors">
@@ -170,7 +206,9 @@ export default function ReadingList() {
               );
             })}
 
-            {filteredLessons.length === 0 && (
+            {hasMore && <div ref={sentinelRef} className="col-span-full h-8" aria-hidden="true" />}
+
+            {lessons.length === 0 && (
               <div className="col-span-full p-10 bg-white dark:bg-[#1E1226] rounded-3xl border border-dashed border-pink-300 dark:border-[#3A2F43] text-center text-slate-500 dark:text-slate-400 transition-colors">
                 {text.noLessons} {activeTab}.
               </div>

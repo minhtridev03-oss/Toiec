@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Headphones, LayoutDashboard, Mic, PanelLeft, Pencil, PenTool, Search, Shapes } from 'lucide-react';
-import shinTLogo from '../../assets/shinT.jpg';
+import { BookOpen, Files, Headphones, LayoutDashboard, Mic, PanelLeft, Pencil, PenTool, Search, Shapes } from 'lucide-react';
+import appLogo from '../../assets/log.jpg';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import TransparentImage from '../TransparentImage';
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/speaking', labelKey: 'nav.speaking', icon: Mic },
   { to: '/reading', labelKey: 'nav.reading', icon: BookOpen },
   { to: '/writing', labelKey: 'nav.writing', icon: PenTool },
+  { to: '/library', labelKey: 'nav.library', icon: Files },
 ];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileMenuOpen, setIsMobileMenuOpen }) {
@@ -28,14 +29,13 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileMenuOpen,
 
   return (
     <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-slate-200 bg-white transition-all duration-300 dark:border-fuchsia-900 dark:bg-[#1E1226] lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${isCollapsed ? 'lg:w-[5.5rem] w-64' : 'w-64'}`}>
-      <div className={`flex h-20 items-center border-b border-slate-200 px-6 transition-colors dark:border-fuchsia-900 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-        <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3">
-          <div className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center">
-            <TransparentImage src={shinTLogo} alt="Logo" className="h-full w-full scale-125 object-contain" tolerance={245} />
+      <div className="relative flex h-20 items-center justify-center border-b border-slate-200 px-4 transition-colors dark:border-fuchsia-900">
+        <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-center" aria-label="Trang chủ">
+          <div className={`flex shrink-0 items-center justify-center ${isCollapsed ? 'h-12 w-14' : 'h-14 w-24 sm:h-16 sm:w-28'}`}>
+            <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
           </div>
-          {!isCollapsed && <span className="mt-1 whitespace-nowrap text-xl font-extrabold tracking-widest text-slate-800 dark:text-white">TENGLISH</span>}
         </Link>
-        {!isCollapsed && <button type="button" onClick={() => setIsCollapsed(true)} className="hidden lg:block cursor-pointer text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-white" aria-label={t('common.expandSidebar')}><PanelLeft size={22} /></button>}
+        {!isCollapsed && <button type="button" onClick={() => setIsCollapsed(true)} className="absolute right-4 hidden cursor-pointer text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-white lg:block" aria-label={t('common.expandSidebar')}><PanelLeft size={22} /></button>}
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">

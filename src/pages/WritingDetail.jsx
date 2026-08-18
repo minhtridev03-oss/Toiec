@@ -18,7 +18,7 @@ export default function WritingDetail() {
   const [userTranslation, setUserTranslation] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  usePracticeSessionTimer('writing', user, Boolean(lesson && sentences.length > 0));
+  usePracticeSessionTimer('writing', user, Boolean(lesson && sentences.length > 0 && !isEvaluating));
   useEffect(() => {
     setCurrentSentenceIndex(0);
     setUserTranslation('');

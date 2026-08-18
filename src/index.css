@@ -66,6 +66,12 @@ body {
   flex-direction: column;
 }
 
+/* Defer layout/paint work for cards below the viewport. */
+.defer-render {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
 /* ===== Skeleton Loading Animation ===== */
 @keyframes shimmer {
   0% {
@@ -200,4 +206,48 @@ body {
   .dropdown-btn {
     @apply w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#232736] transition-colors cursor-pointer;
   }
+}
+@keyframes book-next {
+  0% { opacity: .55; transform: perspective(1400px) rotateY(-16deg) translateX(18px); }
+  48% { opacity: .9; transform: perspective(1400px) rotateY(5deg) translateX(-3px); }
+  100% { opacity: 1; transform: perspective(1400px) rotateY(0) translateX(0); }
+}
+
+@keyframes book-prev {
+  0% { opacity: .55; transform: perspective(1400px) rotateY(16deg) translateX(-18px); }
+  48% { opacity: .9; transform: perspective(1400px) rotateY(-5deg) translateX(3px); }
+  100% { opacity: 1; transform: perspective(1400px) rotateY(0) translateX(0); }
+}
+
+.flipbook-spread { perspective: 1600px; transform-style: preserve-3d; }
+.flipbook-page {
+  position: relative;
+  overflow: hidden;
+  background: #fffdf9;
+  box-shadow: 0 8px 22px rgba(39, 22, 12, .13);
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+.flipbook-page + .flipbook-page { border-left: 1px solid rgba(105, 75, 45, .25); }
+.flipbook-spread.animate-book-next .flipbook-page:last-child {
+  transform-origin: left center;
+  animation: book-next .48s ease-out;
+}
+.flipbook-spread.animate-book-prev .flipbook-page:first-child {
+  transform-origin: right center;
+  animation: book-prev .48s ease-out;
+}
+
+.flipbook-paper {
+  background: linear-gradient(105deg, #eee4d8 0%, #fffdf9 4%, #fffdf9 96%, #e8dacc 100%);
+  box-shadow: 10px 10px 0 rgba(105, 75, 45, .08), 0 16px 35px rgba(39, 22, 12, .18);
+  transition: box-shadow .35s ease, transform .35s ease;
+}
+
+.flipbook-paper:hover {
+  box-shadow: 12px 12px 0 rgba(105, 75, 45, .09), 0 20px 42px rgba(39, 22, 12, .22);
+}
+
+@media (max-width: 767px) {
+  .flipbook-paper { box-shadow: 6px 7px 0 rgba(105, 75, 45, .08), 0 12px 26px rgba(39, 22, 12, .16); }
 }

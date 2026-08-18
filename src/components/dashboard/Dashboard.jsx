@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -13,9 +13,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useStats } from '../../contexts/StatsContext';
 import { fetchSuggestedCategories } from '../../lib/api';
-import VocabularyReview from '../quiz/VocabularyReview';
-import PracticeActivityChart from './PracticeActivityChart';
-import PracticeLeaderboard from './PracticeLeaderboard';
+const VocabularyReview = lazy(() => import('../quiz/VocabularyReview'));
+const PracticeActivityChart = lazy(() => import('./PracticeActivityChart'));
+const PracticeLeaderboard = lazy(() => import('./PracticeLeaderboard'));
+
+const DashboardWidgetFallback = () => (
+  <div className="min-h-40 animate-pulse rounded-3xl bg-white/60 dark:bg-white/5" aria-hidden="true" />
+);
 
 const MOTIVATIONAL_QUOTES = [
   "Học tiếng Anh là mở ra một thế giới mới 🌟",
@@ -151,7 +155,13 @@ export default function Dashboard() {
     navigate(`/${action}`);
   };
 
-  if (showQuiz) return <VocabularyReview onBack={() => setShowQuiz(false)} />;
+  if (showQuiz) {
+    return (
+      <Suspense fallback={<DashboardWidgetFallback />}>
+        <VocabularyReview onBack={() => setShowQuiz(false)} />
+      </Suspense>
+    );
+  }
 
   return (
     <>
@@ -223,8 +233,12 @@ export default function Dashboard() {
           </section>
         </aside>
 
-        <section className="col-span-12 lg:col-span-8"><PracticeActivityChart userId={user?.id} streak={streak} learnedWords={learnedWords} /></section>
-        <aside className="col-span-12 lg:col-span-4"><PracticeLeaderboard /></aside>
+        <Suspense fallback={<DashboardWidgetFallback />}>
+          <section className="col-span-12 lg:col-span-8"><PracticeActivityChart userId={user?.id} streak={streak} learnedWords={learnedWords} /></section>
+        </Suspense>
+        <Suspense fallback={<DashboardWidgetFallback />}>
+          <aside className="col-span-12 lg:col-span-4"><PracticeLeaderboard /></aside>
+        </Suspense>
 
         <section className="col-span-12 pt-1">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-xl font-extrabold text-slate-800 dark:text-white">{text.quickTitle}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{text.quickSubtitle}</p></div></div>

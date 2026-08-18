@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, BookOpen, Headphones, PenTool, ArrowLeft,
+  LayoutDashboard, BookOpen, LibraryBig, Headphones, PenTool, ArrowLeft,
   BookType, FileText, Users, MessageSquarePlus, Menu, X
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
 
 const adminNav = [
+  { to: '/admin/library', icon: LibraryBig, label: 'Thư viện sách' },
   { to: '/admin', icon: LayoutDashboard, label: 'Tổng quan', end: true },
   { to: '/admin/users', icon: Users, label: 'Quản lý User' },
   { to: '/admin/writing', icon: PenTool, label: 'Luyện viết' },

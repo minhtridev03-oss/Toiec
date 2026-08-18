@@ -138,7 +138,7 @@ export default function PracticeLeaderboard() {
                 >
                   <span className="flex h-8 w-6 shrink-0 items-center justify-center"><RankMark rank={entry.leaderboard_rank} /></span>
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                    <img src={avatarUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-full object-cover" />
                   ) : (
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-sm font-extrabold text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300">
                       {getInitial(label === text.you ? (user?.user_metadata?.custom_full_name || user?.user_metadata?.full_name || 'U') : label)}

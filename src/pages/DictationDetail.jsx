@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import VideoDictationPlayer from '../components/VideoDictationPlayer';
 

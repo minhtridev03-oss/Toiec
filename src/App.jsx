@@ -5,9 +5,8 @@ import { useLocale } from './contexts/LocaleContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import GlobalSkeletonLoader from './components/layout/GlobalSkeletonLoader';
-import GlobalDictionary from './components/GlobalDictionary';
-import GlobalFeedback from './components/GlobalFeedback';
 import ErrorBoundary from './components/ErrorBoundary';
+import Footer from './components/layout/Footer';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const Auth = React.lazy(() => import('./pages/Auth'));
@@ -17,6 +16,8 @@ const PersonalVocabulary = React.lazy(() => import('./pages/PersonalVocabulary')
 const PersonalVocabReview = React.lazy(() => import('./pages/PersonalVocabReview'));
 const TFlat = React.lazy(() => import('./pages/TFlat'));
 const WordList = React.lazy(() => import('./pages/WordList'));
+const GlobalDictionary = React.lazy(() => import('./components/GlobalDictionary'));
+const GlobalFeedback = React.lazy(() => import('./components/GlobalFeedback'));
 const VocabularyDetail = React.lazy(() => import('./pages/VocabularyDetail'));
 const Practice = React.lazy(() => import('./pages/Practice'));
 const KidsZone = React.lazy(() => import('./pages/KidsZone'));
@@ -32,6 +33,7 @@ const SpeakingList = React.lazy(() => import('./pages/SpeakingList'));
 const SpeakingDetail = React.lazy(() => import('./pages/SpeakingDetail'));
 const ShadowingList = React.lazy(() => import('./pages/ShadowingList'));
 const ShadowingDetail = React.lazy(() => import('./pages/ShadowingDetail'));
+const Library = React.lazy(() => import('./pages/Library'));
 
 const Profile = React.lazy(() => import('./pages/Profile'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
@@ -42,6 +44,7 @@ const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminWriting = React.lazy(() => import('./pages/admin/AdminWriting'));
 const AdminReading = React.lazy(() => import('./pages/admin/AdminReading'));
+const AdminLibrary = React.lazy(() => import('./pages/admin/AdminLibrary'));
 const AdminDictation = React.lazy(() => import('./pages/admin/AdminDictation'));
 const AdminGrammar = React.lazy(() => import('./pages/admin/AdminGrammar'));
 const AdminVocab = React.lazy(() => import('./pages/admin/AdminVocab'));
@@ -99,9 +102,12 @@ const MainLayout = ({ children }) => {
         <main className="flex-1 flex flex-col relative min-w-0 overflow-x-hidden">
           {children}
         </main>
+        <Footer />
       </div>
-      <GlobalDictionary />
-      <GlobalFeedback />
+      <Suspense fallback={null}>
+        <GlobalDictionary />
+        <GlobalFeedback />
+      </Suspense>
     </div>
   );
 };
@@ -298,6 +304,14 @@ export default function App() {
             </PrivateRoute>
           } 
         />
+        <Route
+          path="/library"
+          element={
+            <PrivateRoute>
+              <MainLayout><Library /></MainLayout>
+            </PrivateRoute>
+          }
+        />
         <Route 
           path="/writing/:id" 
           element={
@@ -328,6 +342,7 @@ export default function App() {
           <Route path="users" element={<AdminUsers />} />
           <Route path="writing" element={<AdminWriting />} />
           <Route path="reading" element={<AdminReading />} />
+          <Route path="library" element={<AdminLibrary />} />
           <Route path="dictation" element={<AdminDictation />} />
           <Route path="grammar" element={<AdminGrammar />} />
           <Route path="vocab" element={<AdminVocab />} />

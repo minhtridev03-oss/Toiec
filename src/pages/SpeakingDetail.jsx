@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon } from 'lucide-react';
 import { chatSpeaking, translateText, evaluateSpeaking } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePracticeSessionTimer } from '../lib/practiceActivity';
 
 const VOICES = [
   { id: 'us-female-1', name: 'Hannah', accent: 'US', gender: 'Female' },
@@ -26,6 +28,7 @@ const SPEEDS = [
 export default function SpeakingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   
   const [scenario, setScenario] = useState(null);
@@ -72,6 +75,8 @@ export default function SpeakingDetail() {
   const [phase, setPhase] = useState('intro'); // 'intro' | 'chat' | 'evaluating' | 'result'
   const [selectedVoice, setSelectedVoice] = useState(VOICES[0]);
   const [selectedSpeed, setSelectedSpeed] = useState(SPEEDS[1]);
+
+  usePracticeSessionTimer('speaking', user, Boolean(scenario && phase !== 'intro' && phase !== 'result'));
   
   const [messages, setMessages] = useState([]);
   const [suggestions, setSuggestions] = useState([]);

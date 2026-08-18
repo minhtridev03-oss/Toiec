@@ -28,7 +28,7 @@ export default function ReadingDetail() {
   const [explanationError, setExplanationError] = useState('');
   const [allCorrect, setAllCorrect] = useState(false);
   // Tính thời gian luyện đọc vào leaderboard
-  usePracticeSessionTimer('reading', user, Boolean(lesson && questions.length > 0));
+  usePracticeSessionTimer('reading', user, Boolean(lesson && questions.length > 0 && !isEvaluatingAI));
   useEffect(() => {
     setIsSubmitted(false);
     setAnswers({});

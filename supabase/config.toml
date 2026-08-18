@@ -1,0 +1,6 @@
+# Public endpoints use their own scoped checks. The create endpoint remains JWT-protected.
+[functions.donation-status]
+verify_jwt = false
+
+[functions.sepay-webhook]
+verify_jwt = false

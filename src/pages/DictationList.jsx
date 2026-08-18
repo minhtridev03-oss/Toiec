@@ -56,16 +56,20 @@ export default function DictationList() {
         // 1. Fetch videos
         const { data: vids, error: vError } = await supabase
           .from('dictation_videos')
-          .select('*')
+          .select('id, title, thumbnail_url, youtube_id, level, category')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
         if (vError) throw vError;
+        const videoIds = (vids || []).map((video) => video.id);
 
         // 2. Fetch all segments to count totals per video
-        const { data: segs, error: sError } = await supabase
-          .from('dictation_segments')
-          .select('id, video_id');
+        const { data: segs, error: sError } = videoIds.length
+          ? await supabase
+            .from('dictation_segments')
+            .select('video_id')
+            .in('video_id', videoIds)
+          : { data: [], error: null };
         
         let totalMap = {};
         if (segs) {
@@ -76,11 +80,12 @@ export default function DictationList() {
 
         // 3. Fetch user progress
         let completedMap = {};
-        if (user) {
+        if (user && videoIds.length) {
           const { data: prog, error: pError } = await supabase
             .from('user_dictation_progress')
             .select('video_id')
             .eq('user_id', user.id)
+            .in('video_id', videoIds)
             .eq('is_completed', true);
             
           if (prog) {
@@ -303,6 +308,7 @@ function VideoCard({ video, getYoutubeThumbnail, getLevelColor, text }) {
         <img 
           src={video.thumbnail_url || getYoutubeThumbnail(video.youtube_id)} 
           alt={video.title}
+          loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
