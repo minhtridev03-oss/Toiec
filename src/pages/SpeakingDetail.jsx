@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon, Square } from 'lucide-react';
@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
+import { useSpeechRecognition } from '../lib/useSpeechRecognition';
 
 const VOICES = [
   { id: 'us-female-1', name: 'Hannah', accent: 'US', gender: 'Female' },
@@ -80,17 +81,46 @@ export default function SpeakingDetail() {
   
   const [messages, setMessages] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [isRecording, setIsRecording] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
+  const [speechError, setSpeechError] = useState('');
 
-  const recognitionRef = useRef(null);
   const messagesEndRef = useRef(null);
   const latestHandleUserMessage = useRef();
   const selectedVoiceRef = useRef(VOICES[0]);
   const selectedSpeedRef = useRef(SPEEDS[1]);
-  const transcriptRef = useRef('');
-  const timeoutRef = useRef(null);
+  // Holds the latest final transcript from the hook until recording ends
+  const pendingTranscriptRef = useRef('');
+
+  const handleFinalTranscript = useCallback((transcript) => {
+    pendingTranscriptRef.current = transcript;
+  }, []);
+
+  const handleRecordingEnd = useCallback(() => {
+    const transcript = pendingTranscriptRef.current.trim();
+    pendingTranscriptRef.current = '';
+    if (transcript && latestHandleUserMessage.current) {
+      latestHandleUserMessage.current(transcript);
+    }
+  }, []);
+
+  const {
+    isRecording,
+    isSupported,
+    permissionDenied,
+    start: startRecording,
+    stop: stopRecording,
+    reset: resetTranscript,
+  } = useSpeechRecognition({
+    lang: 'en-US',
+    onFinal: handleFinalTranscript,
+    onEnd: handleRecordingEnd,
+    onError: (error) => {
+      if (error === 'permission-denied') {
+        setSpeechError('Microphone access denied. Allow microphone permission in browser settings.');
+      }
+    },
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -98,44 +128,8 @@ export default function SpeakingDetail() {
 
   useEffect(() => { scrollToBottom(); }, [messages, isAIThinking]);
 
-  // Setup Speech Recognition
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onresult = (event) => {
-        let final = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          final += event.results[i][0].transcript;
-        }
-        transcriptRef.current = final;
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        setIsRecording(false);
-        clearTimeout(timeoutRef.current);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsRecording(false);
-        clearTimeout(timeoutRef.current);
-        if (transcriptRef.current.trim() && latestHandleUserMessage.current) {
-          latestHandleUserMessage.current(transcriptRef.current.trim());
-          transcriptRef.current = '';
-        }
-      };
-    }
-
-    return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
-      clearTimeout(timeoutRef.current);
-      window.speechSynthesis.cancel();
-    };
+  useEffect(() => () => {
+    window.speechSynthesis.cancel();
   }, []);
 
   const handleStart = async () => {
@@ -168,19 +162,13 @@ export default function SpeakingDetail() {
   };
 
   const toggleRecording = () => {
+    setSpeechError('');
     if (isRecording) {
-      recognitionRef.current?.stop();
+      stopRecording();
     } else {
-      transcriptRef.current = '';
-      try {
-        recognitionRef.current?.start();
-        setIsRecording(true);
-        timeoutRef.current = setTimeout(() => {
-          recognitionRef.current?.stop();
-        }, 30000);
-      } catch (e) {
-        console.error("Failed to start recognition", e);
-      }
+      resetTranscript();
+      pendingTranscriptRef.current = '';
+      startRecording();
     }
   };
 

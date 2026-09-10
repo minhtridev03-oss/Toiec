@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -25,6 +25,7 @@ import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useLocale } from '../contexts/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
 import LessonMediaPlayer from './LessonMediaPlayer';
+import { useSpeechRecognition } from '../lib/useSpeechRecognition';
 
 const QUALITY_LABELS = {
   default: 'Auto',
@@ -184,7 +185,6 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   const [isLooping, setIsLooping] = useState(false);
   const [autoNext, setAutoNext] = useState(true);
   const [completedSegments, setCompletedSegments] = useState(new Set());
-  const [isRecording, setIsRecording] = useState(false);
   const [speechTranscript, setSpeechTranscript] = useState('');
   const [sidebarTab, setSidebarTab] = useState('transcript');
   const [relatedLessons, setRelatedLessons] = useState([]);
@@ -201,12 +201,32 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
 
   const playerRef = useRef(null);
   const intervalRef = useRef(null);
-  const recognitionRef = useRef(null);
   const captionLastHiddenAtRef = useRef(0);
+  // Ref to always have up-to-date completeCurrentSegment in speech callback
+  const completeCurrentSegmentRef = useRef(null);
+  // Ref to always have up-to-date current segment answer for speech callback
+  const currentSegmentAnswerRef = useRef('');
   const segment = segments[currentSegmentIndex] || segments[0];
   const segmentId = segment?.id;
   const segmentStartTime = segment?.start_time;
   const isCurrentSegmentCompleted = completedSegments.has(segmentId);
+
+  // Keep answer ref in sync so speech callback has latest value without stale closure
+  useEffect(() => {
+    currentSegmentAnswerRef.current = segment?.answer || '';
+  }, [segment?.answer]);
+
+  const handleSpeechResult = useCallback((transcript) => {
+    setSpeechTranscript(transcript);
+    if (currentSegmentAnswerRef.current && containsSpeechSequence(currentSegmentAnswerRef.current, transcript)) {
+      completeCurrentSegmentRef.current?.();
+    }
+  }, []);
+
+  const { isRecording, isSupported, start: startRecording, stop: stopRecording, reset: resetSpeech } = useSpeechRecognition({
+    lang: 'en-US',
+    onResult: handleSpeechResult,
+  });
   const speechComparison = buildSpeechComparison(segment?.answer, speechTranscript);
   const hasSpeechTranscript = speechTranscript.trim().length > 0;
   const isSpeechCorrect = speechComparison.isComplete;
@@ -267,11 +287,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
     };
   }, [videoData?.id, videoData?.level]);
 
-  const completeCurrentSegment = () => {
+  const completeCurrentSegment = useCallback(() => {
     if (!segmentId) return;
 
-    recognitionRef.current?.stop();
-    setIsRecording(false);
+    stopRecording();
     setCompletedSegments((previous) => new Set(previous).add(segmentId));
 
     if (user?.id && videoData?.id) {
@@ -291,51 +310,25 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
     if (autoNext && currentSegmentIndex < segments.length - 1) {
       window.setTimeout(() => setCurrentSegmentIndex((index) => index + 1), 900);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segmentId, autoNext, currentSegmentIndex, segments.length, user?.id, videoData?.id]);
 
+  // Keep completeCurrentSegmentRef updated so speech callback can call it without stale closure
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return undefined;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognition.onresult = (event) => {
-      let transcript = '';
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += event.results[index][0].transcript;
-      }
-      setSpeechTranscript(transcript);
-      if (segment?.answer && containsSpeechSequence(segment.answer, transcript)) {
-        completeCurrentSegment();
-      }
-    };
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsRecording(false);
-    };
-    recognition.onend = () => setIsRecording(false);
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.stop();
-      if (recognitionRef.current === recognition) recognitionRef.current = null;
-    };
-    // Recognition must follow the active sentence, current user, and its auto-next setting.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segment?.answer, segmentId, autoNext, currentSegmentIndex, segments.length, user?.id, videoData?.id]);
+    completeCurrentSegmentRef.current = completeCurrentSegment;
+  }, [completeCurrentSegment]);
 
   useEffect(() => {
     if (!segmentId) return;
     setSpeechTranscript('');
-    recognitionRef.current?.stop();
-    setIsRecording(false);
+    resetSpeech();
+    stopRecording();
 
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(segmentStartTime, true);
       playerRef.current.playVideo();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segmentId, segmentStartTime]);
 
   useEffect(() => () => {
@@ -429,23 +422,18 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
 
   const toggleRecording = () => {
     if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
+      stopRecording();
       return;
     }
 
-    if (!recognitionRef.current) {
+    if (!isSupported) {
       window.alert(text.browserUnsupported);
       return;
     }
 
+    resetSpeech();
     setSpeechTranscript('');
-    try {
-      recognitionRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Unable to start speech recognition:', error);
-    }
+    startRecording();
   };
 
   const handleVolumeChange = (nextVolume) => {
