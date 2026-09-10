@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useSpeechRecognition
  * Cross-platform compatible speech recognition hook.
  *
@@ -14,11 +14,6 @@ const isIOS = () =>
   typeof navigator !== "undefined" &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
-
-const isAndroid = () =>
-  typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
-
-const isMobile = () => isIOS() || isAndroid();
 
 const getSpeechRecognitionClass = () =>
   typeof window !== "undefined"
@@ -63,12 +58,12 @@ export function useSpeechRecognition({ lang = "en-US", onResult, onFinal, onEnd,
     const SpeechRecognition = getSpeechRecognitionClass();
     if (!SpeechRecognition) return;
 
-    const mobile = isMobile();
+    const ios = isIOS();
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
     recognition.interimResults = true;
-    // iOS/Android: continuous=true causes crashes. Use false + auto-restart.
-    recognition.continuous = !mobile;
+    // iOS Safari does not support continuous = true properly, it causes crashes or silent failures
+    recognition.continuous = !ios;
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
@@ -84,18 +79,13 @@ export function useSpeechRecognition({ lang = "en-US", onResult, onFinal, onEnd,
         }
       }
 
-      if (mobile) {
-        if (finalTranscript) {
-          transcriptAccumRef.current = (transcriptAccumRef.current + " " + finalTranscript).trim();
-        }
-        const combined = (transcriptAccumRef.current + " " + interimTranscript).trim();
-        onResultRef.current?.(combined);
-        if (finalTranscript) onFinalRef.current?.(combined);
-      } else {
-        const all = (transcriptAccumRef.current + " " + finalTranscript + interimTranscript).trim();
-        onResultRef.current?.(all);
-        if (finalTranscript) onFinalRef.current?.(all);
+      if (finalTranscript) {
+        transcriptAccumRef.current = (transcriptAccumRef.current + " " + finalTranscript).trim();
       }
+      const combined = (transcriptAccumRef.current + " " + interimTranscript).trim();
+      
+      onResultRef.current?.(combined);
+      if (finalTranscript) onFinalRef.current?.(combined);
     };
 
     recognition.onerror = (event) => {
@@ -107,24 +97,18 @@ export function useSpeechRecognition({ lang = "en-US", onResult, onFinal, onEnd,
         onErrorRef.current?.("permission-denied");
         return;
       }
-      if (error === "no-speech" || error === "audio-capture" || error === "aborted") {
-        return; // non-fatal – onend will handle restart
+      if (error === "no-speech") {
+        // Just let it stop on its own if no speech
+        return;
       }
       console.warn("[SpeechRecognition] error:", error);
       onErrorRef.current?.(error);
     };
 
     recognition.onend = () => {
-      if (isActiveRef.current) {
-        // Auto-restart on mobile (iOS stops after each utterance)
-        restartTimerRef.current = setTimeout(() => {
-          if (!isActiveRef.current || !recognitionRef.current) return;
-          try { recognitionRef.current.start(); } catch { }
-        }, 200);
-      } else {
-        setIsRecording(false);
-        onEndRef.current?.();
-      }
+      isActiveRef.current = false;
+      setIsRecording(false);
+      onEndRef.current?.();
     };
 
     recognitionRef.current = recognition;
@@ -148,8 +132,8 @@ export function useSpeechRecognition({ lang = "en-US", onResult, onFinal, onEnd,
   }, [buildAndStart, destroyRecognition]);
 
   const stop = useCallback(() => {
+    if (!isActiveRef.current) return;
     isActiveRef.current = false;
-    clearTimeout(restartTimerRef.current);
     try { recognitionRef.current?.stop(); } catch { }
     setIsRecording(false);
     onEndRef.current?.();

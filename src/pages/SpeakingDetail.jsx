@@ -133,6 +133,13 @@ export default function SpeakingDetail() {
   }, []);
 
   const handleStart = async () => {
+    // Unlock speech synthesis on iOS/Safari by speaking an empty utterance synchronously on user interaction
+    if (window.speechSynthesis) {
+      const unlockUtterance = new SpeechSynthesisUtterance('');
+      unlockUtterance.volume = 0;
+      window.speechSynthesis.speak(unlockUtterance);
+    }
+
     setPhase('chat');
     setIsAIThinking(true);
     try {
