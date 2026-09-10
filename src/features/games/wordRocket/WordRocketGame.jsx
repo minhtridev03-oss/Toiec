@@ -431,6 +431,17 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
     setCoarsePointer(window.matchMedia?.('(pointer: coarse)').matches || false);
   }, []);
 
+  const handleStart = (diff) => {
+    game.start(diff);
+    if (coarsePointer) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      }
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
   useEffect(() => {
     if (!sceneRef.current || typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(([entry]) => {
@@ -519,8 +530,8 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
   };
 
   const sceneClassName = isInGame
-    ? 'relative h-[clamp(235px,32svh,330px)] overflow-hidden sm:h-[clamp(360px,50svh,500px)] lg:h-[clamp(390px,54svh,540px)]'
-    : 'relative min-h-[440px] overflow-hidden sm:min-h-[500px]';
+    ? 'relative h-[60vh] min-h-[300px] overflow-hidden sm:h-[65vh] sm:min-h-[500px] lg:h-[75vh] lg:min-h-[600px]'
+    : 'relative min-h-[440px] overflow-hidden sm:min-h-[500px] lg:min-h-[600px]';
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] border border-fuchsia-500/25 bg-[#100a24] shadow-[0_24px_80px_rgba(49,10,74,0.28)]">
@@ -589,7 +600,7 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
               <p className="mb-3 text-sm font-bold text-slate-200">{text.difficulty}</p>
               <DifficultyPicker locale={locale} value={state.difficulty} onChange={game.setDifficulty} />
             </div>
-            <button type="button" onClick={() => game.start(state.difficulty)} className="mx-auto mt-6 inline-flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-500 to-fuchsia-500 px-6 py-3.5 font-extrabold text-white shadow-[0_14px_35px_rgba(99,102,241,0.3)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0">
+            <button type="button" onClick={() => handleStart(state.difficulty)} className="mx-auto mt-6 inline-flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-500 to-fuchsia-500 px-6 py-3.5 font-extrabold text-white shadow-[0_14px_35px_rgba(99,102,241,0.3)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0">
               <Zap size={20} /> {text.start}
             </button>
             <p className="mt-3 text-center text-xs font-medium text-slate-500">{text.learnedPool(words.length)}</p>
@@ -687,7 +698,7 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
         )}
 
         {state.phase === 'complete' && (
-          <CompleteScreen game={state} text={text} bestScore={bestScore} isNewBest={isNewBest} onRestart={() => game.start(state.difficulty)} onQuit={game.quit} />
+          <CompleteScreen game={state} text={text} bestScore={bestScore} isNewBest={isNewBest} onRestart={() => handleStart(state.difficulty)} onQuit={game.quit} />
         )}
       </div>
 
@@ -699,7 +710,7 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
                 ref={inputRef}
                 value={state.answer}
                 onChange={(event) => game.setAnswer(event.target.value)}
-                readOnly={coarsePointer}
+                readOnly={false}
                 disabled={state.phase !== 'playing'}
                 autoComplete="off"
                 autoCapitalize="none"
@@ -717,9 +728,11 @@ export default function WordRocketGame({ words, user, locale = 'vi', onPhaseChan
               <Zap size={18} /> {text.submit}
             </button>
           </form>
-          <div className="mx-auto mt-1.5 max-w-3xl sm:mt-2">
-            <GameKeyboard locale={locale} onCharacter={game.appendCharacter} onBackspace={game.backspace} onSubmit={submit} disabled={state.phase !== 'playing'} alwaysVisible={coarsePointer} />
-          </div>
+          {!coarsePointer && (
+            <div className="mx-auto mt-1.5 max-w-3xl sm:mt-2">
+              <GameKeyboard locale={locale} onCharacter={game.appendCharacter} onBackspace={game.backspace} onSubmit={submit} disabled={state.phase !== 'playing'} alwaysVisible={false} />
+            </div>
+          )}
         </div>
       )}
     </section>

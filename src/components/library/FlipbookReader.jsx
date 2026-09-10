@@ -18,6 +18,7 @@ export default function FlipbookReader({ url, title, pageCount, initialPage = 1,
   const renderTasks = useRef([]);
   const renderId = useRef(0);
   const loadingTaskRef = useRef(null);
+  const touchStartX = useRef(null);
   const [pdf, setPdf] = useState(null);
   const [page, setPage] = useState(Math.max(1, initialPage));
   const [pageInput, setPageInput] = useState(String(Math.max(1, initialPage)));
@@ -148,6 +149,23 @@ export default function FlipbookReader({ url, title, pageCount, initialPage = 1,
     onPageChange?.(safePage);
   };
 
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchStartX.current - touchEndX;
+
+    if (deltaX > 50 && page + (twoPage ? 2 : 1) <= maxPage && !loading) {
+      move(page + (twoPage ? 2 : 1), 'next');
+    } else if (deltaX < -50 && page > 1 && !loading) {
+      move(page - (twoPage ? 2 : 1), 'prev');
+    }
+    touchStartX.current = null;
+  };
+
   const jumpToPage = () => {
     let target = Math.min(maxPage, Math.max(1, Number(pageInput) || 1));
     if (twoPage && target > 1 && target % 2 === 0) target -= 1;
@@ -195,13 +213,13 @@ export default function FlipbookReader({ url, title, pageCount, initialPage = 1,
           <div className="flex min-w-0 items-center justify-between gap-2"><div className="min-w-0"><h2 className="truncate font-bold text-slate-900 dark:text-white">{title}</h2><p className="text-xs text-slate-500 dark:text-slate-400">Trang {pageLabel} / {maxPage} · Chế độ {twoPage ? '2 trang' : 'lật sách'}</p></div><div className="flex shrink-0 items-center gap-1"><a href={url} target="_blank" rel="noreferrer" download className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-fuchsia-900/50" title="Tải PDF"><Download size={18} /></a><button type="button" onClick={toggleFullscreen} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-fuchsia-900/50" title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'} aria-label={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}>{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button><button type="button" onClick={closeReader} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-fuchsia-900/50" aria-label="Đóng"><X size={19} /></button></div></div>
           <div className="mt-3 flex items-center gap-2 md:hidden"><label htmlFor="flipbook-page-search" className="text-xs font-medium text-slate-500 dark:text-slate-300">Tìm trang</label><input id="flipbook-page-search" type="number" min="1" max={maxPage} value={pageInput} onChange={(event) => setPageInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && jumpToPage()} className="w-20 rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-center text-sm outline-none focus:border-fuchsia-500 dark:border-fuchsia-800 dark:bg-[#160B1E] dark:text-white" /><span className="text-xs text-slate-400">/ {maxPage}</span><button type="button" onClick={jumpToPage} className="inline-flex items-center gap-1 rounded-lg bg-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white"><Search size={14} /> Mở</button></div>
         </header>
-        <div className={`relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-x-hidden p-2 sm:p-6 ${isFullscreen ? 'overflow-y-hidden bg-[#ece4d9] dark:bg-[#160c1f]' : 'overflow-y-auto'}`}>
+        <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} className={`relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-x-hidden p-2 sm:p-6 ${isFullscreen ? 'overflow-y-hidden bg-[#ece4d9] dark:bg-[#160c1f]' : 'overflow-y-auto'}`}>
           <div key={turnKey} ref={paperRef} className={`flipbook-paper relative box-border flex h-full min-h-0 w-full max-w-full min-w-0 items-center justify-center overflow-hidden rounded-xl border border-[#d9cbbd] p-2 sm:p-3 ${twoPage ? 'sm:max-w-[1600px]' : 'sm:max-w-[900px]'}`}>
             {error ? <p className="p-8 text-center text-sm text-rose-600">{error}</p> : <div className={`flipbook-spread flex h-full min-h-0 min-w-0 items-center justify-center ${turn === 'next' ? 'animate-book-next' : turn === 'prev' ? 'animate-book-prev' : ''} ${twoPage ? 'w-full gap-1 sm:gap-2' : 'w-full'}`}>{visiblePages.map((pageNumber, index) => <div key={pageNumber} className={`flipbook-page flex h-full min-h-0 min-w-0 flex-1 items-center justify-center ${twoPage && index === 0 ? 'rounded-l-lg' : ''} ${twoPage && index === 1 ? 'rounded-r-lg' : ''}`}><canvas ref={(node) => { canvasRefs.current[index] = node; }} className="block h-auto max-h-full max-w-full object-contain" aria-label={`Trang ${pageNumber}`} /></div>)}</div>}
             {loading && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-[#21132b]/70"><Loader2 className="animate-spin text-fuchsia-600" size={28} /></div>}
           </div>
         </div>
-        <footer className="hidden items-center justify-center gap-4 border-t border-slate-200 bg-white/90 px-4 py-3 dark:border-fuchsia-900 dark:bg-[#21132b]/95 md:flex"><button type="button" onClick={() => move(page - (twoPage ? 2 : 1), 'prev')} disabled={page <= 1 || loading} className="inline-flex items-center gap-1 rounded-xl border border-fuchsia-300 px-4 py-2 text-sm font-semibold text-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-fuchsia-700 dark:text-fuchsia-200"><ChevronLeft size={18} /> Trang trước</button><button type="button" onClick={() => move(page + (twoPage ? 2 : 1), 'next')} disabled={page + (twoPage ? 2 : 1) > maxPage || loading} className="inline-flex items-center gap-1 rounded-xl bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={18} /> Trang sau</button></footer>
+        <footer className="flex items-center justify-center gap-2 sm:gap-4 border-t border-slate-200 bg-white/90 px-3 sm:px-4 py-3 dark:border-fuchsia-900 dark:bg-[#21132b]/95"><button type="button" onClick={() => move(page - (twoPage ? 2 : 1), 'prev')} disabled={page <= 1 || loading} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1 rounded-xl border border-fuchsia-300 px-3 sm:px-4 py-2 text-sm font-semibold text-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-fuchsia-700 dark:text-fuchsia-200"><ChevronLeft size={18} /> <span className="hidden sm:inline">Trang trước</span><span className="sm:hidden">Trước</span></button><button type="button" onClick={() => move(page + (twoPage ? 2 : 1), 'next')} disabled={page + (twoPage ? 2 : 1) > maxPage || loading} className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1 rounded-xl bg-fuchsia-600 px-3 sm:px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><span className="hidden sm:inline">Trang sau</span><span className="sm:hidden">Sau</span> <ChevronRight size={18} /></button></footer>
       </section>
     </div>
   );

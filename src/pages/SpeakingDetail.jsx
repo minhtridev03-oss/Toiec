@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon } from 'lucide-react';
+import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon, Square } from 'lucide-react';
 import { chatSpeaking, translateText, evaluateSpeaking } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -708,20 +708,32 @@ export default function SpeakingDetail() {
           )}
 
           {/* Mic Button */}
-          <div className="flex flex-col items-center gap-2">
-            <button
-              onClick={toggleRecording}
-              disabled={isAIThinking}
-              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer ${
-                isRecording
-                  ? 'bg-red-500 shadow-red-500/30 animate-pulse scale-110'
-                  : 'bg-fuchsia-600 shadow-fuchsia-600/30 hover:bg-fuchsia-500 hover:scale-105'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <Mic size={28} className="text-white" />
-            </button>
-            <p className="text-xs text-slate-500 font-medium">
-              {isRecording ? 'Listening...' : 'Press to speak'}
+          <div className="flex flex-col items-center gap-3 mt-4 mb-2">
+            <div className="relative flex items-center justify-center">
+              {isRecording && (
+                <>
+                  <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                  <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
+                </>
+              )}
+              <button
+                onClick={toggleRecording}
+                disabled={isAIThinking}
+                className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
+                  isRecording
+                    ? 'bg-red-500 shadow-red-500/40 scale-105'
+                    : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isRecording ? (
+                  <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
+                ) : (
+                  <Mic size={28} className="text-white md:w-9 md:h-9" />
+                )}
+              </button>
+            </div>
+            <p className={`text-sm font-bold transition-colors ${isRecording ? 'text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
+              {isRecording ? 'Listening... Tap to stop' : 'Tap to speak'}
             </p>
           </div>
         </div>

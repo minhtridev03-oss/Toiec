@@ -77,7 +77,7 @@ export default function Topbar({ onMenuClick }) {
   const emailInitial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
   return (
-    <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-pink-200 bg-white px-4 md:px-6 transition-colors dark:border-fuchsia-900 dark:bg-[#1E1226]">
+    <header className="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-pink-200 bg-white px-4 md:px-6 transition-colors dark:border-fuchsia-900 dark:bg-[#1E1226]">
       <div className="flex items-center flex-1 min-w-0">
         <button 
           onClick={onMenuClick}
