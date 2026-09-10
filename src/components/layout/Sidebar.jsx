@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Files, Headphones, LayoutDashboard, Mic, PanelLeft, Pencil, PenTool, Search, Shapes } from 'lucide-react';
+import { BookOpen, Files, Gamepad2, GraduationCap, Headphones, LayoutDashboard, Mic, PanelLeft, Pencil, PenTool, Search } from 'lucide-react';
 import appLogo from '../../assets/log.jpg';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/tflat', labelKey: 'nav.dictionary', icon: Search },
   { to: '/categories', labelKey: 'nav.vocabulary', icon: BookOpen },
   { to: '/practice', labelKey: 'nav.exercises', icon: Pencil, exact: true },
+  { to: '/games', labelKey: 'nav.games', icon: Gamepad2, exact: true },
   // { to: '/kids', labelKey: 'nav.kids', icon: Shapes, exact: true },
   { to: '/tenses', labelKey: 'nav.grammar', icon: BookOpen },
   { to: '/dictation', labelKey: 'nav.listening', icon: Headphones },

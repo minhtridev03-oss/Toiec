@@ -5,6 +5,7 @@ export const messages = {
       dictionary: 'Từ điển TFlat',
       vocabulary: 'Từ vựng',
       exercises: 'Luyện tập',
+      games: 'Trò chơi',
       kids: 'Khu vực thiếu nhi',
       grammar: 'Ngữ pháp',
       listening: 'Luyện nghe',
@@ -13,6 +14,7 @@ export const messages = {
       reading: 'Luyện đọc',
       writing: 'Luyện viết',
       library: 'Thư viện',
+      mockTests: 'Thi thử',
       admin: 'Quản trị',
     },
     common: {
@@ -29,6 +31,7 @@ export const messages = {
       dictionary: 'TFlat Dictionary',
       vocabulary: 'Vocabulary',
       exercises: 'Exercises',
+      games: 'Games',
       kids: 'Kids Zone',
       grammar: 'Grammar',
       listening: 'Listening',
@@ -37,6 +40,7 @@ export const messages = {
       reading: 'Reading',
       writing: 'Writing',
       library: 'Library',
+      mockTests: 'Mock Tests',
       admin: 'Admin Panel',
     },
     common: {

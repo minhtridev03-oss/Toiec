@@ -35,6 +35,7 @@ const SpeakingDetail = React.lazy(() => import('./pages/SpeakingDetail'));
 const ShadowingList = React.lazy(() => import('./pages/ShadowingList'));
 const ShadowingDetail = React.lazy(() => import('./pages/ShadowingDetail'));
 const Library = React.lazy(() => import('./pages/Library'));
+const Games = React.lazy(() => import('./pages/Games'));
 
 const Profile = React.lazy(() => import('./pages/Profile'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
@@ -211,6 +212,14 @@ export default function App() {
           } 
         />
         <Route
+          path="/games"
+          element={
+            <PrivateRoute>
+              <MainLayout><Games /></MainLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/kids"
           element={
             <PrivateRoute>
@@ -314,6 +323,7 @@ export default function App() {
             </PrivateRoute>
           }
         />
+
         <Route 
           path="/writing/:id" 
           element={

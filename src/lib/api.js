@@ -188,52 +188,60 @@ export const fetchPracticeQuestions = async (userId, limit = 10) => {
 };
 
 /**
+ * Fetch every topic vocabulary marked as learned by one user.
+ * This is the shared source for Practice and user-specific vocabulary games.
+ */
+export const fetchLearnedVocabularyWords = async (userId) => {
+  if (!userId) return [];
+
+  const pageSize = 1000;
+  let from = 0;
+  const learnedRows = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('user_topic_vocabularies')
+      .select('vocabulary_id, created_at')
+      .eq('user_id', userId)
+      .eq('is_learned', true)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    const batch = data || [];
+    learnedRows.push(...batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  const vocabularyIds = [...new Set(learnedRows.map((item) => item.vocabulary_id).filter(Boolean))];
+  if (vocabularyIds.length === 0) return [];
+
+  const vocabularyRows = [];
+  for (const ids of chunkArray(vocabularyIds)) {
+    const { data, error } = await supabase
+      .from('topic_vocabularies')
+      .select('id, word, pro, pos, mean, example, example_mean, sub_category_id')
+      .in('id', ids);
+
+    if (error) throw error;
+    vocabularyRows.push(...(data || []));
+  }
+
+  const wordMap = new Map(vocabularyRows.map((word) => [word.id, word]));
+  return vocabularyIds.map((id) => wordMap.get(id)).filter(Boolean);
+};
+
+/**
  * Fetch all learned topic vocabularies and group them by sub-category for practice.
  */
 export const fetchLearnedPracticeWords = async (userId) => {
   if (!userId) return { words: [], topics: [] };
 
   try {
-    const pageSize = 1000;
-    let from = 0;
-    const learnedRows = [];
-
-    while (true) {
-      const { data, error } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, created_at')
-        .eq('user_id', userId)
-        .eq('is_learned', true)
-        .order('created_at', { ascending: false })
-        .range(from, from + pageSize - 1);
-
-      if (error) throw error;
-
-      const batch = data || [];
-      learnedRows.push(...batch);
-
-      if (batch.length < pageSize) break;
-      from += pageSize;
-    }
-
-    const vocabularyIds = [...new Set(learnedRows.map((item) => item.vocabulary_id).filter(Boolean))];
-    if (vocabularyIds.length === 0) {
-      return { words: [], topics: [] };
-    }
-
-    const vocabularyRows = [];
-    for (const ids of chunkArray(vocabularyIds)) {
-      const { data, error } = await supabase
-        .from('topic_vocabularies')
-        .select('id, word, pro, pos, mean, example, example_mean, sub_category_id')
-        .in('id', ids);
-
-      if (error) throw error;
-      vocabularyRows.push(...(data || []));
-    }
-
-    const wordMap = new Map(vocabularyRows.map((word) => [word.id, word]));
-    const words = vocabularyIds.map((id) => wordMap.get(id)).filter(Boolean);
+    const words = await fetchLearnedVocabularyWords(userId);
+    if (words.length === 0) return { words: [], topics: [] };
     const subCategoryIds = [...new Set(words.map((word) => word.sub_category_id).filter(Boolean))];
     const subCategoryMap = new Map();
     const categoryMap = new Map();

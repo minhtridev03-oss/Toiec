@@ -251,3 +251,60 @@ body {
 @media (max-width: 767px) {
   .flipbook-paper { box-shadow: 6px 7px 0 rgba(105, 75, 45, .08), 0 12px 26px rgba(39, 22, 12, .16); }
 }
+
+@keyframes word-rocket-fall {
+  from { transform: translate3d(-50%, 0, 0); }
+  to { transform: translate3d(-50%, var(--fall-distance), 0); }
+}
+
+@keyframes word-rocket-stars {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, 576px, 0); }
+}
+
+@keyframes word-rocket-success {
+  0%, 100% { box-shadow: 0 0 20px rgba(52, 211, 153, .18); }
+  50% { box-shadow: 0 0 60px rgba(52, 211, 153, .48); }
+}
+
+.word-rocket-stars {
+  top: -576px;
+  bottom: 0;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, .9) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(103, 232, 249, .7) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(244, 114, 182, .55) 0 1px, transparent 1.5px);
+  background-position: 0 0, 28px 20px, 10px 45px;
+  background-size: 96px 96px, 144px 144px, 192px 192px;
+  animation: word-rocket-stars 42s linear infinite;
+  contain: paint;
+  opacity: .58;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.word-rocket-target {
+  left: clamp(35%, var(--target-x), 65%);
+  animation: word-rocket-fall var(--fall-duration) linear forwards;
+  animation-play-state: var(--fall-play-state);
+  will-change: transform;
+}
+
+@media (min-width: 640px) {
+  .word-rocket-target { left: clamp(28%, var(--target-x), 72%); }
+}
+
+@media (min-width: 1024px) {
+  .word-rocket-target { left: clamp(20%, var(--target-x), 80%); }
+}
+
+.word-rocket-success {
+  animation: word-rocket-success .65s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-rocket-stars,
+  .word-rocket-success {
+    animation: none;
+  }
+}
