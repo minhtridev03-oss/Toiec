@@ -196,7 +196,13 @@ export default function SpeakingDetail() {
       );
       const aiText = typeof aiReply === 'string' ? aiReply : (aiReply?.reply || "Could you repeat that?");
       const nextSuggestions = Array.isArray(aiReply?.suggestions) ? aiReply.suggestions : [];
-      const updatedMessages = [...newMessages, { role: 'ai', content: aiText }];
+      
+      let finalMessages = newMessages;
+      if (inlineData && aiReply?.userTranscript) {
+        finalMessages = [...messages, { role: 'user', content: aiReply.userTranscript }];
+      }
+      
+      const updatedMessages = [...finalMessages, { role: 'ai', content: aiText }];
       setMessages(updatedMessages);
       setSuggestions(nextSuggestions);
       playAudio(aiText);

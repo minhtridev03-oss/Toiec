@@ -154,9 +154,10 @@ How to respond:
 6. NEVER say you are an AI, a language model, or a chatbot. NEVER use bullet points.
 
 Also suggest exactly 3 short phrases or sentence starters (2-5 words each) that the user could naturally say next.
+${audioData ? '\\nSince the user sent an audio message, YOU MUST ALSO transcribe what the user said in the audio and include it in the "userTranscript" field.' : ''}
 
 Return ONLY valid JSON in this exact shape:
-{"reply":"${partnerName}'s concise spoken reply","suggestions":["phrase 1","phrase 2","phrase 3"]}`;
+{"reply":"${partnerName}'s concise spoken reply","suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''}}`;
 
   try {
     const data = await invokeAI({
@@ -184,7 +185,9 @@ Return ONLY valid JSON in this exact shape:
         .slice(0, 3)
       : [];
 
-    return { reply, suggestions };
+    const userTranscript = typeof parsed?.userTranscript === 'string' ? parsed.userTranscript.trim() : '';
+
+    return { reply, suggestions, userTranscript };
   } catch (error) {
     console.error('Edge Function Error (Speaking):', error);
     throw new Error(`Failed to get AI response: ${error.message || 'Unknown'}`);
