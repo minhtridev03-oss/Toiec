@@ -18,6 +18,7 @@ const navItems = [
   { to: '/speaking', labelKey: 'nav.speaking', icon: Mic },
   { to: '/reading', labelKey: 'nav.reading', icon: BookOpen },
   { to: '/writing', labelKey: 'nav.writing', icon: PenTool },
+  { to: '/mock-tests', labelKey: 'nav.mockTests', icon: GraduationCap },
   { to: '/library', labelKey: 'nav.library', icon: Files },
 ];
 

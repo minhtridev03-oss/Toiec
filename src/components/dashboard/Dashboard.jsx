@@ -13,7 +13,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useStats } from '../../contexts/StatsContext';
 import { fetchSuggestedCategories } from '../../lib/api';
-const VocabularyReview = lazy(() => import('../quiz/VocabularyReview'));
 const PracticeActivityChart = lazy(() => import('./PracticeActivityChart'));
 const PracticeLeaderboard = lazy(() => import('./PracticeLeaderboard'));
 
@@ -53,7 +52,7 @@ const COPY = {
     quickSubtitle: 'Chọn một hoạt động phù hợp với bạn hôm nay',
     start: 'Bắt đầu',
     actions: [
-      { label: 'Ôn nhanh', detail: 'Kiểm tra từ đã học', action: 'quiz' },
+      { label: 'Luyện tập', detail: 'Kiểm tra từ đã học', action: 'practice' },
       { label: 'Kho từ vựng', detail: 'Mở chủ đề của bạn', action: 'categories' },
       { label: 'Luyện nghe', detail: 'Bắt đầu một video ngắn', action: 'dictation' },
     ],
@@ -76,7 +75,7 @@ const COPY = {
     quickSubtitle: 'Pick an activity that fits your day',
     start: 'Start',
     actions: [
-      { label: 'Quick review', detail: 'Test learned vocabulary', action: 'quiz' },
+      { label: 'Practice', detail: 'Test learned vocabulary', action: 'practice' },
       { label: 'Vocabulary library', detail: 'Open your word topics', action: 'categories' },
       { label: 'Listening practice', detail: 'Start a short video', action: 'dictation' },
     ],
@@ -107,7 +106,6 @@ function ProgressRing({ value }) {
 }
 
 export default function Dashboard() {
-  const [showQuiz, setShowQuiz] = useState(false);
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -148,20 +146,8 @@ export default function Dashboard() {
   }, [user?.id]);
 
   const handleQuickAction = (action) => {
-    if (action === 'quiz') {
-      setShowQuiz(true);
-      return;
-    }
     navigate(`/${action}`);
   };
-
-  if (showQuiz) {
-    return (
-      <Suspense fallback={<DashboardWidgetFallback />}>
-        <VocabularyReview onBack={() => setShowQuiz(false)} />
-      </Suspense>
-    );
-  }
 
   return (
     <>
@@ -199,7 +185,7 @@ export default function Dashboard() {
             <h1 className="app-display max-w-3xl text-3xl font-extrabold leading-tight text-white sm:text-4xl xl:text-5xl">{text.greeting(displayName)}</h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-pink-50 sm:text-lg">{text.heroText(learnedWords)}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button type="button" onClick={() => setShowQuiz(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#DC4E99] px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-pink-950/30 transition-colors hover:bg-[#c83f87] cursor-pointer">
+              <button type="button" onClick={() => navigate('/practice')} className="inline-flex items-center gap-2 rounded-xl bg-[#DC4E99] px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-pink-950/30 transition-colors hover:bg-[#c83f87] cursor-pointer">
                 <Play size={18} fill="currentColor" /> {text.continue}
               </button>
               <button type="button" onClick={() => navigate('/categories')} className="rounded-xl border border-pink-100/45 bg-[#1c1025]/35 px-5 py-3.5 text-sm font-bold text-white transition-colors hover:bg-white/15 cursor-pointer">

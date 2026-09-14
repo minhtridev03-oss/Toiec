@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
-import { useSpeechRecognition } from '../lib/useSpeechRecognition';
+import { useAudioRecorder } from '../lib/useAudioRecorder';
 
 const VOICES = [
   { id: 'us-female-1', name: 'Hannah', accent: 'US', gender: 'Female' },
@@ -106,20 +106,20 @@ export default function SpeakingDetail() {
 
   const {
     isRecording,
-    isSupported,
     permissionDenied,
-    start: startRecording,
-    stop: stopRecording,
-    reset: resetTranscript,
-  } = useSpeechRecognition({
-    lang: 'en-US',
-    onFinal: handleFinalTranscript,
-    onEnd: handleRecordingEnd,
-    onError: (error) => {
-      if (error === 'permission-denied') {
-        setSpeechError('Microphone access denied. Allow microphone permission in browser settings.');
+    startRecording,
+    stopRecording,
+  } = useAudioRecorder({
+    onStop: async (data) => {
+      if (data && data.base64) {
+        const base64Clean = data.base64.split(',')[1];
+        const inlineData = {
+          mimeType: data.mimeType,
+          data: base64Clean
+        };
+        await latestHandleUserMessage.current('', inlineData);
       }
-    },
+    }
   });
 
   const scrollToBottom = () => {
@@ -173,14 +173,12 @@ export default function SpeakingDetail() {
     if (isRecording) {
       stopRecording();
     } else {
-      resetTranscript();
-      pendingTranscriptRef.current = '';
       startRecording();
     }
   };
 
-  const handleUserMessage = async (text) => {
-    const newMessages = [...messages, { role: 'user', content: text }];
+  const handleUserMessage = async (text, inlineData = null) => {
+    const newMessages = [...messages, { role: 'user', content: text || (inlineData ? '🎤 [Audio Message]' : '') }];
     setMessages(newMessages);
     setIsAIThinking(true);
     setSuggestions([]); // Clear suggestions while AI thinks
@@ -193,7 +191,8 @@ export default function SpeakingDetail() {
         scenario.partner.role,
         text,
         messages,
-        scenario.level
+        scenario.level,
+        inlineData
       );
       const aiText = typeof aiReply === 'string' ? aiReply : (aiReply?.reply || "Could you repeat that?");
       const nextSuggestions = Array.isArray(aiReply?.suggestions) ? aiReply.suggestions : [];

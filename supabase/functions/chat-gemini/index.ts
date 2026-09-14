@@ -65,6 +65,10 @@ const requestSchema = z.object({
   responseType: z.enum(['json', 'text']).default('json'),
   maxOutputTokens: z.number().int().min(1).max(8192).optional(),
   task: z.enum(AI_TASKS).optional(),
+  inlineData: z.object({
+    mimeType: z.string(),
+    data: z.string()
+  }).optional(),
 }).strict()
 
 const getTaskPolicy = (task?: AiTask) => task ? TASK_POLICIES[task] : LEGACY_TASK_POLICY
@@ -106,6 +110,7 @@ const callGeminiModel = async (
   responseType: 'json' | 'text',
   maxOutputTokens: number,
   timeoutMs: number,
+  inlineData?: { mimeType: string; data: string }
 ) => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
@@ -118,7 +123,13 @@ const callGeminiModel = async (
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          contents: [{ 
+            role: 'user', 
+            parts: [
+              ...(inlineData ? [{ inlineData }] : []),
+              { text: prompt }
+            ] 
+          }],
           generationConfig: {
             temperature: 0.3,
             ...(responseType === 'json' ? { responseMimeType: 'application/json' } : {}),
@@ -167,13 +178,14 @@ const generateWithGemini = async (
   responseType: 'json' | 'text',
   maxOutputTokens: number,
   deadlineAt: number,
+  inlineData?: { mimeType: string; data: string }
 ) => {
   let lastError: unknown
 
   for (const model of getGeminiModels()) {
     try {
       const timeoutMs = getAttemptTimeout(deadlineAt)
-      return await callGeminiModel(apiKey, model, prompt, responseType, maxOutputTokens, timeoutMs)
+      return await callGeminiModel(apiKey, model, prompt, responseType, maxOutputTokens, timeoutMs, inlineData)
     } catch (error) {
       lastError = error
       if (Date.now() >= deadlineAt) throw totalDeadlineError()
@@ -266,6 +278,7 @@ const generateWithFallbacks = async (
   prompt: string,
   responseType: 'json' | 'text',
   maxOutputTokens: number,
+  inlineData?: { mimeType: string; data: string }
 ) => {
   let lastError: unknown
   let hasConfiguredProvider = false
@@ -283,7 +296,7 @@ const generateWithFallbacks = async (
     hasConfiguredProvider = true
     try {
       return provider === 'gemini'
-        ? await generateWithGemini(apiKey, prompt, responseType, maxOutputTokens, deadlineAt)
+        ? await generateWithGemini(apiKey, prompt, responseType, maxOutputTokens, deadlineAt, inlineData)
         : await generateWithOpenAI(apiKey, prompt, responseType, maxOutputTokens, deadlineAt)
     } catch (error) {
       lastError = error
@@ -333,7 +346,7 @@ serve(async (req) => {
 
     const auth = assertAuthenticatedForAi(req)
     const rawBody = await readJsonBody(req)
-    const { prompt, responseType, maxOutputTokens, task } = requestSchema.parse(rawBody)
+    const { prompt, responseType, maxOutputTokens, task, inlineData } = requestSchema.parse(rawBody)
     const taskPolicy = getTaskPolicy(task)
     const effectiveMaxOutputTokens = Math.min(
       maxOutputTokens ?? taskPolicy.defaultMaxOutputTokens,
@@ -389,6 +402,7 @@ serve(async (req) => {
       sanitizeText(prompt, 20_000),
       responseType,
       effectiveMaxOutputTokens,
+      inlineData
     )
     const parsedResponse = parseAiResponse(responseText, responseType)
 

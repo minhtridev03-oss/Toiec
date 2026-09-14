@@ -112,7 +112,7 @@ Trả về JSON thuần:
   }
 };
 
-export const chatSpeaking = async (scenarioTitle, scenarioDesc, partnerName, partnerRole, userMessage, history = [], level = "Intermediate") => {
+export const chatSpeaking = async (scenarioTitle, scenarioDesc, partnerName, partnerRole, userMessage, history = [], level = "Intermediate", audioData = null) => {
   const normalizedUserMessage = String(userMessage || '').trim();
   const recentHistory = history
     .filter(msg => (msg.role === 'user' || msg.role === 'ai') && msg.content)
@@ -140,7 +140,7 @@ Target English Level: ${level} (CEFR Level)
 Conversation so far:
 ${historyText || '(This is the start of the conversation.)'}
 
-The user just said: "${userMessage}"
+The user just said: "${audioData ? '[Audio message attached]' : userMessage}"
 
 How to respond:
 1. Talk like a real person in this specific situation. Be extremely smart, context-aware, and emotionally intelligent. React naturally to the user's points (e.g., surprise, agreement, skepticism, professional negotiation).
@@ -164,6 +164,7 @@ Return ONLY valid JSON in this exact shape:
       prompt,
       responseType: 'json',
       maxOutputTokens: 768,
+      ...(audioData ? { inlineData: audioData } : {})
     });
 
     let parsed = data;

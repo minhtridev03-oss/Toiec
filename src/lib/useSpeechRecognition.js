@@ -10,9 +10,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const isIOS = () =>
+const isMobile = () =>
   typeof navigator !== "undefined" &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 const getSpeechRecognitionClass = () =>
@@ -58,12 +58,13 @@ export function useSpeechRecognition({ lang = "en-US", onResult, onFinal, onEnd,
     const SpeechRecognition = getSpeechRecognitionClass();
     if (!SpeechRecognition) return;
 
-    const ios = isIOS();
+    const mobile = isMobile();
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
     recognition.interimResults = true;
-    // iOS Safari does not support continuous = true properly, it causes crashes or silent failures
-    recognition.continuous = !ios;
+    // Mobile browsers (both iOS Safari and Android Chrome) are very buggy with continuous=true.
+    // iOS Safari blocks it/crashes, and Android Chrome often hangs or fails to return results.
+    recognition.continuous = !mobile;
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {

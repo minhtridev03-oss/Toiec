@@ -36,6 +36,8 @@ const ShadowingList = React.lazy(() => import('./pages/ShadowingList'));
 const ShadowingDetail = React.lazy(() => import('./pages/ShadowingDetail'));
 const Library = React.lazy(() => import('./pages/Library'));
 const Games = React.lazy(() => import('./pages/Games'));
+const MockTestList = React.lazy(() => import('./pages/MockTestList'));
+const MockTestSession = React.lazy(() => import('./pages/MockTestSession'));
 
 const Profile = React.lazy(() => import('./pages/Profile'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
@@ -324,6 +326,22 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/mock-tests"
+          element={
+            <PrivateRoute>
+              <MainLayout><MockTestList /></MainLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/mock-tests/:id"
+          element={
+            <PrivateRoute>
+              <MockTestSession />
+            </PrivateRoute>
+          }
+        />
         <Route 
           path="/writing/:id" 
           element={
