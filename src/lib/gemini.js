@@ -598,6 +598,24 @@ export const explainReadingMistakes = async (passage, items = []) => {
   return explanations;
 };
 
+export const transcribeAudio = async (audioData) => {
+  if (!audioData) return '';
+  const prompt = `Please transcribe the following audio accurately in the language it was spoken (mostly English). Return ONLY the exact transcribed text. Do not add any extra comments or quotes.`;
+  try {
+    const data = await invokeAI({
+      task: 'speaking_evaluate',
+      prompt,
+      responseType: 'text',
+      maxOutputTokens: 512,
+      inlineData: audioData,
+    });
+    return (typeof data === 'object' && data.text ? data.text : (data.response || data)).trim();
+  } catch (error) {
+    console.error('Edge Function Error (Transcribe):', error);
+    return '';
+  }
+};
+
 // Giữ API cũ cho các caller khác trong thời gian chuyển đổi sang batch.
 export const explainReadingMistake = async (passage, question, options, correctAnswer, userAnswer) => {
   try {

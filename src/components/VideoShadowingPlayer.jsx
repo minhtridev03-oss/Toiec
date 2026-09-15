@@ -25,7 +25,8 @@ import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useLocale } from '../contexts/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
 import LessonMediaPlayer from './LessonMediaPlayer';
-import { useSpeechRecognition } from '../lib/useSpeechRecognition';
+import { useAudioRecorder } from '../lib/useAudioRecorder';
+import { transcribeAudio } from '../lib/gemini';
 
 const QUALITY_LABELS = {
   default: 'Auto',
@@ -55,6 +56,7 @@ const COPY = {
     autoNext: 'Tự chuyển câu',
     startRecording: 'Bấm để bắt đầu ghi âm',
     listening: 'Đang nghe...',
+    transcribing: 'Đang xử lý...',
     spoken: 'Bạn đã nói',
     correct: 'Đúng',
     wordsCorrect: (correct, total) => `${correct}/${total} từ đúng`,
@@ -92,6 +94,7 @@ const COPY = {
     autoNext: 'Auto-next',
     startRecording: 'Press to start recording',
     listening: 'Listening...',
+    transcribing: 'Processing...',
     spoken: 'You said',
     correct: 'Correct',
     wordsCorrect: (correct, total) => `${correct}/${total} words correct`,
@@ -216,17 +219,23 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
     currentSegmentAnswerRef.current = segment?.answer || '';
   }, [segment?.answer]);
 
-  const handleSpeechResult = useCallback((transcript) => {
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
+  const handleStopRecording = useCallback(async (audioData) => {
+    setIsTranscribing(true);
+    const transcript = await transcribeAudio(audioData.base64);
+    setIsTranscribing(false);
     setSpeechTranscript(transcript);
+    
     if (currentSegmentAnswerRef.current && containsSpeechSequence(currentSegmentAnswerRef.current, transcript)) {
       completeCurrentSegmentRef.current?.();
     }
   }, []);
 
-  const { isRecording, isSupported, start: startRecording, stop: stopRecording, reset: resetSpeech } = useSpeechRecognition({
-    lang: 'en-US',
-    onResult: handleSpeechResult,
+  const { isRecording, startRecording, stopRecording } = useAudioRecorder({
+    onStop: handleStopRecording,
   });
+  const isSupported = true; // MediaRecorder is widely supported
   const speechComparison = buildSpeechComparison(segment?.answer, speechTranscript);
   const hasSpeechTranscript = speechTranscript.trim().length > 0;
   const isSpeechCorrect = speechComparison.isComplete;
@@ -321,8 +330,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   useEffect(() => {
     if (!segmentId) return;
     setSpeechTranscript('');
-    resetSpeech();
-    stopRecording();
+    if (isRecording) stopRecording();
 
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(segmentStartTime, true);
@@ -421,6 +429,8 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   };
 
   const toggleRecording = () => {
+    if (isTranscribing) return;
+
     if (isRecording) {
       stopRecording();
       return;
@@ -431,7 +441,6 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
       return;
     }
 
-    resetSpeech();
     setSpeechTranscript('');
     startRecording();
   };
@@ -544,13 +553,15 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
 
         <div className="flex flex-1 flex-col items-center justify-center p-6">
           <p className={`mb-10 text-center text-2xl font-semibold transition-colors md:text-3xl ${isCurrentSegmentCompleted ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-800 dark:text-white'}`}>{segment?.answer}</p>
-          <button type="button" onClick={toggleRecording} className={`flex h-24 w-24 items-center justify-center rounded-full text-white transition-all ${isRecording ? 'scale-110 animate-pulse bg-rose-500 shadow-lg shadow-rose-500/50' : 'bg-pink-500 shadow-lg shadow-pink-500/30 hover:scale-105 hover:bg-pink-600'}`}><Mic size={40} /></button>
-          <p className="mt-4 font-medium text-slate-500 dark:text-slate-400">{isRecording ? text.listening : text.startRecording}</p>
+          <button type="button" onClick={toggleRecording} disabled={isTranscribing} className={`flex h-24 w-24 items-center justify-center rounded-full text-white transition-all ${isTranscribing ? 'bg-slate-300 cursor-wait dark:bg-slate-700' : isRecording ? 'scale-110 animate-pulse bg-rose-500 shadow-lg shadow-rose-500/50' : 'bg-pink-500 shadow-lg shadow-pink-500/30 hover:scale-105 hover:bg-pink-600'}`}>
+            {isTranscribing ? <Loader2 size={40} className="animate-spin" /> : <Mic size={40} />}
+          </button>
+          <p className="mt-4 font-medium text-slate-500 dark:text-slate-400">{isTranscribing ? text.transcribing : isRecording ? text.listening : text.startRecording}</p>
 
           <div className="mt-5 w-full max-w-3xl">
             <div className={`rounded-2xl border px-4 py-3 transition-colors ${isSpeechPanelSuccess ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10' : hasSpeechTranscript ? 'border-pink-100 bg-white dark:border-pink-500/20 dark:bg-[#1e1226]' : 'border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5'}`}>
               <div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm font-bold text-slate-600 dark:text-slate-300">{text.spoken}</span><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${isSpeechPanelSuccess ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : hasSpeechTranscript ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300'}`}>{hasSpeechTranscript ? (isSpeechCorrect ? text.correct : text.wordsCorrect(speechComparison.correctCount, speechComparison.totalCount)) : (isCurrentSegmentCompleted ? text.completed : text.notRecorded)}</span></div>
-              <div className="flex min-h-8 flex-wrap items-center justify-center gap-2 text-base font-semibold sm:text-lg">{hasSpeechTranscript ? <>{speechComparison.rows.map((row) => <span key={row.key} title={row.spoken ? text.said(row.spoken) : text.notRecognized} className={`rounded-lg px-2.5 py-1 transition-colors ${row.status === 'correct' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : row.status === 'wrong' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400'}`}>{row.spoken || row.target}</span>)}{speechComparison.extraWords.map((word, index) => <span key={`extra-${word.normalized}-${index}`} title={text.extraWord} className="rounded-lg bg-amber-100 px-2.5 py-1 text-amber-700 transition-colors dark:bg-amber-500/20 dark:text-amber-300">{word.raw}</span>)}</> : <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{isRecording ? text.listening : text.recordToCheck}</span>}</div>
+              <div className="flex min-h-8 flex-wrap items-center justify-center gap-2 text-base font-semibold sm:text-lg">{hasSpeechTranscript ? <>{speechComparison.rows.map((row) => <span key={row.key} title={row.spoken ? text.said(row.spoken) : text.notRecognized} className={`rounded-lg px-2.5 py-1 transition-colors ${row.status === 'correct' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : row.status === 'wrong' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400'}`}>{row.spoken || row.target}</span>)}{speechComparison.extraWords.map((word, index) => <span key={`extra-${word.normalized}-${index}`} title={text.extraWord} className="rounded-lg bg-amber-100 px-2.5 py-1 text-amber-700 transition-colors dark:bg-amber-500/20 dark:text-amber-300">{word.raw}</span>)}</> : <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{isTranscribing ? text.transcribing : isRecording ? text.listening : text.recordToCheck}</span>}</div>
             </div>
           </div>
         </div>
