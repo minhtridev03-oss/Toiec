@@ -377,10 +377,49 @@ const generateWithFallbacks = async (
     throw new HttpError(502, 'Cấu hình AI phía server chưa hợp lệ.')
   }
   if (status === 504) throw lastError
+  throw new HttpError(502, 'AI chưa phản hồi được. Vui lòng thử lại sau.')
+}
+
+const generateStreamWithFallbacks = async (
+  prompt: string,
+  maxOutputTokens: number,
+  inlineData?: { mimeType: string; data: string }
+): Promise<ReadableStream<Uint8Array>> => {
+  let lastError: unknown
+  const deadlineAt = Date.now() + AI_TOTAL_TIMEOUT_MS
+
+  for (const model of getGeminiModels()) {
+    try {
+      const geminiApiKey = getApiKey('gemini')
+      if (!geminiApiKey) throw new HttpError(502, 'Cấu hình AI phía server chưa hợp lệ.')
+
+      return await callGeminiModelStream(
+        geminiApiKey,
+        model,
+        prompt,
+        maxOutputTokens,
+        inlineData
+      )
+    } catch (error) {
+      lastError = error
+      const status = getErrorStatus(error)
+      console.warn(`Gemini Stream failed for model ${model} (${status})`)
+      if (Date.now() >= deadlineAt) {
+        throw totalDeadlineError()
+      }
+      if (!RETRYABLE_STATUS_CODES.has(status)) break
+    }
+  }
+
+  const status = getErrorStatus(lastError)
+  if ([401, 403].includes(status)) {
+    throw new HttpError(502, 'Cấu hình AI phía server chưa hợp lệ.')
+  }
+  if (status === 504) throw lastError
   if (status === 429) {
     throw new HttpError(429, 'AI đang bận. Vui lòng thử lại sau ít phút.', 60)
   }
-  throw new HttpError(502, 'AI chưa phản hồi được. Vui lòng thử lại sau.')
+  throw lastError || new HttpError(502, 'AI chưa phản hồi được. Vui lòng thử lại sau.')
 }
 
 const parseAiResponse = (responseText: string, responseType: 'json' | 'text') => {
@@ -428,12 +467,7 @@ serve(async (req) => {
 
     // --- Streaming mode: bypass cache, pipe directly to client ---
     if (responseType === 'stream') {
-      const geminiApiKey = getApiKey('gemini')
-      if (!geminiApiKey) throw new HttpError(502, 'Cấu hình AI phía server chưa hợp lệ.')
-      const [primaryModel] = getGeminiModels()
-      const stream = await callGeminiModelStream(
-        geminiApiKey,
-        primaryModel,
+      const stream = await generateStreamWithFallbacks(
         sanitizeText(prompt, 20_000),
         effectiveMaxOutputTokens,
         inlineData
