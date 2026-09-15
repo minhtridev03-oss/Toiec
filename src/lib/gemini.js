@@ -195,7 +195,7 @@ INSTRUCTIONS:
 5. ENDING: If the scenario goal is successfully achieved, or the user explicitly says goodbye, naturally end the conversation (e.g., "Have a great day", "Goodbye", "See you later"). Do NOT ask any more questions.
 6. Use filler words occasionally if appropriate for the level ("Well,", "Hmm," for lower levels; "Indeed,", "Fascinating," for higher levels).
 7. NEVER say you are an AI, a language model, or a chatbot. NEVER use bullet points.
-8. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said, NOT a transcription of it. ${audioData ? 'The exact transcription of the user\\'s audio MUST go ONLY into the "userTranscript" field.' : ''}
+8. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said. ${audioData ? 'Put the exact audio transcription ONLY into the userTranscript field.' : ''}
 
 Also suggest exactly 3 short phrases or sentence starters (2-5 words each) that the user could naturally say next.
 
@@ -284,7 +284,7 @@ INSTRUCTIONS:
 3. CONTINUATION: If the goal is not yet reached, drive the conversation forward with a follow-up question or statement.
 4. ENDING: If the scenario goal is successfully achieved, or the user says goodbye, end the conversation naturally. Do NOT ask any more questions.
 5. NEVER reveal you are an AI. NEVER use bullet points.
-6. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said, NOT a transcription of it. ${audioData ? 'The exact transcription of the user\\'s audio MUST go ONLY into the "userTranscript" field.' : ''}
+6. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said. ${audioData ? 'Put the exact audio transcription ONLY into the userTranscript field.' : ''}
 
 Format your response EXACTLY as follows (no markdown, no code blocks):
 [Write your spoken reply here — plain English text only]
