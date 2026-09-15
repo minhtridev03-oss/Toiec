@@ -208,7 +208,7 @@ Return ONLY valid JSON in this exact shape:
       task: 'speaking_chat',
       prompt,
       responseType: 'json',
-      maxOutputTokens: 768,
+      maxOutputTokens: 1024,
       ...(audioData ? { inlineData: audioData } : {})
     });
 
@@ -294,7 +294,7 @@ Format your response EXACTLY as follows (no markdown, no code blocks):
   const reader = await invokeAIStream({
     task: 'speaking_chat',
     prompt,
-    maxOutputTokens: 512,
+    maxOutputTokens: 1024,
     ...(audioData ? { inlineData: audioData } : {}),
   });
 
