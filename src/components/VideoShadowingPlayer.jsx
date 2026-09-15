@@ -223,7 +223,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
 
   const handleStopRecording = useCallback(async (audioData) => {
     setIsTranscribing(true);
-    const transcript = await transcribeAudio(audioData.base64);
+    let transcript = '';
+    if (audioData && audioData.base64) {
+      const inlineData = {
+        mimeType: audioData.mimeType,
+        data: audioData.base64.split(',')[1]
+      };
+      transcript = await transcribeAudio(inlineData);
+    }
     setIsTranscribing(false);
     setSpeechTranscript(transcript);
     
