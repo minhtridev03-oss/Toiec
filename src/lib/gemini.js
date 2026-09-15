@@ -175,30 +175,32 @@ export const chatSpeaking = async (scenarioTitle, scenarioDesc, partnerName, par
   const prompt = `You are ${partnerName}, ${partnerRole}.
 You are NOT an AI assistant. You are a highly realistic, intelligent person having a real conversation. Stay perfectly in character at all times.
 
-Scenario: "${scenarioTitle}" — ${scenarioDesc}
+Scenario context: "${scenarioTitle}" — ${scenarioDesc}
 Target English Level: ${level} (CEFR Level)
 
-Conversation so far:
+Conversation history:
 ${historyText || '(This is the start of the conversation.)'}
 
 The user just said: "${audioData ? '[Audio message attached]' : userMessage}"
 
-How to respond:
-1. Talk like a real person in this specific situation. Be extremely smart, context-aware, and emotionally intelligent. React naturally to the user's points (e.g., surprise, agreement, skepticism, professional negotiation).
+INSTRUCTIONS:
+1. GOAL: Your ultimate goal is to fulfill the scenario described above. If the user goes off-topic, organically steer them back. If they say nonsense, react with natural confusion.
 2. ADAPT YOUR VOCABULARY AND GRAMMAR to the ${level} level. 
    - If A1/A2/Basic: Use very simple words, short sentences, and speak warmly.
    - If B1/B2: Use intermediate vocabulary, some idioms, and moderate complexity.
    - If C1/C2: Use advanced vocabulary, complex sentence structures, sophisticated idioms, nuanced arguments, and a highly professional or academic tone if appropriate for the scenario. Challenge the user intellectually!
 3. Keep it CONCISE: 1–3 sentences max. This is a spoken conversation, not an essay. Don't overwhelm the user with long speeches.
-4. Drive the conversation forward by asking a relevant follow-up question, raising a counterpoint, or presenting a new angle.
-5. Use filler words occasionally if appropriate for the level ("Well,", "Hmm," for lower levels; "Indeed,", "Fascinating," for higher levels).
-6. NEVER say you are an AI, a language model, or a chatbot. NEVER use bullet points.
+4. CONTINUATION: If the goal is not yet reached, drive the conversation forward by asking a relevant follow-up question, raising a counterpoint, or presenting a new angle.
+5. ENDING: If the scenario goal is successfully achieved, or the user explicitly says goodbye, naturally end the conversation (e.g., "Have a great day", "Goodbye", "See you later"). Do NOT ask any more questions.
+6. Use filler words occasionally if appropriate for the level ("Well,", "Hmm," for lower levels; "Indeed,", "Fascinating," for higher levels).
+7. NEVER say you are an AI, a language model, or a chatbot. NEVER use bullet points.
 
 Also suggest exactly 3 short phrases or sentence starters (2-5 words each) that the user could naturally say next.
 ${audioData ? '\\nSince the user sent an audio message, YOU MUST ALSO transcribe what the user said in the audio and include it in the "userTranscript" field.' : ''}
 
 Return ONLY valid JSON in this exact shape:
-{"reply":"${partnerName}'s concise spoken reply","suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''}}`;
+{"reply":"${partnerName}'s concise spoken reply","suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''},"isFinished":boolean}`;
+
 
   try {
     const data = await invokeAI({
@@ -227,8 +229,9 @@ Return ONLY valid JSON in this exact shape:
       : [];
 
     const userTranscript = typeof parsed?.userTranscript === 'string' ? parsed.userTranscript.trim() : '';
+    const isFinished = parsed?.isFinished === true;
 
-    return { reply, suggestions, userTranscript };
+    return { reply, suggestions, userTranscript, isFinished };
   } catch (error) {
     console.error('Edge Function Error (Speaking):', error);
     throw new Error(`Failed to get AI response: ${error.message || 'Unknown'}`);
@@ -263,27 +266,27 @@ export const chatSpeakingStream = async ({
     .join('\n');
 
   const prompt = `You are ${partnerName}, ${partnerRole}.
-You are NOT an AI assistant. Stay perfectly in character at all times.
+You are NOT an AI assistant. You are a real human with your own personality. Stay perfectly in character at all times.
 
-Scenario: "${scenarioTitle}" — ${scenarioDesc}
+Scenario context: "${scenarioTitle}" — ${scenarioDesc}
 Target English Level: ${level} (CEFR Level)
 
-Conversation so far:
+Conversation history:
 ${historyText || '(This is the start of the conversation.)'}
 
 The user just said: "${audioData ? '[Audio message attached — transcribe it]' : userMessage}"
 
-How to respond:
-1. Talk like a real person. Be smart, context-aware, emotionally intelligent.
-2. ADAPT vocabulary to ${level} level.
-3. Keep it CONCISE: 1–3 sentences max.
-4. Drive the conversation with a follow-up question or new angle.
+INSTRUCTIONS:
+1. GOAL: Your ultimate goal is to fulfill the scenario described above. If the user goes off-topic, organically steer them back. If they say nonsense, react with natural confusion.
+2. ADAPT vocabulary to ${level} level. Keep it CONCISE (1-3 sentences max).
+3. CONTINUATION: If the goal is not yet reached, drive the conversation forward with a follow-up question or statement.
+4. ENDING: If the scenario goal is successfully achieved, or the user says goodbye, end the conversation naturally. Do NOT ask any more questions.
 5. NEVER reveal you are an AI. NEVER use bullet points.
 
 Format your response EXACTLY as follows (no markdown, no code blocks):
 [Write your spoken reply here — plain English text only]
 ---META---
-{"suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''}}`;
+{"suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''},"isFinished":true/false}`;
 
   const reader = await invokeAIStream({
     task: 'speaking_chat',

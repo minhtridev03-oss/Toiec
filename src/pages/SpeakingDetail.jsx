@@ -84,6 +84,7 @@ export default function SpeakingDetail() {
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
   const [speechError, setSpeechError] = useState('');
+  const [isEnded, setIsEnded] = useState(false);
 
   const messagesEndRef = useRef(null);
   const latestHandleUserMessage = useRef();
@@ -205,10 +206,13 @@ export default function SpeakingDetail() {
         onChunk: (chunk) => {
           finalReply += chunk;
         },
-        onMeta: ({ suggestions: newSuggestions, userTranscript }) => {
+        onMeta: ({ suggestions: newSuggestions, userTranscript, isFinished }) => {
           finalSuggestions = newSuggestions;
           if (inlineData && userTranscript) {
             finalTranscript = userTranscript;
+          }
+          if (isFinished) {
+            setIsEnded(true);
           }
         },
         onDone: () => {},
@@ -741,57 +745,71 @@ export default function SpeakingDetail() {
             </div>
           )}
 
-          {/* Mic Button */}
-          <div className="flex flex-col items-center gap-3 mt-4 mb-2">
-            <div className="relative flex items-center justify-center">
-              {isAIThinking ? (
-                <div className="relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center">
-                  <svg className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite]" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 0.2)" strokeWidth="4" />
-                    <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 1)" strokeWidth="4" strokeDasharray="75 300" strokeLinecap="round" />
-                  </svg>
-                  <Loader2 size={24} className="text-fuchsia-500 animate-spin" />
-                </div>
-              ) : (
-                <>
-                  {isRecording && (
-                    <>
-                      <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
-                      <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
-                    </>
-                  )}
-                  <button
-                    onClick={toggleRecording}
-                    className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
-                      isRecording
-                        ? 'bg-red-500 shadow-red-500/40 scale-105'
-                        : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
-                    }`}
-                  >
-                    {isRecording ? (
-                      <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
-                    ) : (
-                      <Mic size={28} className="text-white md:w-9 md:h-9" />
-                    )}
-                  </button>
-                </>
-              )}
+          {/* Bottom Controls Area */}
+          {isEnded ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <CheckCircle2 size={48} className="mb-4 text-emerald-500" />
+              <p className="mb-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">Cuộc trò chuyện đã kết thúc!</p>
+              <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">AI đã hoàn thành tình huống giả định này.</p>
+              <button
+                onClick={() => setPhase('evaluating')}
+                className="rounded-xl bg-gradient-to-tr from-fuchsia-600 to-pink-500 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-500/30 transition-all hover:scale-105 active:scale-95"
+              >
+                Xem đánh giá tổng quan
+              </button>
             </div>
-            <p className={`text-sm font-bold transition-colors ${
-              isRecording 
-                ? 'text-red-500 dark:text-red-400' 
-                : isAIThinking 
-                  ? 'text-slate-400 dark:text-slate-500' 
-                  : 'text-slate-500 dark:text-slate-400'
-            }`}>
-              {isRecording 
-                ? `Listening... ${formatTime(recordingTime)}` 
-                : isAIThinking 
-                  ? 'Đang suy nghĩ...' 
-                  : 'Tap to speak'
-              }
-            </p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 mt-4 mb-2">
+              <div className="relative flex items-center justify-center">
+                {isAIThinking ? (
+                  <div className="relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center">
+                    <svg className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite]" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 0.2)" strokeWidth="4" />
+                      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 1)" strokeWidth="4" strokeDasharray="75 300" strokeLinecap="round" />
+                    </svg>
+                    <Loader2 size={24} className="text-fuchsia-500 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {isRecording && (
+                      <>
+                        <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                        <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
+                      </>
+                    )}
+                    <button
+                      onClick={toggleRecording}
+                      className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
+                        isRecording
+                          ? 'bg-red-500 shadow-red-500/40 scale-105'
+                          : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
+                      }`}
+                    >
+                      {isRecording ? (
+                        <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
+                      ) : (
+                        <Mic size={28} className="text-white md:w-9 md:h-9" />
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className={`text-sm font-bold transition-colors ${
+                isRecording 
+                  ? 'text-red-500 dark:text-red-400' 
+                  : isAIThinking 
+                    ? 'text-slate-400 dark:text-slate-500' 
+                    : 'text-slate-500 dark:text-slate-400'
+              }`}>
+                {isRecording 
+                  ? `Listening... ${formatTime(recordingTime)}` 
+                  : isAIThinking 
+                    ? 'Đang suy nghĩ...' 
+                    : 'Tap to speak'
+                }
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
