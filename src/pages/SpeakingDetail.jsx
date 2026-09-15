@@ -718,19 +718,8 @@ export default function SpeakingDetail() {
             </motion.div>
           ))}
 
-          {/* AI Thinking */}
-          {isAIThinking && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-fuchsia-100 dark:bg-fuchsia-600/20 border border-fuchsia-400 dark:border-fuchsia-500/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400 font-bold text-sm shrink-0 transition-colors">
-                {scenario.partner.initial}
-              </div>
-              <div className="bg-white dark:bg-[#1E1226] rounded-2xl rounded-tl-sm p-4 border border-pink-200 dark:border-[#3A2F43] flex gap-1.5 transition-colors">
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
-              </div>
-            </motion.div>
-          )}
+
+
 
           <div ref={messagesEndRef} className="h-4" />
         </div>
@@ -785,8 +774,19 @@ export default function SpeakingDetail() {
                 )}
               </button>
             </div>
-            <p className={`text-sm font-bold transition-colors ${isRecording ? 'text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
-              {isRecording ? `Listening... ${formatTime(recordingTime)}` : 'Tap to speak'}
+            <p className={`text-sm font-bold transition-colors ${
+              isRecording 
+                ? 'text-red-500 dark:text-red-400' 
+                : isAIThinking 
+                  ? 'text-fuchsia-500 dark:text-fuchsia-400 animate-pulse' 
+                  : 'text-slate-500 dark:text-slate-400'
+            }`}>
+              {isRecording 
+                ? `Listening... ${formatTime(recordingTime)}` 
+                : isAIThinking 
+                  ? 'AI is typing...' 
+                  : 'Tap to speak'
+              }
             </p>
           </div>
         </div>
