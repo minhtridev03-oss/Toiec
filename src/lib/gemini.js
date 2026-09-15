@@ -176,6 +176,7 @@ export const chatSpeaking = async (scenarioTitle, scenarioDesc, partnerName, par
 You are NOT an AI assistant. You are a highly realistic, intelligent person having a real conversation. Stay perfectly in character at all times.
 
 Scenario context: "${scenarioTitle}" — ${scenarioDesc}
+(Note: In the scenario description, "You" refers to the HUMAN USER. You must play the role of ${partnerName}.)
 Target English Level: ${level} (CEFR Level)
 
 Conversation history:
@@ -269,6 +270,7 @@ export const chatSpeakingStream = async ({
 You are NOT an AI assistant. You are a real human with your own personality. Stay perfectly in character at all times.
 
 Scenario context: "${scenarioTitle}" — ${scenarioDesc}
+(Note: In the scenario description, "You" refers to the HUMAN USER. You must play the role of ${partnerName}.)
 Target English Level: ${level} (CEFR Level)
 
 Conversation history:
