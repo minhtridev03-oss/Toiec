@@ -185,17 +185,12 @@ export default function SpeakingDetail() {
   };
 
   const handleUserMessage = async (text, inlineData = null) => {
-    // 1. Immediately add user message and empty AI bubble
-    const userContent = text || (inlineData ? '🎤 [Audio Message]' : '');
-    const newMessages = [...messages, { role: 'user', content: userContent }];
-    const aiPlaceholderIdx = newMessages.length; // index of the AI bubble we'll fill
-    const messagesWithAI = [...newMessages, { role: 'ai', content: '' }];
-    setMessages(messagesWithAI);
     setIsAIThinking(true);
     setSuggestions([]);
 
     let finalReply = '';
-    let finalMessages = messagesWithAI;
+    let finalTranscript = text || '';
+    let finalSuggestions = [];
 
     try {
       await chatSpeakingStream({
@@ -209,35 +204,32 @@ export default function SpeakingDetail() {
         audioData: inlineData,
         onChunk: (chunk) => {
           finalReply += chunk;
-          setMessages(prev => {
-            const updated = [...prev];
-            updated[aiPlaceholderIdx] = { role: 'ai', content: finalReply };
-            return updated;
-          });
         },
         onMeta: ({ suggestions: newSuggestions, userTranscript }) => {
-          setSuggestions(newSuggestions);
-          // Update user transcript if we had audio
+          finalSuggestions = newSuggestions;
           if (inlineData && userTranscript) {
-            setMessages(prev => {
-              const updated = [...prev];
-              updated[aiPlaceholderIdx - 1] = { role: 'user', content: userTranscript };
-              return updated;
-            });
+            finalTranscript = userTranscript;
           }
-          finalMessages = null; // already updated via setMessages
         },
-        onDone: () => {
-          if (finalReply) playAudio(finalReply);
-        },
+        onDone: () => {},
       });
+
+      // Update UI all at once after thinking finishes
+      setMessages(prev => [
+        ...prev, 
+        { role: 'user', content: finalTranscript },
+        { role: 'ai', content: finalReply }
+      ]);
+      setSuggestions(finalSuggestions);
+      if (finalReply) playAudio(finalReply);
+
     } catch (error) {
       console.error(error);
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[aiPlaceholderIdx] = { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" };
-        return updated;
-      });
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', content: finalTranscript },
+        { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" }
+      ]);
     } finally {
       setIsAIThinking(false);
     }
@@ -752,39 +744,50 @@ export default function SpeakingDetail() {
           {/* Mic Button */}
           <div className="flex flex-col items-center gap-3 mt-4 mb-2">
             <div className="relative flex items-center justify-center">
-              {isRecording && (
+              {isAIThinking ? (
+                <div className="relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center">
+                  <svg className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite]" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 0.2)" strokeWidth="4" />
+                    <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 1)" strokeWidth="4" strokeDasharray="75 300" strokeLinecap="round" />
+                  </svg>
+                  <Loader2 size={24} className="text-fuchsia-500 animate-spin" />
+                </div>
+              ) : (
                 <>
-                  <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
-                  <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
+                  {isRecording && (
+                    <>
+                      <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                      <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
+                    </>
+                  )}
+                  <button
+                    onClick={toggleRecording}
+                    className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
+                      isRecording
+                        ? 'bg-red-500 shadow-red-500/40 scale-105'
+                        : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {isRecording ? (
+                      <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
+                    ) : (
+                      <Mic size={28} className="text-white md:w-9 md:h-9" />
+                    )}
+                  </button>
                 </>
               )}
-              <button
-                onClick={toggleRecording}
-                disabled={isAIThinking}
-                className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
-                  isRecording
-                    ? 'bg-red-500 shadow-red-500/40 scale-105'
-                    : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isRecording ? (
-                  <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
-                ) : (
-                  <Mic size={28} className="text-white md:w-9 md:h-9" />
-                )}
-              </button>
             </div>
             <p className={`text-sm font-bold transition-colors ${
               isRecording 
                 ? 'text-red-500 dark:text-red-400' 
                 : isAIThinking 
-                  ? 'text-fuchsia-500 dark:text-fuchsia-400 animate-pulse' 
+                  ? 'text-slate-400 dark:text-slate-500' 
                   : 'text-slate-500 dark:text-slate-400'
             }`}>
               {isRecording 
                 ? `Listening... ${formatTime(recordingTime)}` 
                 : isAIThinking 
-                  ? 'AI is typing...' 
+                  ? 'Đang suy nghĩ...' 
                   : 'Tap to speak'
               }
             </p>
