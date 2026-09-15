@@ -181,6 +181,7 @@ function ImpactSequence({ word, points, text, impactPoint, sceneHeight, sceneWid
       <DefenseLine text={text.defense} />
       <RocketShip combo={combo} isFiring reduceMotion={reduceMotion} />
 
+      {/* Laser beam */}
       <div
         className="absolute z-30 w-1 origin-bottom"
         style={{
@@ -193,11 +194,38 @@ function ImpactSequence({ word, points, text, impactPoint, sceneHeight, sceneWid
       >
         <motion.div
           initial={{ scaleY: 0, opacity: 0 }}
-          animate={{ scaleY: [0, 1, 1], opacity: [0, 1, 0] }}
+          animate={{ scaleY: [0, 1, 1], opacity: [0, 0.7, 0] }}
           transition={{ duration: 0.42, times: [0, 0.34, 1], ease: 'easeOut' }}
           className="h-full w-full origin-bottom rounded-full bg-gradient-to-t from-cyan-300 via-white to-fuchsia-300 shadow-[0_0_18px_rgba(103,232,249,1)]"
         />
       </div>
+
+      {/* Missile rocket traveling toward target */}
+      <motion.div
+        className="pointer-events-none absolute z-[38]"
+        style={{ left: shipX, bottom: beamBottom }}
+        initial={{ x: '-50%', y: 0, opacity: 1, scale: 1 }}
+        animate={{ x: `calc(-50% + ${deltaX}px)`, y: -deltaY, opacity: [1, 1, 0], scale: [1, 1.15, 0.6] }}
+        transition={{
+          duration: 0.34, ease: 'easeIn',
+          opacity: { times: [0, 0.72, 1], duration: 0.34 },
+          scale: { times: [0, 0.72, 1], duration: 0.34 },
+        }}
+      >
+        <Rocket
+          size={26}
+          style={{ transform: `rotate(${beamAngle - 45}deg)` }}
+          className="text-cyan-100 fill-indigo-500/40 drop-shadow-[0_0_14px_rgba(103,232,249,1)]"
+          strokeWidth={1.85}
+        />
+        {/* Rocket flame trail */}
+        <motion.span
+          style={{ transform: `rotate(${beamAngle - 45 + 180}deg)`, transformOrigin: '50% 0%' }}
+          animate={{ height: [12, 22, 14], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 0.18, repeat: Infinity, ease: 'easeInOut' }}
+          className="pointer-events-none absolute left-1/2 top-1/2 w-2 -translate-x-1/2 rounded-full bg-gradient-to-b from-amber-100 via-orange-500 to-transparent blur-[1px]"
+        />
+      </motion.div>
 
       <div className="absolute z-30" style={{ left: safeImpactX, top: safeImpactY }}>
         <div className="-translate-x-1/2 -translate-y-1/2">
