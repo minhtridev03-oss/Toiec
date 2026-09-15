@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon, Square } from 'lucide-react';
-import { chatSpeaking, translateText, evaluateSpeaking } from '../lib/gemini';
+import { chatSpeaking, chatSpeakingStream, translateText, evaluateSpeaking } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -107,6 +107,7 @@ export default function SpeakingDetail() {
   const {
     isRecording,
     permissionDenied,
+    recordingTime,
     startRecording,
     stopRecording,
   } = useAudioRecorder({
@@ -121,6 +122,12 @@ export default function SpeakingDetail() {
       }
     }
   });
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,38 +185,59 @@ export default function SpeakingDetail() {
   };
 
   const handleUserMessage = async (text, inlineData = null) => {
-    const newMessages = [...messages, { role: 'user', content: text || (inlineData ? '🎤 [Audio Message]' : '') }];
-    setMessages(newMessages);
+    // 1. Immediately add user message and empty AI bubble
+    const userContent = text || (inlineData ? '🎤 [Audio Message]' : '');
+    const newMessages = [...messages, { role: 'user', content: userContent }];
+    const aiPlaceholderIdx = newMessages.length; // index of the AI bubble we'll fill
+    const messagesWithAI = [...newMessages, { role: 'ai', content: '' }];
+    setMessages(messagesWithAI);
     setIsAIThinking(true);
-    setSuggestions([]); // Clear suggestions while AI thinks
+    setSuggestions([]);
+
+    let finalReply = '';
+    let finalMessages = messagesWithAI;
 
     try {
-      const aiReply = await chatSpeaking(
-        scenario.title,
-        scenario.description,
-        scenario.partner.name,
-        scenario.partner.role,
-        text,
-        messages,
-        scenario.level,
-        inlineData
-      );
-      const aiText = typeof aiReply === 'string' ? aiReply : (aiReply?.reply || "Could you repeat that?");
-      const nextSuggestions = Array.isArray(aiReply?.suggestions) ? aiReply.suggestions : [];
-      
-      let finalMessages = newMessages;
-      if (inlineData && aiReply?.userTranscript) {
-        finalMessages = [...messages, { role: 'user', content: aiReply.userTranscript }];
-      }
-      
-      const updatedMessages = [...finalMessages, { role: 'ai', content: aiText }];
-      setMessages(updatedMessages);
-      setSuggestions(nextSuggestions);
-      playAudio(aiText);
+      await chatSpeakingStream({
+        scenarioTitle: scenario.title,
+        scenarioDesc: scenario.description,
+        partnerName: scenario.partner.name,
+        partnerRole: scenario.partner.role,
+        userMessage: text,
+        history: messages,
+        level: scenario.level,
+        audioData: inlineData,
+        onChunk: (chunk) => {
+          finalReply += chunk;
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[aiPlaceholderIdx] = { role: 'ai', content: finalReply };
+            return updated;
+          });
+        },
+        onMeta: ({ suggestions: newSuggestions, userTranscript }) => {
+          setSuggestions(newSuggestions);
+          // Update user transcript if we had audio
+          if (inlineData && userTranscript) {
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[aiPlaceholderIdx - 1] = { role: 'user', content: userTranscript };
+              return updated;
+            });
+          }
+          finalMessages = null; // already updated via setMessages
+        },
+        onDone: () => {
+          if (finalReply) playAudio(finalReply);
+        },
+      });
     } catch (error) {
       console.error(error);
-      const fallback = [...newMessages, { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" }];
-      setMessages(fallback);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[aiPlaceholderIdx] = { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" };
+        return updated;
+      });
     } finally {
       setIsAIThinking(false);
     }
@@ -632,15 +660,26 @@ export default function SpeakingDetail() {
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">{scenario.partner.name}</span>
                   </div>
                   {/* AI bubble */}
-                  <div className="ml-11 bg-white dark:bg-[#1E1226] rounded-2xl rounded-tl-sm p-4 border border-pink-200 dark:border-[#3A2F43] text-slate-700 dark:text-slate-200 leading-relaxed transition-colors">
-                    {msg.content}
-                    {msg.translation && (
-                      <div className="mt-3 pt-3 border-t border-pink-100 dark:border-[#3A2F43] text-fuchsia-600 dark:text-fuchsia-300 text-sm transition-colors">
-                        {msg.translation}
+                  <div className="ml-11 bg-white dark:bg-[#1E1226] rounded-2xl rounded-tl-sm p-4 border border-pink-200 dark:border-[#3A2F43] text-slate-700 dark:text-slate-200 leading-relaxed transition-colors min-h-[48px]">
+                    {msg.content === '' ? (
+                      <div className="flex gap-1.5 items-center h-5">
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
                       </div>
+                    ) : (
+                      <>
+                        {msg.content}
+                        {msg.translation && (
+                          <div className="mt-3 pt-3 border-t border-pink-100 dark:border-[#3A2F43] text-fuchsia-600 dark:text-fuchsia-300 text-sm transition-colors">
+                            {msg.translation}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
-                  {/* AI action buttons */}
+                  {/* AI action buttons - only show when content is fully streamed */}
+                  {msg.content && (
                   <div className="ml-11 flex items-center gap-4 text-xs text-slate-500">
                     <button onClick={() => playAudio(msg.content)} className="flex items-center gap-1 hover:text-fuchsia-400 transition-colors">
                       <RotateCcw size={12} /> Replay
@@ -654,11 +693,25 @@ export default function SpeakingDetail() {
                       Translate
                     </button>
                   </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex justify-end">
                   <div className="max-w-[80%] bg-fuchsia-600 text-white rounded-2xl rounded-br-sm p-4 leading-relaxed shadow-lg shadow-fuchsia-600/10">
-                    {msg.content}
+                    {msg.content === '🎤 [Audio Message]' ? (
+                      <div className="flex items-center gap-3">
+                        <span className="text-white/90 text-sm font-medium">Transcribing audio...</span>
+                        <div className="flex items-center gap-1 h-4">
+                          <motion.div animate={{ scaleY: [1, 2, 1] }} transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }} className="w-1 h-3 bg-white rounded-full origin-bottom" />
+                          <motion.div animate={{ scaleY: [1, 2.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2, ease: "easeInOut" }} className="w-1 h-4 bg-white rounded-full origin-bottom" />
+                          <motion.div animate={{ scaleY: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4, ease: "easeInOut" }} className="w-1 h-2 bg-white rounded-full origin-bottom" />
+                          <motion.div animate={{ scaleY: [1, 2.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.6, ease: "easeInOut" }} className="w-1 h-4 bg-white rounded-full origin-bottom" />
+                          <motion.div animate={{ scaleY: [1, 2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.8, ease: "easeInOut" }} className="w-1 h-3 bg-white rounded-full origin-bottom" />
+                        </div>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
               )}
@@ -733,7 +786,7 @@ export default function SpeakingDetail() {
               </button>
             </div>
             <p className={`text-sm font-bold transition-colors ${isRecording ? 'text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
-              {isRecording ? 'Listening... Tap to stop' : 'Tap to speak'}
+              {isRecording ? `Listening... ${formatTime(recordingTime)}` : 'Tap to speak'}
             </p>
           </div>
         </div>

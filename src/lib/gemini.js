@@ -49,7 +49,9 @@ const invokeAI = async (body) => {
   };
 
   if (safeBody.responseType) {
-    safeBody.responseType = safeBody.responseType === 'text' ? 'text' : 'json';
+    if (!['text', 'json', 'stream'].includes(safeBody.responseType)) {
+      safeBody.responseType = 'json';
+    }
   }
 
   assertPayloadSize(safeBody);
@@ -72,6 +74,45 @@ const invokeAI = async (body) => {
   }
 
   return data;
+};
+
+// Stream version: fetches Edge Function and returns a ReadableStream reader
+const invokeAIStream = async (body) => {
+  const safeBody = {
+    ...body,
+    prompt: validateTextInput(body.prompt, 'Nội dung AI', 20_000),
+    responseType: 'stream',
+  };
+
+  assertPayloadSize(safeBody);
+
+  const rate = checkClientRateLimit('ai:assistant', 30, 60 * 1000);
+  if (!rate.allowed) {
+    throw new AppError(`Bạn gọi AI quá nhanh. Vui lòng thử lại sau ${rate.retryAfterSeconds} giây.`, 429);
+  }
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  // Get the current session token for auth
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token || supabaseAnonKey;
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/chat-gemini`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+      'apikey': supabaseAnonKey,
+    },
+    body: JSON.stringify(safeBody),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new AppError('Không thể kết nối AI. Vui lòng thử lại sau.', response.status);
+  }
+
+  return response.body.getReader();
 };
 
 export const evaluateTranslation = async (originalText, targetText, userTranslation, contextBefore = '', contextAfter = '', examType = 'IELTS/TOEIC') => {
@@ -192,6 +233,120 @@ Return ONLY valid JSON in this exact shape:
     console.error('Edge Function Error (Speaking):', error);
     throw new Error(`Failed to get AI response: ${error.message || 'Unknown'}`);
   }
+};
+
+/**
+ * chatSpeakingStream
+ * Streaming version of chatSpeaking.
+ * @param {object} params
+ * @param {function} params.onChunk - Called with each text chunk from the AI reply.
+ * @param {function} params.onMeta - Called once with { suggestions, userTranscript } when META section arrives.
+ * @param {function} params.onDone - Called when stream is fully complete.
+ */
+export const chatSpeakingStream = async ({
+  scenarioTitle, scenarioDesc, partnerName, partnerRole,
+  userMessage, history = [], level = 'Intermediate', audioData = null,
+  onChunk, onMeta, onDone,
+}) => {
+  const normalizedUserMessage = String(userMessage || '').trim();
+  const recentHistory = history
+    .filter(msg => (msg.role === 'user' || msg.role === 'ai') && msg.content)
+    .slice(-10);
+
+  const lastMessage = recentHistory[recentHistory.length - 1];
+  if (lastMessage?.role === 'user' && String(lastMessage.content).trim() === normalizedUserMessage) {
+    recentHistory.pop();
+  }
+
+  const historyText = recentHistory
+    .map(msg => `${msg.role === 'user' ? 'User' : partnerName}: ${msg.content}`)
+    .join('\n');
+
+  const prompt = `You are ${partnerName}, ${partnerRole}.
+You are NOT an AI assistant. Stay perfectly in character at all times.
+
+Scenario: "${scenarioTitle}" — ${scenarioDesc}
+Target English Level: ${level} (CEFR Level)
+
+Conversation so far:
+${historyText || '(This is the start of the conversation.)'}
+
+The user just said: "${audioData ? '[Audio message attached — transcribe it]' : userMessage}"
+
+How to respond:
+1. Talk like a real person. Be smart, context-aware, emotionally intelligent.
+2. ADAPT vocabulary to ${level} level.
+3. Keep it CONCISE: 1–3 sentences max.
+4. Drive the conversation with a follow-up question or new angle.
+5. NEVER reveal you are an AI. NEVER use bullet points.
+
+Format your response EXACTLY as follows (no markdown, no code blocks):
+[Write your spoken reply here — plain English text only]
+---META---
+{"suggestions":["phrase 1","phrase 2","phrase 3"]${audioData ? ',"userTranscript":"exact transcription of user audio"' : ''}}`;
+
+  const reader = await invokeAIStream({
+    task: 'speaking_chat',
+    prompt,
+    maxOutputTokens: 512,
+    ...(audioData ? { inlineData: audioData } : {}),
+  });
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let metaFound = false;
+  let replyText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    buffer += chunk;
+
+    if (!metaFound) {
+      const metaIdx = buffer.indexOf('---META---');
+      if (metaIdx !== -1) {
+        // Send the reply part
+        const replyPart = buffer.slice(replyText.length, metaIdx);
+        if (replyPart) {
+          onChunk?.(replyPart);
+          replyText += replyPart;
+        }
+        metaFound = true;
+        // Parse META JSON from what's available so far (may be incomplete)
+        buffer = buffer.slice(metaIdx + 10); // skip '---META---'
+      } else {
+        // Stream reply text incrementally
+        const safeUpTo = buffer.length;
+        const newChunk = buffer.slice(replyText.length, safeUpTo);
+        if (newChunk) {
+          onChunk?.(newChunk);
+          replyText += newChunk;
+        }
+      }
+    }
+    // If metaFound: accumulate remaining buffer as JSON (don't emit to onChunk)
+  }
+
+  // Parse META
+  if (metaFound && buffer.trim()) {
+    try {
+      const cleanJson = buffer.trim().replace(/```json/g, '').replace(/```/g, '').trim();
+      const meta = JSON.parse(cleanJson);
+      const suggestions = Array.isArray(meta.suggestions)
+        ? meta.suggestions.filter(s => typeof s === 'string').slice(0, 3)
+        : [];
+      const userTranscript = typeof meta.userTranscript === 'string' ? meta.userTranscript.trim() : '';
+      onMeta?.({ suggestions, userTranscript });
+    } catch {
+      onMeta?.({ suggestions: [], userTranscript: '' });
+    }
+  } else {
+    onMeta?.({ suggestions: [], userTranscript: '' });
+  }
+
+  onDone?.();
 };
 
 export const translateText = async (text, targetLang = 'Vietnamese') => {

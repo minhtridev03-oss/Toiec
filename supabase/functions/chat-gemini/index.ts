@@ -62,7 +62,7 @@ const TASK_POLICIES: Record<AiTask, TaskPolicy> = {
 
 const requestSchema = z.object({
   prompt: z.string().trim().min(1).max(20_000),
-  responseType: z.enum(['json', 'text']).default('json'),
+  responseType: z.enum(['json', 'text', 'stream']).default('json'),
   maxOutputTokens: z.number().int().min(1).max(8192).optional(),
   task: z.enum(AI_TASKS).optional(),
   inlineData: z.object({
@@ -101,6 +101,68 @@ const getAttemptTimeout = (deadlineAt: number) => {
   const remainingTimeout = deadlineAt - Date.now()
   if (remainingTimeout <= 0) throw totalDeadlineError()
   return Math.min(AI_ATTEMPT_TIMEOUT_MS, remainingTimeout)
+}
+
+// Streaming version: pipes SSE directly from Gemini to the client
+const callGeminiModelStream = async (
+  apiKey: string,
+  model: string,
+  prompt: string,
+  maxOutputTokens: number,
+  inlineData?: { mimeType: string; data: string },
+): Promise<ReadableStream<Uint8Array>> => {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            ...(inlineData ? [{ inlineData }] : []),
+            { text: prompt }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          ...(maxOutputTokens ? { maxOutputTokens } : {}),
+        },
+      }),
+    },
+  )
+
+  if (!response.ok || !response.body) {
+    throw new HttpError(response.status, 'Gemini stream không thể khởi tạo.')
+  }
+
+  // Transform SSE chunks to extract just the text deltas and forward as plain text stream
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+
+  const transformStream = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      const text = decoder.decode(chunk, { stream: true })
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const jsonStr = line.slice(6).trim()
+        if (jsonStr === '[DONE]' || !jsonStr) continue
+        try {
+          const parsed = JSON.parse(jsonStr)
+          const delta = parsed?.candidates?.[0]?.content?.parts
+            ?.map((p: { text?: string }) => p.text || '')
+            .join('') ?? ''
+          if (delta) {
+            controller.enqueue(encoder.encode(delta))
+          }
+        } catch { /* skip malformed chunks */ }
+      }
+    }
+  })
+
+  response.body.pipeTo(transformStream.writable).catch(() => {})
+  return transformStream.readable
 }
 
 const callGeminiModel = async (
@@ -363,6 +425,29 @@ serve(async (req) => {
         15 * 60,
       ),
     ])
+
+    // --- Streaming mode: bypass cache, pipe directly to client ---
+    if (responseType === 'stream') {
+      const geminiApiKey = getApiKey('gemini')
+      if (!geminiApiKey) throw new HttpError(502, 'Cấu hình AI phía server chưa hợp lệ.')
+      const [primaryModel] = getGeminiModels()
+      const stream = await callGeminiModelStream(
+        geminiApiKey,
+        primaryModel,
+        sanitizeText(prompt, 20_000),
+        effectiveMaxOutputTokens,
+        inlineData
+      )
+      const origin = req.headers.get('origin') || '*'
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked',
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        }
+      })
+    }
 
     // AI Caching: Tạo mã băm từ câu hỏi để kiểm tra xem đã từng được trả lời chưa
     let promptHash: string | undefined

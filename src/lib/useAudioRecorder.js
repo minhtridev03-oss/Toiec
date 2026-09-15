@@ -9,11 +9,13 @@ export function useAudioRecorder({ onStop } = {}) {
   const [isRecording, setIsRecording] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [recordingTime, setRecordingTime] = useState(0);
   
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
   const onStopRef = useRef(onStop);
+  const timerIntervalRef = useRef(null);
 
   useEffect(() => {
     onStopRef.current = onStop;
@@ -24,6 +26,9 @@ export function useAudioRecorder({ onStop } = {}) {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
       }
     };
   }, []);
@@ -84,6 +89,10 @@ export function useAudioRecorder({ onStop } = {}) {
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsRecording(true);
+      setRecordingTime(0);
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
 
     } catch (err) {
       console.error('Error starting recording:', err);
@@ -98,6 +107,7 @@ export function useAudioRecorder({ onStop } = {}) {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      clearInterval(timerIntervalRef.current);
     }
   }, [isRecording]);
 
@@ -113,6 +123,7 @@ export function useAudioRecorder({ onStop } = {}) {
     isRecording,
     permissionDenied,
     audioUrl,
+    recordingTime,
     startRecording,
     stopRecording,
     toggleRecording
