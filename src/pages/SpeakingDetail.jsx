@@ -324,11 +324,11 @@ export default function SpeakingDetail() {
   };
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Loading scenario...</div>;
+    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Đang tải tình huống...</div>;
   }
 
   if (!scenario) {
-    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Scenario not found.</div>;
+    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Không tìm thấy tình huống.</div>;
   }
 
   // ==================== INTRO PHASE ====================
@@ -359,7 +359,7 @@ export default function SpeakingDetail() {
                   <Sparkles size={24} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider">Conversation Script</p>
+                  <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider">Kịch bản hội thoại</p>
                   <h1 className="text-xl md:text-2xl font-extrabold text-slate-800 dark:text-white transition-colors">{scenario.title}</h1>
                 </div>
               </div>
@@ -374,7 +374,7 @@ export default function SpeakingDetail() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400">
                   <MapPin size={16} />
-                  <span className="text-xs font-bold uppercase tracking-wider">Context</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Bối cảnh</span>
                 </div>
                 <button 
                   onClick={handleTranslateDesc}
@@ -382,7 +382,7 @@ export default function SpeakingDetail() {
                   className="flex items-center gap-1.5 text-xs text-fuchsia-400/70 hover:text-fuchsia-300 transition-colors disabled:opacity-50"
                 >
                   {isTranslatingDesc ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
-                  <span>{descTranslation ? 'Hide Translation' : 'Translate'}</span>
+                  <span>{descTranslation ? 'Ẩn bản dịch' : 'Dịch'}</span>
                 </button>
               </div>
               <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed transition-colors">
@@ -399,7 +399,7 @@ export default function SpeakingDetail() {
             <div className="bg-pink-100 dark:bg-[#2A1F33] rounded-2xl p-5 border border-pink-200 dark:border-fuchsia-900/30 transition-colors">
               <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400 mb-3">
                 <Users size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">Conversation Partner</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Đối tác hội thoại</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-fuchsia-100 dark:bg-fuchsia-600/20 border-2 border-fuchsia-400 dark:border-fuchsia-500/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400 font-extrabold text-lg shrink-0 transition-colors">
@@ -416,16 +416,16 @@ export default function SpeakingDetail() {
             <div className="bg-fuchsia-50 dark:bg-fuchsia-950/50 rounded-2xl p-5 border border-fuchsia-200 dark:border-fuchsia-600/40 transition-colors">
               <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400 mb-3">
                 <Target size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">Your Turn</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Lượt của bạn</span>
               </div>
               <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed transition-colors">
-                Listen, then press the microphone to respond. Try using the suggested words to keep the conversation flowing naturally.
+                Lắng nghe, sau đó nhấn micro để trả lời. Hãy thử dùng các từ gợi ý để duy trì cuộc hội thoại một cách tự nhiên nhé!
               </p>
             </div>
 
             {/* Voice Selection */}
             <div>
-              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Voice</p>
+              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Giọng đọc</p>
               <div className="flex flex-wrap gap-2">
                 {VOICES.map(voice => (
                   <button
@@ -448,7 +448,7 @@ export default function SpeakingDetail() {
 
             {/* Speed Selection */}
             <div>
-              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Speed</p>
+              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Tốc độ</p>
               <div className="grid grid-cols-3 gap-2">
                 {SPEEDS.map(speed => (
                   <button
@@ -472,7 +472,7 @@ export default function SpeakingDetail() {
               className="w-full py-4 bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white font-extrabold text-lg rounded-2xl hover:from-fuchsia-500 hover:to-pink-400 transition-all shadow-lg shadow-fuchsia-600/30 flex items-center justify-center gap-3"
             >
               <Sparkles size={22} />
-              Got it, let's start!
+              Hiểu rồi, bắt đầu thôi!
             </button>
           </div>
         </motion.div>
@@ -491,9 +491,9 @@ export default function SpeakingDetail() {
         >
           <Sparkles size={32} className="text-fuchsia-400" />
         </motion.div>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Analyzing your conversation...</h2>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Đang phân tích cuộc hội thoại...</h2>
         <p className="text-slate-600 dark:text-slate-400 text-center max-w-md transition-colors">
-          Our AI teacher is reviewing your grammar, vocabulary, and fluency. This might take a few seconds.
+          AI đang xem xét ngữ pháp, từ vựng và độ trôi chảy của bạn. Quá trình này có thể mất vài giây.
         </p>
       </div>
     );
@@ -507,13 +507,13 @@ export default function SpeakingDetail() {
           
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white flex items-center gap-2 transition-colors">
-              <Target className="text-fuchsia-500" /> Session Evaluation
+              <Target className="text-fuchsia-500" /> Đánh giá buổi luyện tập
             </h1>
             <button 
               onClick={() => navigate('/speaking')}
               className="px-5 py-2 bg-[#3A2F43] text-white rounded-xl font-bold hover:bg-[#3A2F43] transition-colors"
             >
-              Done
+              Xong
             </button>
           </div>
 
@@ -534,12 +534,12 @@ export default function SpeakingDetail() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-4xl font-extrabold text-slate-800 dark:text-white transition-colors">{evaluation.score}</span>
-                  <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-bold uppercase tracking-wider">Score</span>
+                  <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-bold uppercase tracking-wider">Điểm số</span>
                 </div>
               </div>
               
               <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Teacher's Feedback</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Nhận xét của giáo viên</h3>
                 <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base transition-colors">
                   {evaluation.feedback}
                 </p>
@@ -550,7 +550,7 @@ export default function SpeakingDetail() {
               {/* Strengths */}
               <div className="bg-emerald-50 dark:bg-[#3A2F43]/50 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-900/30 transition-colors">
                 <h4 className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold mb-4">
-                  <CheckCircle2 size={20} /> Strengths
+                  <CheckCircle2 size={20} /> Điểm mạnh
                 </h4>
                 <ul className="space-y-3">
                   {evaluation.strengths?.map((s, i) => (
@@ -565,7 +565,7 @@ export default function SpeakingDetail() {
               {/* Improvements */}
               <div className="bg-amber-50 dark:bg-[#3A2F43]/50 rounded-2xl p-5 border border-amber-200 dark:border-amber-900/30 transition-colors">
                 <h4 className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold mb-4">
-                  <TrendingUp size={20} /> Areas to Improve
+                  <TrendingUp size={20} /> Điểm cần cải thiện
                 </h4>
                 <ul className="space-y-3">
                   {evaluation.improvements?.map((s, i) => (
@@ -623,7 +623,7 @@ export default function SpeakingDetail() {
             className="flex items-center justify-center w-8 h-8 md:w-auto md:px-3 md:py-1.5 gap-1.5 bg-pink-100 dark:bg-[#2A1F33] rounded-full text-xs text-slate-700 dark:text-slate-300 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors border border-pink-200 dark:border-[#3A2F43] cursor-pointer shrink-0"
           >
             <X size={14} />
-            <span className="hidden md:inline">End</span>
+            <span className="hidden md:inline">Kết thúc</span>
           </button>
         </div>
       </div>
@@ -633,7 +633,7 @@ export default function SpeakingDetail() {
         <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
           {/* Scenario Card */}
           <div className="bg-white dark:bg-[#1E1226] rounded-2xl p-5 border border-pink-200 dark:border-[#3A2F43] text-center transition-colors">
-            <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider mb-2">Script</p>
+            <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider mb-2">Kịch bản</p>
             <h3 className="font-bold text-slate-800 dark:text-white mb-2 transition-colors">{scenario.title}</h3>
             <p className="text-slate-700 dark:text-slate-400 text-sm leading-relaxed transition-colors">{scenario.description}</p>
           </div>
@@ -678,7 +678,7 @@ export default function SpeakingDetail() {
                   {msg.content && (
                   <div className="ml-11 flex items-center gap-4 text-xs text-slate-500">
                     <button onClick={() => playAudio(msg.content)} className="flex items-center gap-1 hover:text-fuchsia-400 transition-colors">
-                      <RotateCcw size={12} /> Replay
+                      <RotateCcw size={12} /> Phát lại
                     </button>
                     <button 
                       onClick={() => handleTranslateMessage(idx, msg.content)} 
@@ -686,7 +686,7 @@ export default function SpeakingDetail() {
                       className="flex items-center gap-1 hover:text-fuchsia-400 transition-colors disabled:opacity-50"
                     >
                       {msg.isTranslating ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />} 
-                      Translate
+                      Dịch
                     </button>
                   </div>
                   )}
@@ -696,7 +696,7 @@ export default function SpeakingDetail() {
                   <div className="max-w-[80%] bg-fuchsia-600 text-white rounded-2xl rounded-br-sm p-4 leading-relaxed shadow-lg shadow-fuchsia-600/10">
                     {msg.content === '🎤 [Audio Message]' ? (
                       <div className="flex items-center gap-3">
-                        <span className="text-white/90 text-sm font-medium">Transcribing audio...</span>
+                        <span className="text-white/90 text-sm font-medium">Đang nhận diện giọng nói...</span>
                         <div className="flex items-center gap-1 h-4">
                           <motion.div animate={{ scaleY: [1, 2, 1] }} transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }} className="w-1 h-3 bg-white rounded-full origin-bottom" />
                           <motion.div animate={{ scaleY: [1, 2.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2, ease: "easeInOut" }} className="w-1 h-4 bg-white rounded-full origin-bottom" />
@@ -728,7 +728,7 @@ export default function SpeakingDetail() {
           {suggestions.length > 0 && (
             <div className="bg-pink-100 dark:bg-[#2A1F33] rounded-2xl p-4 border border-pink-200 dark:border-fuchsia-900/30 transition-colors">
               <p className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-bold mb-3 flex items-center gap-1.5">
-                <Target size={12} /> Try using these words:
+                <Target size={12} /> Thử dùng những từ này:
               </p>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((word, i) => (
