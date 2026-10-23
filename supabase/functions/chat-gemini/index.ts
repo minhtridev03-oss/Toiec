@@ -445,7 +445,7 @@ serve(async (req) => {
       throw new HttpError(405, 'Phương thức request không được hỗ trợ.')
     }
 
-    const auth = assertAuthenticatedForAi(req)
+    const auth = await assertAuthenticatedForAi(req)
     const rawBody = await readJsonBody(req)
     const { prompt, responseType, maxOutputTokens, task, inlineData } = requestSchema.parse(rawBody)
     const taskPolicy = getTaskPolicy(task)

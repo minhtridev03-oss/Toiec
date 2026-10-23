@@ -7,14 +7,17 @@ import { praiseLearningBot } from '../lib/learningBot';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
+import { writingLessonCache } from '../lib/lessonCache';
+
 export default function WritingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [lesson, setLesson] = useState(null);
-  const [sentences, setSentences] = useState([]);
+  const cachedData = writingLessonCache.get(id);
+  const [lesson, setLesson] = useState(() => cachedData?.lesson || null);
+  const [sentences, setSentences] = useState(() => cachedData?.sentences || []);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedData);
 
   const [userTranslation, setUserTranslation] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -28,25 +31,39 @@ export default function WritingDetail() {
   }, [id]);
   const fetchLessonAndSentences = async () => {
     try {
-      const { data: lessonData, error: lessonError } = await supabase
-        .from('writing_lessons')
-        .select('id, title, level, full_content, created_at')
-        .eq('id', id)
-        .single();
+      if (!writingLessonCache.has(id)) {
+        setLoading(true);
+      }
 
-      if (lessonError) throw lessonError;
+      const [lessonRes, sentencesRes] = await Promise.all([
+        supabase
+          .from('writing_lessons')
+          .select('id, title, level, full_content, created_at')
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('writing_sentences')
+          .select('id, lesson_id, text_to_translate, suggested_translation, order_num')
+          .eq('lesson_id', id)
+          .order('order_num', { ascending: true }),
+      ]);
+
+      if (lessonRes.error) throw lessonRes.error;
+      if (sentencesRes.error) throw sentencesRes.error;
+
+      const lessonData = lessonRes.data;
+      const sentencesData = sentencesRes.data || [];
+
+      writingLessonCache.set(id, {
+        lesson: lessonData,
+        sentences: sentencesData,
+      });
+
       setLesson(lessonData);
-      const { data: sentencesData, error: sentencesError } = await supabase
-        .from('writing_sentences')
-        .select('id, lesson_id, text_to_translate, suggested_translation, order_num')
-        .eq('lesson_id', id)
-        .order('order_num', { ascending: true });
-
-      if (sentencesError) throw sentencesError;
-      setSentences(sentencesData || []);
+      setSentences(sentencesData);
     } catch (error) {
       console.error('Error fetching writing details:', error.message);
-      navigate('/writing');
+      if (!lesson) navigate('/writing');
     } finally {
       setLoading(false);
     }

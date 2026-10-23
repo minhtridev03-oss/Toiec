@@ -40,6 +40,9 @@ export default defineConfig({
             if (id.includes('@supabase')) {
               return 'vendor-supabase';
             }
+            if (id.includes('framer-motion')) {
+              return 'vendor-framer-motion';
+            }
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
             }

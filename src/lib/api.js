@@ -54,21 +54,28 @@ export const fetchSuggestedCategories = async (userId) => {
 export const fetchUserStreak = async (userId) => {
   if (!userId) return 0;
   try {
-    // 1. Lấy các ngày học từ vựng
+    // Giới hạn phạm vi tính streak trong 90 ngày gần nhất để tránh tải hàng chục nghìn bản ghi lịch sử
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 90);
+    const sinceIso = sinceDate.toISOString();
+
+    // 1. Lấy các ngày học từ vựng gần đây
     const vocabPromise = supabase
       .from('user_topic_vocabularies')
       .select('created_at')
       .eq('user_id', userId)
+      .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
-      .limit(10000);
+      .limit(300);
       
-    // 2. Lấy các ngày luyện tập (tất cả các kỹ năng khác)
+    // 2. Lấy các ngày luyện tập gần đây
     const practicePromise = supabase
       .from('user_practice_sessions')
       .select('created_at')
       .eq('user_id', userId)
+      .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
-      .limit(10000);
+      .limit(300);
 
     const [vocabRes, practiceRes] = await Promise.all([vocabPromise, practicePromise]);
 

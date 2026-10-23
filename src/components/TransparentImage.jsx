@@ -1,10 +1,21 @@
 import React, { useRef, useEffect, useState } from 'react';
 
+// In-memory cache for processed transparent images
+const imageCache = new Map();
+
 export default function TransparentImage({ src, alt, className, tolerance = 240, removeColor = 'auto' }) {
   const canvasRef = useRef(null);
-  const [loaded, setLoaded] = useState(false);
+  const cacheKey = `${src}_${tolerance}_${removeColor}`;
+  const [cachedDataUrl, setCachedDataUrl] = useState(() => imageCache.get(cacheKey) || null);
+  const [loaded, setLoaded] = useState(() => Boolean(imageCache.get(cacheKey)));
 
   useEffect(() => {
+    if (imageCache.has(cacheKey)) {
+      setCachedDataUrl(imageCache.get(cacheKey));
+      setLoaded(true);
+      return;
+    }
+
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.src = src;
@@ -46,26 +57,20 @@ export default function TransparentImage({ src, alt, className, tolerance = 240,
              const saturationDiff = maxVal - minVal;
 
              if (maxVal < darkTolerance) {
-               // Remove pure dark background
                data[i + 3] = 0;
              } else if (saturationDiff < 50) {
-               // Remove ALL grayish/white watermark text, no matter how bright!
                data[i + 3] = 0;
              } else if (maxVal < darkTolerance + 35) {
-               // Edge smoothing for colored elements
                data[i + 3] = Math.max(0, 255 - ((darkTolerance + 35) - maxVal) * 8);
              }
           } else {
-             // For light backgrounds (including fake checkerboard transparency)
              const maxVal = Math.max(r, g, b);
              const minVal = Math.min(r, g, b);
              const saturationDiff = maxVal - minVal;
 
              if (saturationDiff < 45 && maxVal > 150) {
-               // Remove white and light-gray checkerboard squares
                data[i + 3] = 0; 
              } else {
-               // Edge smoothing for colored elements blending into white/gray
                if (maxVal > 200 && saturationDiff < 60) {
                   data[i + 3] = Math.max(0, 255 - (maxVal - 200) * 4);
                }
@@ -74,14 +79,28 @@ export default function TransparentImage({ src, alt, className, tolerance = 240,
         }
         
         ctx.putImageData(imageData, 0, 0);
+        const dataUrl = canvas.toDataURL();
+        imageCache.set(cacheKey, dataUrl);
+        setCachedDataUrl(dataUrl);
         setLoaded(true);
       } catch (e) {
         console.error("Canvas image processing failed", e);
-        // Fallback: just show the canvas (though it will have the background)
         setLoaded(true);
       }
     };
-  }, [src, tolerance]);
+  }, [src, tolerance, removeColor, cacheKey]);
+
+  if (cachedDataUrl) {
+    return (
+      <img
+        src={cachedDataUrl}
+        alt={alt || ''}
+        className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
 
   return (
     <canvas 

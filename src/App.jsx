@@ -1,5 +1,5 @@
 import React, { Suspense, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useLocale } from './contexts/LocaleContext';
 import Sidebar from './components/layout/Sidebar';
@@ -62,7 +62,7 @@ const PrivateRoute = ({ children }) => {
   const { t } = useLocale();
   if (loading) return <div className="h-screen w-screen flex items-center justify-center">{t('common.loading')}</div>;
   if (!user) return <Navigate to="/login" replace />;
-  return children;
+  return children ? children : <Outlet />;
 };
 
 // HOC bảo vệ route admin
@@ -75,11 +75,11 @@ const AdminRoute = ({ children }) => {
   const role = user?.app_metadata?.role;
   if (role !== 'admin') return <Navigate to="/dashboard" replace />;
   
-  return children;
+  return children ? children : <Outlet />;
 };
 
-// Layout chính khi đã login
-const MainLayout = ({ children }) => {
+// Layout chính duy trì liên tục khi chuyển đổi giữa các trang
+const MainLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -104,7 +104,7 @@ const MainLayout = ({ children }) => {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 w-full ${isCollapsed ? 'lg:ml-[5.5rem]' : 'lg:ml-64'} ml-0`}>
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
         <main className="flex-1 flex flex-col relative min-w-0 overflow-x-hidden">
-          {children}
+          <Outlet />
         </main>
         <Footer />
       </div>
@@ -132,208 +132,8 @@ export default function App() {
             </PrivateRoute>
           } 
         />
-        {/* Cấu trúc các trang con bên trong Layout chính */}
-        <Route 
-          path="/" 
-          element={
-            <PrivateRoute>
-              <MainLayout><Navigate to="/dashboard" replace /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/dashboard" 
-          element={
-            <PrivateRoute>
-              <MainLayout><Dashboard /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/tflat" 
-          element={
-            <PrivateRoute>
-              <MainLayout><TFlat /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/categories" 
-          element={
-            <PrivateRoute>
-              <MainLayout><Categories /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/my-vocabulary" 
-          element={
-            <PrivateRoute>
-              <MainLayout><PersonalVocabulary /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/my-vocabulary/review/:index" 
-          element={
-            <PrivateRoute>
-              <MainLayout><PersonalVocabReview /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/subcategories/:mainGroupName" 
-          element={
-            <PrivateRoute>
-              <MainLayout><SubCategories /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/categories/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><WordList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/vocabularies/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><VocabularyDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/practice" 
-          element={
-            <PrivateRoute>
-              <MainLayout><Practice /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route
-          path="/games"
-          element={
-            <PrivateRoute>
-              <MainLayout><Games /></MainLayout>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/kids"
-          element={
-            <PrivateRoute>
-              <MainLayout><KidsZone /></MainLayout>
-            </PrivateRoute>
-          }
-        />
-        <Route 
-          path="/tenses" 
-          element={
-            <PrivateRoute>
-              <MainLayout><TenseList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/speaking" 
-          element={
-            <PrivateRoute>
-              <MainLayout><SpeakingList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/speaking/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><SpeakingDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/tenses/:slug" 
-          element={
-            <PrivateRoute>
-              <MainLayout><TenseDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/dictation" 
-          element={
-            <PrivateRoute>
-              <MainLayout><DictationList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/dictation/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><DictationDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/reading" 
-          element={
-            <PrivateRoute>
-              <MainLayout><ReadingList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/shadowing" 
-          element={
-            <PrivateRoute>
-              <MainLayout><ShadowingList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/shadowing/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><ShadowingDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/reading/:id" 
-          element={
-            <PrivateRoute>
-              <MainLayout><ReadingDetail /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/writing" 
-          element={
-            <PrivateRoute>
-              <MainLayout><WritingList /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
-        <Route
-          path="/library"
-          element={
-            <PrivateRoute>
-              <MainLayout><Library /></MainLayout>
-            </PrivateRoute>
-          }
-        />
 
-        <Route
-          path="/mock-tests"
-          element={
-            <PrivateRoute>
-              <MainLayout><MockTestList /></MainLayout>
-            </PrivateRoute>
-          }
-        />
+        {/* Chế độ toàn màn hình cho bài thi mock test */}
         <Route
           path="/mock-tests/:id"
           element={
@@ -342,22 +142,43 @@ export default function App() {
             </PrivateRoute>
           }
         />
+
+        {/* Nhóm các trang học tập dùng chung MainLayout duy trì ổn định */}
         <Route 
-          path="/writing/:id" 
           element={
             <PrivateRoute>
-              <MainLayout><WritingDetail /></MainLayout>
+              <MainLayout />
             </PrivateRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
-            <PrivateRoute>
-              <MainLayout><Profile /></MainLayout>
-            </PrivateRoute>
-          } 
-        />
+          }
+        >
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/tflat" element={<TFlat />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/my-vocabulary" element={<PersonalVocabulary />} />
+          <Route path="/my-vocabulary/review/:index" element={<PersonalVocabReview />} />
+          <Route path="/subcategories/:mainGroupName" element={<SubCategories />} />
+          <Route path="/categories/:id" element={<WordList />} />
+          <Route path="/vocabularies/:id" element={<VocabularyDetail />} />
+          <Route path="/practice" element={<Practice />} />
+          <Route path="/games" element={<Games />} />
+          <Route path="/kids" element={<KidsZone />} />
+          <Route path="/tenses" element={<TenseList />} />
+          <Route path="/tenses/:slug" element={<TenseDetail />} />
+          <Route path="/speaking" element={<SpeakingList />} />
+          <Route path="/speaking/:id" element={<SpeakingDetail />} />
+          <Route path="/dictation" element={<DictationList />} />
+          <Route path="/dictation/:id" element={<DictationDetail />} />
+          <Route path="/reading" element={<ReadingList />} />
+          <Route path="/reading/:id" element={<ReadingDetail />} />
+          <Route path="/shadowing" element={<ShadowingList />} />
+          <Route path="/shadowing/:id" element={<ShadowingDetail />} />
+          <Route path="/writing" element={<WritingList />} />
+          <Route path="/writing/:id" element={<WritingDetail />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/mock-tests" element={<MockTestList />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
 
         {/* Admin Routes */}
         <Route 

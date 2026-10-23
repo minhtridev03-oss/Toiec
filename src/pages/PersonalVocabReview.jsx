@@ -29,7 +29,7 @@ export default function PersonalVocabReview() {
     try {
       const { data, error } = await supabase
         .from('user_vocabulary')
-        .select('*')
+        .select('id, word, pro, pos, mean, example, example_mean, note, is_learned, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;

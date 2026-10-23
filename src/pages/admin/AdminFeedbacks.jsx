@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { MessageSquarePlus, Trash2, Clock, Mail, User, AlertCircle, RefreshCw } from 'lucide-react';
+import { MessageSquarePlus, Trash2, Clock, Mail, User, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminFeedbacks() {
@@ -20,7 +20,20 @@ export default function AdminFeedbacks() {
   const fetchFeedbacks = async () => {
     setLoading(true);
     try {
-      // 1. Lấy danh sách góp ý từ user_feedbacks
+      // 1. Ưu tiên gọi RPC get_admin_feedbacks (bảo vệ PII, chỉ lấy email của những user đã gửi feedback)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_admin_feedbacks');
+      
+      if (!rpcError && Array.isArray(rpcData)) {
+        const mapped = rpcData.map(fb => ({
+          ...fb,
+          user_name: fb.user_email || (fb.user_id ? 'Người dùng' : 'Ẩn danh'),
+          user_email: fb.user_email || null,
+        }));
+        setFeedbacks(mapped);
+        return;
+      }
+
+      // 2. Dự phòng an toàn nếu RPC chưa triển khai: chỉ đọc trực tiếp bảng user_feedbacks
       const { data: feedbacksData, error: feedbacksError } = await supabase
         .from('user_feedbacks')
         .select('id, content, created_at, user_id')
@@ -28,21 +41,10 @@ export default function AdminFeedbacks() {
         
       if (feedbacksError) throw feedbacksError;
       
-      // 2. Lấy danh sách users (bằng RPC đã có sẵn) để lấy email thay vì tên
-      const { data: usersData, error: usersError } = await supabase.rpc('get_all_users');
-      
-      let usersMap = {};
-      if (!usersError && usersData) {
-        usersData.forEach(u => {
-          usersMap[u.id] = u.email;
-        });
-      }
-      
-      // 3. Ghép dữ liệu
       const mapped = (feedbacksData || []).map(fb => ({
         ...fb,
-        user_name: fb.user_id ? (usersMap[fb.user_id] || 'Người dùng') : 'Ẩn danh',
-        user_email: fb.user_id ? usersMap[fb.user_id] : null,
+        user_name: fb.user_id ? 'Người dùng' : 'Ẩn danh',
+        user_email: null,
       }));
       setFeedbacks(mapped);
     } catch (err) {

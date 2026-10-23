@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { useInfiniteScroll } from '../lib/useInfiniteScroll';
+import { prefetchReadingLesson } from '../lib/lessonCache';
 
 const LEVELS = ['All', 'Basic', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Toeic', 'IELTS'];
 const PAGE_SIZE = 24;
@@ -163,6 +164,8 @@ export default function ReadingList() {
               <motion.div
                 key={lesson.id}
                 whileHover={{ y: -4 }}
+                onMouseEnter={() => prefetchReadingLesson(lesson.id)}
+                onFocus={() => prefetchReadingLesson(lesson.id)}
                 onClick={() => navigate(`/reading/${lesson.id}`)}
                 className={`defer-render bg-white dark:bg-[#1E1226] rounded-3xl overflow-hidden shadow-sm border ${isCompleted ? 'border-green-500 shadow-green-100 dark:shadow-green-900/20' : 'border-pink-100 dark:border-[#3A2F43]'} hover:shadow-xl hover:border-fuchsia-200 dark:hover:border-fuchsia-500/50 transition-all cursor-pointer group flex flex-col relative`}
               >

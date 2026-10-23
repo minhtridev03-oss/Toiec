@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { explainReadingMistakes } from '../lib/gemini';
 import { praiseLearningBot } from '../lib/learningBot';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
+import { readingLessonCache } from '../lib/lessonCache';
+
 const MemoizedContent = React.memo(({ content }) => {
   return (
     <div className="bg-white dark:bg-[#1E1226] rounded-2xl p-8 shadow-sm border border-pink-200 dark:border-[#3A2F43] text-lg text-slate-800 dark:text-slate-200 leading-loose whitespace-pre-wrap transition-colors">
@@ -13,13 +15,15 @@ const MemoizedContent = React.memo(({ content }) => {
     </div>
   );
 });
+
 export default function ReadingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [lesson, setLesson] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedData = readingLessonCache.get(id);
+  const [lesson, setLesson] = useState(() => cachedData?.lesson || null);
+  const [questions, setQuestions] = useState(() => cachedData?.questions || []);
+  const [loading, setLoading] = useState(() => !cachedData);
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [highlight, setHighlight] = useState(false);
@@ -40,23 +44,40 @@ export default function ReadingDetail() {
   }, [id]);
   const fetchLesson = async () => {
     try {
-      const { data: lessonData, error: lessonError } = await supabase
-        .from('reading_lessons')
-        .select('id, title, content, level')
-        .eq('id', id)
-        .single();
-      if (lessonError) throw lessonError;
+      if (!readingLessonCache.has(id)) {
+        setLoading(true);
+      }
+
+      // Tối ưu hóa: Chạy song song cả hai truy vấn bài học & câu hỏi
+      const [lessonRes, questionsRes] = await Promise.all([
+        supabase
+          .from('reading_lessons')
+          .select('id, title, content, level')
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('reading_questions')
+          .select('id, lesson_id, question, options, correct_answer, explanation')
+          .eq('lesson_id', id)
+          .order('created_at', { ascending: true }),
+      ]);
+
+      if (lessonRes.error) throw lessonRes.error;
+      if (questionsRes.error) throw questionsRes.error;
+
+      const lessonData = lessonRes.data;
+      const questionsData = questionsRes.data || [];
+
+      readingLessonCache.set(id, {
+        lesson: lessonData,
+        questions: questionsData,
+      });
+
       setLesson(lessonData);
-      const { data: qData, error: qError } = await supabase
-        .from('reading_questions')
-        .select('id, lesson_id, question, options, correct_answer, explanation')
-        .eq('lesson_id', id)
-        .order('created_at', { ascending: true });
-      if (qError) throw qError;
-      setQuestions(qData || []);
+      setQuestions(questionsData);
     } catch (error) {
       console.error('Error fetching reading details:', error.message);
-      navigate('/reading');
+      if (!lesson) navigate('/reading');
     } finally {
       setLoading(false);
     }

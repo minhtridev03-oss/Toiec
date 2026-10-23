@@ -152,11 +152,20 @@ export const readJsonBody = async (req: Request) => {
   }
 }
 
+export const constantTimeEqual = (a: string, b: string): boolean => {
+  const bufA = textEncoder.encode(a)
+  const bufB = textEncoder.encode(b)
+  if (bufA.byteLength !== bufB.byteLength) {
+    return false
+  }
+  return crypto.subtle.timingSafeEqual(bufA, bufB)
+}
+
 export const getClientIp = (req: Request) => {
   return (
     req.headers.get('cf-connecting-ip') ||
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     req.headers.get('x-real-ip') ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     'unknown'
   )
 }
@@ -218,38 +227,65 @@ export const consumeRateLimit = async (
   }
 }
 
-const decodeBase64Url = (value: string) => {
-  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
-  return new TextDecoder().decode(Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)))
+export type AuthUserContext = {
+  userId?: string
+  role?: string
+  isAdmin: boolean
+  isServiceRole: boolean
+  email?: string
 }
 
-export const decodeJwtPayload = (authorizationHeader: string | null) => {
-  const token = authorizationHeader?.replace(/^Bearer\s+/i, '')
-  if (!token || token.split('.').length < 2) return null
+/**
+ * Xác thực token JWT của request qua Supabase Auth Gateway, kiểm tra chữ ký số HMAC-SHA256
+ * hoặc đối chiếu Service Role Key với thời gian hằng định (constant-time).
+ */
+export const authenticateRequest = async (req: Request): Promise<AuthUserContext> => {
+  const authHeader = req.headers.get('authorization')
+  const token = authHeader?.replace(/^Bearer\s+/i, '').trim()
+
+  if (!token) {
+    return { isAdmin: false, isServiceRole: false }
+  }
+
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (serviceRoleKey && constantTimeEqual(token, serviceRoleKey)) {
+    return {
+      userId: 'service_role',
+      role: 'service_role',
+      isAdmin: true,
+      isServiceRole: true,
+    }
+  }
 
   try {
-    return JSON.parse(decodeBase64Url(token.split('.')[1]))
-  } catch {
-    return null
+    const adminClient = createAdminClient()
+    const { data: { user }, error } = await adminClient.auth.getUser(token)
+
+    if (error || !user) {
+      return { isAdmin: false, isServiceRole: false }
+    }
+
+    const role = user.role || 'authenticated'
+    const isAdmin = user.app_metadata?.role === 'admin'
+
+    return {
+      userId: user.id,
+      role,
+      isAdmin,
+      isServiceRole: false,
+      email: user.email,
+    }
+  } catch (error) {
+    console.error('Auth verification error:', error)
+    return { isAdmin: false, isServiceRole: false }
   }
 }
 
-export const getAuthContext = (req: Request) => {
-  const payload = decodeJwtPayload(req.headers.get('authorization'))
-  const role = payload?.role
+export const getAuthContext = async (req: Request) => authenticateRequest(req)
 
-  return {
-    role,
-    userId: role === 'authenticated' ? payload?.sub as string | undefined : undefined,
-    isServiceRole: role === 'service_role',
-    isAdmin: payload?.app_metadata?.role === 'admin',
-  }
-}
-
-export const assertAuthenticatedForAi = (req: Request) => {
-  const auth = getAuthContext(req)
-  if (!auth.userId && !auth.isServiceRole) {
+export const assertAuthenticatedForAi = async (req: Request): Promise<AuthUserContext> => {
+  const auth = await authenticateRequest(req)
+  if (!auth.userId || (!auth.isServiceRole && auth.role !== 'authenticated')) {
     throw new HttpError(401, 'Vui lòng đăng nhập để sử dụng AI.')
   }
 

@@ -23,24 +23,39 @@ export default function SubCategories() {
     const categories = catData || [];
 
     const statsMap = {};
-    await Promise.all(categories.map(async (cat) => {
-      const { count: totalCount } = await supabase
-        .from('topic_vocabularies')
-        .select('id', { count: 'exact', head: true })
-        .eq('category_id', cat.id);
 
-      const { data: learnedData } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, topic_vocabularies!inner(category_id)')
-        .eq('user_id', user.id)
-        .eq('is_learned', true)
-        .eq('topic_vocabularies.category_id', cat.id);
+    // 1. Thử dùng RPC get_category_progress lấy toàn bộ tiến độ trong 1 truy vấn
+    const { data: progressRows, error: progressError } = await supabase
+      .rpc('get_category_progress', { p_user_id: user.id });
 
-      statsMap[cat.id] = {
-        total: totalCount || 0,
-        learned: learnedData ? learnedData.length : 0,
-      };
-    }));
+    if (!progressError && Array.isArray(progressRows)) {
+      progressRows.forEach((row) => {
+        statsMap[row.category_id] = {
+          total: Number(row.total_count) || 0,
+          learned: Number(row.learned_count) || 0,
+        };
+      });
+    } else {
+      // Dự phòng an toàn nếu RPC chưa có
+      await Promise.all(categories.map(async (cat) => {
+        const { count: totalCount } = await supabase
+          .from('topic_vocabularies')
+          .select('id', { count: 'exact', head: true })
+          .eq('category_id', cat.id);
+
+        const { data: learnedData } = await supabase
+          .from('user_topic_vocabularies')
+          .select('vocabulary_id, topic_vocabularies!inner(category_id)')
+          .eq('user_id', user.id)
+          .eq('is_learned', true)
+          .eq('topic_vocabularies.category_id', cat.id);
+
+        statsMap[cat.id] = {
+          total: totalCount || 0,
+          learned: learnedData ? learnedData.length : 0,
+        };
+      }));
+    }
 
     return {
       subCategories: categories,

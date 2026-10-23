@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createAdminClient } from '../_shared/security.ts'
+import { constantTimeEqual, createAdminClient } from '../_shared/security.ts'
 
 const json = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -22,8 +22,8 @@ const extractTransferCode = (value: string) => {
 serve(async (req) => {
   if (req.method !== 'POST') return json({ success: false, error: 'Method not allowed' }, 405)
   const expectedKey = Deno.env.get('SEPAY_WEBHOOK_API_KEY')
-  const providedKey = req.headers.get('Authorization')?.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '') || req.headers.get('x-api-key')
-  if (!expectedKey || providedKey !== expectedKey) return json({ success: false, error: 'Unauthorized' }, 401)
+  const providedKey = req.headers.get('Authorization')?.replace(/^Apikey\s+/i, '').replace(/^Bearer\s+/i, '') || req.headers.get('x-api-key') || ''
+  if (!expectedKey || !constantTimeEqual(providedKey, expectedKey)) return json({ success: false, error: 'Unauthorized' }, 401)
 
   try {
     const payload = await req.json() as Record<string, unknown>

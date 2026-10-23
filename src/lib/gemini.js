@@ -61,6 +61,12 @@ const invokeAI = async (body) => {
     throw new AppError(`Bạn gọi AI quá nhanh. Vui lòng thử lại sau ${rate.retryAfterSeconds} giây.`, 429);
   }
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) {
+    throw new AppError('Vui lòng đăng nhập để sử dụng tính năng AI.', 401);
+  }
+
   const { data, error } = await supabase.functions.invoke('chat-gemini', {
     body: safeBody,
   });
@@ -96,7 +102,11 @@ const invokeAIStream = async (body) => {
 
   // Get the current session token for auth
   const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData?.session?.access_token || supabaseAnonKey;
+  const accessToken = sessionData?.session?.access_token;
+
+  if (!accessToken) {
+    throw new AppError('Vui lòng đăng nhập để sử dụng tính năng AI.', 401);
+  }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/chat-gemini`, {
     method: 'POST',

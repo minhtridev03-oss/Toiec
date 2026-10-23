@@ -5,8 +5,12 @@ import { PenTool, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
+import { prefetchWritingLesson } from '../lib/lessonCache';
 
 const LEVELS = ['All', 'Basic', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Toeic'];
+
+let cachedWritingLessons = null;
+let cachedWritingProgress = {};
 
 const COPY = {
   vi: {
@@ -34,45 +38,61 @@ export default function WritingList() {
   const { locale } = useLocale();
   const text = COPY[locale];
   const [activeTab, setActiveTab] = useState('All');
-  const [lessons, setLessons] = useState([]);
-  const [progressData, setProgressData] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [lessons, setLessons] = useState(() => cachedWritingLessons || []);
+  const [progressData, setProgressData] = useState(() => cachedWritingProgress || {});
+  const [loading, setLoading] = useState(() => !cachedWritingLessons);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchLessons();
-  }, []);
+  }, [user?.id]);
 
   const fetchLessons = async () => {
     try {
-      setLoading(true);
-      const { data: lessonsData, error: lessonsError } = await supabase
-        .from('writing_lessons')
-        .select('id, title, level, created_at')
-        .order('created_at', { ascending: true });
+      // Chỉ hiện spinner toàn màn hình nếu chưa có dữ liệu đệm trong bộ nhớ
+      if (!cachedWritingLessons) {
+        setLoading(true);
+      }
 
-      if (lessonsError) throw lessonsError;
-      setLessons(lessonsData || []);
+      const [lessonsRes, progressRes] = await Promise.all([
+        supabase
+          .from('writing_lessons')
+          .select('id, title, level, created_at')
+          .order('created_at', { ascending: true }),
+        user?.id
+          ? supabase.rpc('get_writing_progress', { p_user_id: user.id })
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-      if (user) {
-        const { data: sentencesData } = await supabase
-          .from('writing_sentences')
-          .select('id, lesson_id');
-        
-        const { data: completedData } = await supabase
-          .from('user_writing_progress')
-          .select('sentence_id')
-          .eq('user_id', user.id);
-          
-        if (sentencesData && completedData) {
-          const completedSet = new Set(completedData.map(c => c.sentence_id));
-          const progressMap = {};
-          
-          (lessonsData || []).forEach(l => {
-            progressMap[l.id] = { total: 0, completed: 0, percentage: 0 };
-          });
-          
-          sentencesData.forEach(s => {
+      if (lessonsRes.error) throw lessonsRes.error;
+      const lessonsData = lessonsRes.data || [];
+      setLessons(lessonsData);
+
+      const progressMap = {};
+      lessonsData.forEach(l => {
+        progressMap[l.id] = { total: 0, completed: 0, percentage: 0 };
+      });
+
+      if (!progressRes.error && Array.isArray(progressRes.data)) {
+        progressRes.data.forEach((row) => {
+          const total = Number(row.total_count) || 0;
+          const completed = Number(row.completed_count) || 0;
+          progressMap[row.lesson_id] = {
+            total,
+            completed,
+            percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+          };
+        });
+      } else if (user) {
+        // Dự phòng nếu RPC chưa được tạo
+        const [sentencesRes, completedRes] = await Promise.all([
+          supabase.from('writing_sentences').select('id, lesson_id'),
+          supabase.from('user_writing_progress').select('sentence_id').eq('user_id', user.id),
+        ]);
+
+        if (sentencesRes.data && completedRes.data) {
+          const completedSet = new Set(completedRes.data.map(c => c.sentence_id));
+          sentencesRes.data.forEach(s => {
             if (progressMap[s.lesson_id]) {
               progressMap[s.lesson_id].total++;
               if (completedSet.has(s.id)) {
@@ -80,17 +100,18 @@ export default function WritingList() {
               }
             }
           });
-          
           Object.keys(progressMap).forEach(key => {
             const data = progressMap[key];
             if (data.total > 0) {
               data.percentage = Math.round((data.completed / data.total) * 100);
             }
           });
-          
-          setProgressData(progressMap);
         }
       }
+
+      setProgressData(progressMap);
+      cachedWritingLessons = lessonsData;
+      cachedWritingProgress = progressMap;
     } catch (error) {
       console.error('Error fetching writing lessons:', error.message);
     } finally {
@@ -148,6 +169,8 @@ export default function WritingList() {
               <motion.div
                 key={lesson.id}
                 whileHover={{ y: -4 }}
+                onMouseEnter={() => prefetchWritingLesson(lesson.id)}
+                onFocus={() => prefetchWritingLesson(lesson.id)}
                 onClick={() => navigate(`/writing/${lesson.id}`)}
                 className={`bg-white dark:bg-[#1E1226] rounded-3xl overflow-hidden shadow-sm border ${isCompleted ? 'border-green-500 shadow-green-100 dark:shadow-green-900/20' : 'border-pink-100 dark:border-[#3A2F43]'} hover:shadow-xl hover:border-fuchsia-200 dark:hover:border-fuchsia-500/50 transition-all cursor-pointer group flex flex-col relative`}
               >

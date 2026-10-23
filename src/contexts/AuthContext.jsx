@@ -10,12 +10,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authEvent, setAuthEvent] = useState(null);
   const userIdRef = useRef(null);
+  const userFingerprintRef = useRef(null);
 
   useEffect(() => {
-    // Helper: only update user state if the user ID actually changed
+    // Helper: update user state if user ID or security metadata/role changes
     const updateUser = (newUser) => {
       const newId = newUser?.id ?? null;
-      if (newId !== userIdRef.current) {
+      const newFingerprint = newId
+        ? `${newId}:${newUser?.updated_at || ''}:${newUser?.app_metadata?.role || ''}:${JSON.stringify(newUser?.user_metadata || {})}`
+        : null;
+
+      if (newFingerprint !== userFingerprintRef.current) {
+        userFingerprintRef.current = newFingerprint;
         userIdRef.current = newId;
         setUser(newUser);
       }
