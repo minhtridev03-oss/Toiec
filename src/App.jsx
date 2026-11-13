@@ -1,7 +1,9 @@
-import React, { Suspense, useState } from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useLocale } from './contexts/LocaleContext';
+import { useTheme } from './contexts/ThemeContext';
+import { useAmbient } from './contexts/AmbientContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import GlobalSkeletonLoader from './components/layout/GlobalSkeletonLoader';
@@ -53,6 +55,8 @@ const AdminDictation = React.lazy(() => import('./pages/admin/AdminDictation'));
 const AdminGrammar = React.lazy(() => import('./pages/admin/AdminGrammar'));
 const AdminVocab = React.lazy(() => import('./pages/admin/AdminVocab'));
 const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers'));
+const AdminAvatarFrames = React.lazy(() => import('./pages/admin/AdminAvatarFrames'));
+const AdminLevels = React.lazy(() => import('./pages/admin/AdminLevels'));
 const AdminFeedbacks = React.lazy(() => import('./pages/admin/AdminFeedbacks'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
@@ -82,13 +86,88 @@ const AdminRoute = ({ children }) => {
 const MainLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { videoEnabled, isVideoPlaying, dimOverlay } = useAmbient();
+  const { isDarkMode } = useTheme();
+  const videoRef = useRef(null);
+  const location = useLocation();
+  const isStudioMode = /^\/(dictation|shadowing|speaking)\/[^/]+$/.test(location.pathname);
+
+  // Sync video play/pause with user controls
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (videoEnabled && isVideoPlaying && !document.hidden) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [videoEnabled, isVideoPlaying]);
+
+  // Pause video automatically when user switches browser tab or minimizes window
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      if (document.hidden) {
+        video.pause();
+      } else {
+        if (videoEnabled && isVideoPlaying) {
+          video.play().catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [videoEnabled, isVideoPlaying]);
 
   return (
-    <div className="flex min-h-screen bg-pink-50 dark:bg-[#160B1E] font-sans transition-colors">
+    <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 ${
+      videoEnabled ? 'bg-transparent' : 'bg-slate-50/70 dark:bg-[#090a0f]'
+    }`}>
+      {/* Global Background Video with Liquid Glass Layering */}
+      {videoEnabled && (
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
+          <video
+            ref={videoRef}
+            src="/assets/videos/1027.mp4"
+            autoPlay={videoEnabled && isVideoPlaying}
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="h-full w-full object-cover select-none pointer-events-none"
+            style={{
+              transform: 'scale(1.02) translate3d(0, 0, 0)',
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+            }}
+          />
+          {/* Ambient Overlay: Fixed subtle dimming in dark mode, crystal clear in light mode */}
+          <div
+            className="absolute inset-0 transition-colors duration-500 pointer-events-none"
+            style={{
+              backgroundColor: isDarkMode ? `rgba(9, 10, 15, ${dimOverlay || 0.35})` : 'transparent',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Fallback ambient glows when video is disabled */}
+      {!videoEnabled && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-indigo-500/10 dark:hidden blur-3xl" />
+          <div className="absolute top-1/3 -left-20 w-80 h-80 rounded-full bg-violet-400/8 dark:hidden blur-3xl" />
+          <div className="absolute -bottom-20 left-10 w-80 h-80 rounded-full bg-sky-400/8 dark:hidden blur-3xl" />
+        </div>
+      )}
+
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-40 lg:hidden transition-opacity animate-in fade-in"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -101,12 +180,12 @@ const MainLayout = () => {
         setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
       
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 w-full ${isCollapsed ? 'lg:ml-[5.5rem]' : 'lg:ml-64'} ml-0`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${isCollapsed ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)]' : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)]'} w-full ${isStudioMode ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 flex flex-col relative min-w-0 overflow-x-hidden">
+        <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-hidden' : 'overflow-x-hidden'}`}>
           <Outlet />
         </main>
-        <Footer />
+        {!isStudioMode && <Footer />}
       </div>
       <Suspense fallback={null}>
         <LearningBotDock />
@@ -162,7 +241,7 @@ export default function App() {
           <Route path="/vocabularies/:id" element={<VocabularyDetail />} />
           <Route path="/practice" element={<Practice />} />
           <Route path="/games" element={<Games />} />
-          <Route path="/kids" element={<KidsZone />} />
+          {/* <Route path="/kids" element={<KidsZone />} /> */}
           <Route path="/tenses" element={<TenseList />} />
           <Route path="/tenses/:slug" element={<TenseDetail />} />
           <Route path="/speaking" element={<SpeakingList />} />
@@ -191,6 +270,8 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="levels" element={<AdminLevels />} />
+          <Route path="avatar-frames" element={<AdminAvatarFrames />} />
           <Route path="writing" element={<AdminWriting />} />
           <Route path="reading" element={<AdminReading />} />
           <Route path="library" element={<AdminLibrary />} />

@@ -2,9 +2,19 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import useSWR from 'swr';
+import { useStats } from '../contexts/StatsContext';
+import useSWR, { useSWRConfig } from 'swr';
 import { getShortMeaning } from '../utils/dictionaryParser';
-import { ArrowLeft, CheckCircle2, Circle, Search, Volume2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Search,
+  Volume2,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 import WordDetailModal from '../components/vocab/WordDetailModal';
 
 // Custom hook for debounce
@@ -19,18 +29,40 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+// Helper to parse Unit/Topic prefix
+const parseUnitName = (fullName = '') => {
+  const match = fullName.match(/^(Unit\s+\d+|Topic\s+\d+|Bài\s+\d+|Lesson\s+\d+|Set\s+\d+)[:.-]?\s*(.*)$/i);
+  if (match) {
+    return {
+      unitTag: match[1].trim(),
+      title: match[2].trim() || fullName,
+    };
+  }
+  return {
+    unitTag: null,
+    title: fullName,
+  };
+};
+
 const PAGE_SIZE = 50;
 
 export default function WordList() {
   const { id: categoryId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshStats } = useStats();
+  const { mutate: globalMutate } = useSWRConfig();
 
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
   const [filterMode, setFilterMode] = useState('all');
   const [selectedWord, setSelectedWord] = useState(null);
+
+  // Reset page when search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery, filterMode]);
 
   // ─── FETCH DỮ LIỆU BẰNG SWR ─────────────────────────────────────────
   const fetchWordsData = async () => {
@@ -50,69 +82,83 @@ export default function WordList() {
       groupName = subCatData.categories?.name || null;
     }
 
-    // 2. Build Query for Vocabularies with Pagination
+    // 2. Fetch all word IDs in this subcategory to accurately compute progress and learned words
+    const { data: catWordIdsData, error: catWordsErr } = await supabase
+      .from('topic_vocabularies')
+      .select('id')
+      .eq('sub_category_id', categoryId);
+
+    if (catWordsErr) throw catWordsErr;
+
+    const allCatWordIds = (catWordIdsData || []).map(w => w.id);
+    const subCatTotalWords = allCatWordIds.length;
+
+    // 3. Fetch all learned word IDs for this user in this subcategory
+    let learnedVocabIds = new Set();
+    if (allCatWordIds.length > 0) {
+      const { data: learnedData, error: learnedErr } = await supabase
+        .from('user_topic_vocabularies')
+        .select('vocabulary_id')
+        .eq('user_id', user.id)
+        .eq('is_learned', true)
+        .in('vocabulary_id', allCatWordIds);
+
+      if (!learnedErr && learnedData) {
+        learnedVocabIds = new Set(learnedData.map(d => d.vocabulary_id));
+      }
+    }
+
+    const totalLearnedCount = learnedVocabIds.size;
+
+    // 4. Build Query for Vocabularies with Pagination
     let query = supabase
       .from('topic_vocabularies')
       .select('id, word, pro, pos, mean, example, example_mean', { count: 'exact' })
       .eq('sub_category_id', categoryId)
-      .order('word', { ascending: true })
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+      .order('word', { ascending: true });
 
     // Apply Search
     if (debouncedSearchQuery) {
       query = query.ilike('word', `${debouncedSearchQuery}%`);
     }
 
-    // 3. Handle 'learned' filter
+    // 5. Handle 'learned' filter
     if (filterMode === 'learned') {
-      const { data: learnedData } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, topic_vocabularies!inner(sub_category_id)')
-        .eq('user_id', user.id)
-        .eq('is_learned', true)
-        .eq('topic_vocabularies.sub_category_id', categoryId);
-        
-      const learnedIds = learnedData ? learnedData.map(d => d.vocabulary_id) : [];
-      
-      if (learnedIds.length === 0) {
+      const learnedIdsArray = Array.from(learnedVocabIds);
+      if (learnedIdsArray.length === 0) {
         return {
           categoryName: catName,
           mainGroupName: groupName,
           words: [],
           totalCount: 0,
-          learnedMap: {}
+          subCatTotalWords,
+          totalLearned: 0,
+          learnedMap: {},
         };
-      } else {
-        query = query.in('id', learnedIds);
       }
+      query = query.in('id', learnedIdsArray);
     }
+
+    // Apply pagination range
+    query = query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
     const { data: vocabData, count, error: vocabError } = await query;
     if (vocabError) throw vocabError;
 
-    // 4. Fetch learned status for the current page's words
+    // 6. Build learned map for current page
     let map = {};
-    if (vocabData && vocabData.length > 0) {
-      const vocabIds = vocabData.map(v => v.id);
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_topic_vocabularies')
-        .select('vocabulary_id, is_learned')
-        .eq('user_id', user.id)
-        .in('vocabulary_id', vocabIds);
-
-      if (!progressError && progressData) {
-        progressData.forEach(p => {
-          map[p.vocabulary_id] = p.is_learned;
-        });
-      }
-    }
+    (vocabData || []).forEach(v => {
+      map[v.id] = learnedVocabIds.has(v.id);
+    });
 
     return {
       categoryName: catName,
       mainGroupName: groupName,
       words: vocabData || [],
       totalCount: count || 0,
-      learnedMap: map
+      subCatTotalWords,
+      totalLearned: totalLearnedCount,
+      learnedMap: map,
     };
   };
 
@@ -123,7 +169,7 @@ export default function WordList() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       keepPreviousData: true,
-      dedupingInterval: 60000,
+      dedupingInterval: 30000,
     }
   );
 
@@ -132,15 +178,48 @@ export default function WordList() {
   const words = data?.words || [];
   const learnedMap = data?.learnedMap || {};
   const totalCount = data?.totalCount || 0;
+  const subCatTotalWords = data?.subCatTotalWords || totalCount;
+  const totalLearned = data?.totalLearned || 0;
   const loading = isLoading && !data;
+
+  const parsed = parseUnitName(categoryName);
+  const progressPercent = subCatTotalWords > 0 ? Math.round((totalLearned / subCatTotalWords) * 100) : 0;
+
+  const playWordAudio = (wordText) => {
+    if (!('speechSynthesis' in window) || !wordText) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(wordText);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  };
 
   const toggleLearned = async (e, vocabId, currentStatus) => {
     e.stopPropagation();
     const newStatus = !currentStatus;
+    const diff = newStatus ? 1 : -1;
 
     // Optimistic update
     mutate(
-      data => ({ ...data, learnedMap: { ...data.learnedMap, [vocabId]: newStatus } }),
+      prev => {
+        if (!prev) return prev;
+        const newTotalLearned = Math.max(0, (prev.totalLearned || 0) + diff);
+        let updatedWords = prev.words;
+        let newTotalCount = prev.totalCount;
+
+        // If in 'learned' filter mode and word is unchecked, remove from current view
+        if (filterMode === 'learned' && !newStatus) {
+          updatedWords = prev.words.filter(w => w.id !== vocabId);
+          newTotalCount = Math.max(0, prev.totalCount - 1);
+        }
+
+        return {
+          ...prev,
+          totalCount: newTotalCount,
+          totalLearned: newTotalLearned,
+          words: updatedWords,
+          learnedMap: { ...prev.learnedMap, [vocabId]: newStatus },
+        };
+      },
       false
     );
 
@@ -157,11 +236,17 @@ export default function WordList() {
 
     if (error) {
       console.error('Lỗi khi cập nhật trạng thái đã học:', error);
-      // Revert optimistic update
-      mutate(
-        data => ({ ...data, learnedMap: { ...data.learnedMap, [vocabId]: currentStatus } }),
-        false
+      mutate();
+    } else {
+      // Revalidate other tabs/pages for this subcategory smoothly in the background
+      globalMutate(
+        (key) => typeof key === 'string' && key.startsWith(`words_${categoryId}_`) && key !== `words_${categoryId}_${page}_${debouncedSearchQuery}_${filterMode}_${user.id}`,
+        undefined,
+        { revalidate: true }
       );
+      if (typeof refreshStats === 'function') {
+        refreshStats();
+      }
     }
   };
 
@@ -173,56 +258,116 @@ export default function WordList() {
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full">
-      {/* Nút quay lại */}
-      <button
-        onClick={handleBack}
-        className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 mb-6 transition-colors cursor-pointer w-fit"
-      >
-        <ArrowLeft size={20} />
-        <span className="font-medium">Back to {mainGroupName || 'Categories'}</span>
-      </button>
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto w-full min-h-[85vh]">
+      {/* ============================================================ */}
+      {/* 1. HERO CAPSULE (Ultra-Clear Liquid Glass Banner) */}
+      {/* ============================================================ */}
+      <div className="relative mb-6 overflow-hidden rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl p-6 sm:p-8 animate-in fade-in duration-300">
+        {/* Ambient Fluid Caustics Blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.5rem] -z-0">
+          <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-gradient-to-br from-indigo-500/20 dark:from-indigo-500/25 via-cyan-400/15 dark:via-cyan-400/20 to-transparent blur-3xl animate-liquid-blob" />
+          <div
+            className="absolute -bottom-28 -right-28 w-80 h-80 rounded-full bg-gradient-to-tl from-violet-500/20 dark:from-violet-600/25 via-pink-400/15 dark:via-fuchsia-500/15 to-transparent blur-3xl animate-liquid-blob"
+            style={{ animationDelay: '-4s' }}
+          />
+          {/* Specular Rim Light Top Sheen */}
+          <div className="absolute top-0 inset-x-10 h-[1.5px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent" />
+        </div>
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100">
-          {categoryName || 'Topic'}
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Showing {totalCount} words
-        </p>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3">
+            {/* Back button */}
+            <button
+              onClick={handleBack}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/40 hover:bg-white/75 dark:bg-white/10 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white border border-white/60 dark:border-white/15 backdrop-blur-md text-xs font-black transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),_0_2px_6px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 cursor-pointer w-fit"
+            >
+              <ArrowLeft size={14} />
+              <span>Quay lại {mainGroupName || 'Kho từ vựng'}</span>
+            </button>
+
+            {/* Unit Tag + Title */}
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+                {parsed.unitTag ? (
+                  <span className="px-3 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider bg-indigo-500/15 dark:bg-cyan-500/15 text-indigo-700 dark:text-cyan-300 border border-indigo-500/25 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
+                    {parsed.unitTag}
+                  </span>
+                ) : (
+                  <span className="px-3 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/40 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-white/50 dark:border-white/15">
+                    Chủ đề
+                  </span>
+                )}
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 drop-shadow-xs">
+                  • {subCatTotalWords} từ vựng
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-xs">
+                {parsed.title}
+              </h1>
+            </div>
+          </div>
+
+          {/* Liquid Plasma Progress Tube */}
+          <div className="flex flex-col sm:items-end justify-center gap-2 min-w-[220px]">
+            <div className="flex items-center justify-between sm:justify-end gap-3 text-xs font-black text-slate-900 dark:text-slate-100">
+              <span className="text-indigo-700 dark:text-cyan-300 font-black">
+                {progressPercent}% hoàn thành
+              </span>
+              <span className="text-slate-700 dark:text-slate-300 font-bold">
+                ({totalLearned}/{subCatTotalWords} từ)
+              </span>
+            </div>
+            <div className="relative w-full sm:w-60 h-3 rounded-full overflow-hidden bg-slate-300/40 dark:bg-slate-900/70 p-[1.5px] border border-white/50 dark:border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 transition-all duration-700 relative overflow-hidden shadow-[0_0_12px_rgba(99,102,241,0.35)] dark:shadow-[0_0_12px_rgba(34,211,238,0.5)]"
+                style={{ width: `${progressPercent}%` }}
+              >
+                {/* Shimmer liquid wave */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-liquid-shimmer pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Toolbar: Search + Filter */}
+      {/* ============================================================ */}
+      {/* 2. FLOATING LIQUID CONTROLS (Ultra-Transparent Search & Filter) */}
+      {/* ============================================================ */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {/* Search */}
+        {/* Search Capsule */}
         <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-slate-400" />
-          </div>
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm từ vựng trong chủ đề..."
-            className="block w-full pl-10 pr-3 py-2.5 border border-pink-200 dark:border-[#3A2F43] rounded-xl bg-white dark:bg-[#1E1226] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 text-sm text-slate-800 dark:text-slate-200 transition-colors"
+            className="w-full pl-10 pr-9 py-2.5 bg-white/25 dark:bg-slate-950/35 border border-white/50 dark:border-white/10 focus:bg-white/45 dark:focus:bg-slate-950/60 focus:border-indigo-500/40 dark:focus:border-cyan-400/40 focus:ring-2 focus:ring-indigo-500/15 dark:focus:ring-cyan-400/15 rounded-2xl outline-none text-sm font-bold text-slate-950 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03),_0_8px_20px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2),_0_10px_25px_-5px_rgba(0,0,0,0.3)] backdrop-blur-2xl transition-all"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Filter buttons */}
-        <div className="flex items-center gap-1 bg-pink-100 dark:bg-[#160B1E] border border-pink-200 dark:border-[#3A2F43] p-1 rounded-xl shrink-0 transition-colors">
+        {/* Filter Pills in Liquid Tray */}
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/20 dark:bg-slate-950/35 border border-white/50 dark:border-white/10 backdrop-blur-2xl shrink-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]">
           {[
-            { key: 'all', label: 'Tất cả' },
-            { key: 'learned', label: 'Đã học' },
-          ].map(f => (
+            { key: 'all', label: `Tất cả (${subCatTotalWords})` },
+            { key: 'learned', label: `Đã học (${totalLearned})` },
+          ].map((f) => (
             <button
               key={f.key}
               onClick={() => setFilterMode(f.key)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer
-                ${filterMode === f.key
-                  ? 'bg-white dark:bg-[#2A1F33] text-slate-800 dark:text-slate-200 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
+              className={`px-4 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+                filterMode === f.key
+                  ? 'bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white shadow-[0_4px_15px_-2px_rgba(99,102,241,0.4),_inset_0_1px_1px_rgba(255,255,255,0.4)] scale-[1.02] border border-white/30'
+                  : 'text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/10 border border-transparent'
+              }`}
             >
               {f.label}
             </button>
@@ -230,85 +375,96 @@ export default function WordList() {
         </div>
       </div>
 
-      {/* Danh sách từ vựng */}
+      {/* ============================================================ */}
+      {/* 3. LIQUID GLASS VOCAB STREAM (Ultra-Transparent Glass Table) */}
+      {/* ============================================================ */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-[72px] bg-pink-100 dark:bg-[#2A1F33] animate-pulse rounded-xl transition-colors"></div>
+            <div
+              key={i}
+              className="h-20 bg-white/20 dark:bg-slate-950/35 border border-white/40 dark:border-white/10 rounded-2xl animate-pulse backdrop-blur-2xl"
+            />
           ))}
         </div>
       ) : words.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-[#1E1226] rounded-2xl border border-pink-200 dark:border-[#3A2F43] transition-colors">
-          <Search size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Không tìm thấy từ phù hợp</p>
+        <div className="text-center py-20 bg-white/20 dark:bg-slate-950/35 rounded-[2.5rem] border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-xl">
+          <Search size={44} className="mx-auto text-slate-400 dark:text-slate-500 mb-3" />
+          <p className="text-slate-950 dark:text-white font-black text-base">Không tìm thấy từ vựng nào</p>
+          <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 font-bold">
+            Hãy thử tìm kiếm với từ khóa khác hoặc chuyển sang tab Tất cả.
+          </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#1E1226] rounded-2xl shadow-sm border border-pink-200 dark:border-[#3A2F43] overflow-hidden transition-colors">
-          {/* Header bảng (ẩn trên mobile) */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto] gap-4 px-5 py-3 bg-pink-50 dark:bg-[#160B1E] border-b border-pink-100 dark:border-[#3A2F43] text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider transition-colors">
-            <span>Từ vựng</span>
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl">
+          {/* Specular Rim Light Top Sheen */}
+          <div className="absolute top-0 inset-x-12 h-[1px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent pointer-events-none" />
+
+          {/* Table Header (Desktop) */}
+          <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto] gap-4 px-6 py-3.5 border-b border-white/25 dark:border-white/10 bg-white/15 dark:bg-white/[0.02] text-[11px] font-black text-indigo-950 dark:text-cyan-300 uppercase tracking-wider backdrop-blur-md">
+            <span>Từ vựng & Định nghĩa</span>
             <span className="w-20 text-center">Phát âm</span>
-            <span className="w-24 text-center">Trạng thái</span>
+            <span className="w-28 text-center">Trạng thái</span>
           </div>
 
-          <div className="divide-y divide-pink-100 dark:divide-[#3A2F43] transition-colors">
-            {words.map(word => {
+          {/* Word Rows */}
+          <div className="divide-y divide-white/20 dark:divide-white/10">
+            {words.map((word) => {
               const isLearned = !!learnedMap[word.id];
               return (
-                  <div
-                    key={word.id}
-                    onClick={() => navigate(`/vocabularies/${word.id}`)}
-                    className="flex items-center justify-between p-4 sm:p-5 hover:bg-pink-50 dark:hover:bg-[#2A1F33] transition-colors cursor-pointer group"
-                  >
-                    {/* Cột trái: Từ + Nghĩa */}
-                    <div className="flex-1 min-w-0 mr-4">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors truncate">
-                          {word.word}
-                        </h3>
+                <div
+                  key={word.id}
+                  onClick={() => navigate(`/vocabularies/${word.id}`)}
+                  className="group/row relative flex items-center justify-between p-4 sm:px-6 sm:py-5 hover:bg-white/30 dark:hover:bg-white/[0.04] transition-all duration-200 cursor-pointer"
+                >
+                  {/* Row hover specular line */}
+                  <div className="absolute top-0 inset-x-8 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/20 dark:via-cyan-400/20 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity pointer-events-none" />
+
+                  {/* Left Column: Word + IPA + Short Meaning */}
+                  <div className="flex-1 min-w-0 mr-4 space-y-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-black text-slate-950 dark:text-white group-hover/row:text-indigo-600 dark:group-hover/row:text-cyan-300 transition-colors tracking-tight">
+                        {word.word}
+                      </h3>
                       {word.pro && (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 font-mono hidden sm:inline shrink-0">
+                        <span className="text-[11px] font-mono text-indigo-700 dark:text-cyan-300 bg-indigo-500/10 dark:bg-cyan-400/10 border border-indigo-500/20 dark:border-cyan-400/25 px-2 py-0.5 rounded-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                           {word.pro.split('#')[0]}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                    <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 line-clamp-1 leading-relaxed font-semibold">
                       {getShortMeaning(word)}
                     </p>
                   </div>
 
-                  {/* Nút phát âm */}
+                  {/* Audio Button (Liquid Sound Drop) */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if ('speechSynthesis' in window) {
-                        window.speechSynthesis.cancel();
-                        const utterance = new SpeechSynthesisUtterance(word.word);
-                        utterance.lang = 'en-US';
-                        window.speechSynthesis.speak(utterance);
-                      }
+                      playWordAudio(word.word);
                     }}
-                    className="p-2 text-slate-300 dark:text-slate-600 hover:text-fuchsia-500 dark:hover:text-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 rounded-lg transition-colors cursor-pointer shrink-0 mr-2 hidden sm:flex"
+                    className="h-10 w-10 rounded-full bg-white/40 dark:bg-white/10 hover:bg-indigo-50/70 dark:hover:bg-cyan-500/20 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-cyan-300 border border-white/60 dark:border-white/15 hover:border-indigo-400/40 dark:hover:border-cyan-400/40 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 shrink-0 mr-3 hidden sm:flex"
                     title="Nghe phát âm"
                   >
-                    <Volume2 size={18} />
+                    <Volume2 size={16} />
                   </button>
 
-                  {/* Checkbox "Đã học" */}
+                  {/* Status Toggle Button (Liquid Pearl) */}
                   <button
                     onClick={(e) => toggleLearned(e, word.id, isLearned)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer shrink-0 min-w-[60px]
-                      ${isLearned
-                        ? 'text-green-500 dark:text-green-400 bg-green-50 dark:bg-green-500/10 hover:bg-green-100 dark:hover:bg-green-500/20'
-                        : 'text-slate-300 dark:text-slate-500 hover:text-slate-500 dark:hover:text-slate-300 hover:bg-pink-100 dark:hover:bg-[#3A2F43]'
-                      }`}
-                    title={isLearned ? 'Đã học' : 'Chưa học'}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 border ${
+                      isLearned
+                        ? 'bg-emerald-500/25 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-500/40 dark:border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.25),_inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[0_0_15px_rgba(16,185,129,0.35),_inset_0_1px_1px_rgba(255,255,255,0.4)]'
+                        : 'bg-white/30 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-white/40 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-slate-950 dark:hover:text-slate-200'
+                    }`}
+                    title={isLearned ? 'Đã thuộc từ này' : 'Chưa thuộc'}
                   >
-                    {isLearned
-                      ? <CheckCircle2 size={24} />
-                      : <Circle size={24} />
-                    }
-                    <span className="text-[10px] font-semibold mt-1 uppercase tracking-wide">
+                    {isLearned ? (
+                      <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <Circle size={16} className="text-slate-400" />
+                    )}
+                    <span className="text-[11px] font-black uppercase tracking-wider">
                       {isLearned ? 'Đã học' : 'Chưa học'}
                     </span>
                   </button>
@@ -317,33 +473,35 @@ export default function WordList() {
             })}
           </div>
 
-          {/* Footer phân trang */}
-          <div className="px-5 py-4 bg-pink-50 dark:bg-[#160B1E] border-t border-pink-100 dark:border-[#3A2F43] flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              Hiển thị từ {(page - 1) * PAGE_SIZE + 1} đến {Math.min(page * PAGE_SIZE, totalCount)} trong số {totalCount} từ
+          {/* ============================================================ */}
+          {/* 4. LIQUID PAGINATION DOCK (High Transparency) */}
+          {/* ============================================================ */}
+          <div className="px-6 py-4 bg-white/15 dark:bg-white/[0.02] border-t border-white/20 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Hiển thị từ {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} đến {Math.min(page * PAGE_SIZE, totalCount)} trong số {totalCount} từ
             </span>
-            
+
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-pink-200 dark:border-[#3A2F43] text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-[#1E1226] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="h-9 w-9 rounded-xl border border-white/50 dark:border-white/15 bg-white/40 dark:bg-white/10 hover:bg-white/70 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
-              
+
               <div className="flex items-center gap-1">
-                <span className="px-3 py-1.5 rounded-lg bg-fuchsia-50 dark:bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 font-semibold text-sm border border-fuchsia-100 dark:border-fuchsia-500/20 transition-colors">
+                <span className="px-3.5 py-1.5 rounded-xl bg-indigo-500/15 dark:bg-cyan-500/15 text-indigo-700 dark:text-cyan-300 font-black text-xs border border-indigo-500/25 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
                   Trang {page} / {totalPages}
                 </span>
               </div>
 
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="p-2 rounded-lg border border-pink-200 dark:border-[#3A2F43] text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-[#1E1226] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="h-9 w-9 rounded-xl border border-white/50 dark:border-white/15 bg-white/40 dark:bg-white/10 hover:bg-white/70 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>

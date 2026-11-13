@@ -104,13 +104,18 @@ const LessonMediaPlayer = forwardRef(function LessonMediaPlayer({ videoData, opt
     const safeVideoId = match ? match[1] : rawId;
 
     return (
-      <YouTube
-        videoId={safeVideoId}
-        opts={opts}
-        onReady={onReady}
-        onStateChange={onStateChange}
-        className={className}
-      />
+      <div className={`relative overflow-hidden ${className || ''}`}>
+        <YouTube
+          videoId={safeVideoId}
+          opts={opts}
+          onReady={onReady}
+          onStateChange={onStateChange}
+          className="w-full h-full"
+          iframeClassName="w-full h-full scale-[1.24] origin-top pointer-events-none"
+        />
+        {/* Anti-Subtitle Shield: Đảm bảo 100% không bao giờ để lộ chữ phụ đề khi luyện nghe */}
+        <div className="absolute inset-x-0 bottom-0 h-10 pointer-events-none bg-gradient-to-t from-black via-black/85 to-transparent z-10" />
+      </div>
     );
   }
 

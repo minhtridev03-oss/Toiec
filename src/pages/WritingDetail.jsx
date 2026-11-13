@@ -1,11 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, RotateCcw, Target, PenTool, ChevronRight, ChevronLeft, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  RotateCcw,
+  Target,
+  PenTool,
+  ChevronRight,
+  ChevronLeft,
+  ArrowRight,
+  Sparkles,
+  Volume2,
+  Copy,
+  Check,
+  BookOpen,
+  Lightbulb,
+  Award,
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import { evaluateTranslation } from '../lib/gemini';
 import { praiseLearningBot } from '../lib/learningBot';
 import { useAuth } from '../contexts/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { writingLessonCache } from '../lib/lessonCache';
 
@@ -13,22 +29,36 @@ export default function WritingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const textareaRef = useRef(null);
+
   const cachedData = writingLessonCache.get(id);
   const [lesson, setLesson] = useState(() => cachedData?.lesson || null);
   const [sentences, setSentences] = useState(() => cachedData?.sentences || []);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [completedSentences, setCompletedSentences] = useState(new Set());
   const [loading, setLoading] = useState(() => !cachedData);
 
   const [userTranslation, setUserTranslation] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [copied, setCopied] = useState(false);
+
   usePracticeSessionTimer('writing', user, Boolean(lesson && sentences.length > 0 && !isEvaluating));
+
   useEffect(() => {
     setCurrentSentenceIndex(0);
     setUserTranslation('');
     setFeedback(null);
     fetchLessonAndSentences();
   }, [id]);
+
+  // Auto-focus textarea when sentence changes
+  useEffect(() => {
+    if (!isEvaluating && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [currentSentenceIndex, isEvaluating]);
+
   const fetchLessonAndSentences = async () => {
     try {
       if (!writingLessonCache.has(id)) {
@@ -43,7 +73,7 @@ export default function WritingDetail() {
           .single(),
         supabase
           .from('writing_sentences')
-          .select('id, lesson_id, text_to_translate, suggested_translation, order_num')
+          .select('id, lesson_id, text_to_translate, suggested_translation, context_before, context_after, order_num')
           .eq('lesson_id', id)
           .order('order_num', { ascending: true }),
       ]);
@@ -61,6 +91,25 @@ export default function WritingDetail() {
 
       setLesson(lessonData);
       setSentences(sentencesData);
+
+      // Fetch user's completed progress for these sentences
+      if (user?.id && sentencesData.length > 0) {
+        const sentenceIds = sentencesData.map((s) => s.id);
+        const { data: userProgress } = await supabase
+          .from('user_writing_progress')
+          .select('sentence_id, is_completed, accuracy')
+          .eq('user_id', user.id)
+          .in('sentence_id', sentenceIds);
+
+        if (userProgress) {
+          const completedSet = new Set(
+            userProgress
+              .filter((p) => p.is_completed || p.accuracy >= 80)
+              .map((p) => p.sentence_id)
+          );
+          setCompletedSentences(completedSet);
+        }
+      }
     } catch (error) {
       console.error('Error fetching writing details:', error.message);
       if (!lesson) navigate('/writing');
@@ -68,93 +117,154 @@ export default function WritingDetail() {
       setLoading(false);
     }
   };
+
   const currentSentence = sentences[currentSentenceIndex];
+
+  // Word and character count
+  const textStats = useMemo(() => {
+    const trimmed = userTranslation.trim();
+    const words = trimmed ? trimmed.split(/\s+/).length : 0;
+    const chars = userTranslation.length;
+    return { words, chars };
+  }, [userTranslation]);
+
+  // Pronounce English suggested translation using Web Speech API
+  const handleSpeakEnglish = (text) => {
+    if (!('speechSynthesis' in window) || !text) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Copy text to clipboard
+  const handleCopy = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleCheck = async () => {
-    if (!userTranslation.trim() || !currentSentence) return;
+    if (!userTranslation.trim() || !currentSentence || isEvaluating) return;
 
     setIsEvaluating(true);
     setFeedback(null);
     try {
+      const examType = (lesson?.level || '').toUpperCase().includes('TOEIC') ? 'TOEIC' : 'IELTS/TOEIC';
       const result = await evaluateTranslation(
         currentSentence.suggested_translation,
         currentSentence.text_to_translate,
         userTranslation,
-
-        "", // Context before
-        "", // Context after
-        lesson.title // Pass examType to apply TOEIC or IELTS rubrics
+        currentSentence.context_before || '',
+        currentSentence.context_after || '',
+        examType
       );
-      setFeedback(result);
-      praiseLearningBot(result?.is_correct
-        ? 'Câu dịch chính xác rồi! Bạn tiến bộ rất tốt 💖'
-        : 'Không sao, hãy xem góp ý rồi thử lại nhé. Bạn làm được mà ✨');
 
-      // Tối ưu UI (Optimistic): Lưu ngầm tiến độ, không dùng await để hiện feedback ngay lập tức
-      if (result && result.accuracy >= 80 && user) {
-        supabase
+      setFeedback(result);
+
+      if (result.is_correct || result.accuracy >= 80) {
+        praiseLearningBot({
+          action: 'completed_practice_unit',
+          skill: 'writing',
+          score: result.accuracy || 100,
+        });
+
+        setCompletedSentences((prev) => new Set([...prev, currentSentence.id]));
+      }
+
+      // Save progress if accuracy is reasonable (>= 80%) and user is logged in
+      if (user && result.accuracy >= 80) {
+        await supabase
           .from('user_writing_progress')
-          .upsert({ user_id: user.id, sentence_id: currentSentence.id }, { onConflict: 'user_id, sentence_id' })
-          .then(({ error }) => {
-            if (error) console.error("Lưu tiến độ lỗi ngầm:", error);
-          });
+          .upsert(
+            {
+              user_id: user.id,
+              sentence_id: currentSentence.id,
+              user_translation: userTranslation,
+              accuracy: result.accuracy,
+              is_completed: true,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,sentence_id' }
+          );
       }
     } catch (error) {
-      alert(error.message);
+      console.error('Error evaluating translation:', error);
+      setFeedback({
+        is_correct: false,
+        accuracy: 0,
+        feedback: 'Đã có lỗi xảy ra khi chấm bài qua AI. Vui lòng thử lại.',
+        suggestion: currentSentence.suggested_translation,
+      });
     } finally {
       setIsEvaluating(false);
     }
   };
+
+  // Keydown handler: Ctrl + Enter / Cmd + Enter to submit
+  const handleKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleCheck();
+    }
+  };
+
+  const handleNextSentence = () => {
+    if (currentSentenceIndex < sentences.length - 1) {
+      setCurrentSentenceIndex((prev) => prev + 1);
+      setUserTranslation('');
+      setFeedback(null);
+    }
+  };
+
+  const handlePrevSentence = () => {
+    if (currentSentenceIndex > 0) {
+      setCurrentSentenceIndex((prev) => prev - 1);
+      setUserTranslation('');
+      setFeedback(null);
+    }
+  };
+
+  const handleSelectSentence = (index) => {
+    if (index >= 0 && index < sentences.length && index !== currentSentenceIndex) {
+      setCurrentSentenceIndex(index);
+      setUserTranslation('');
+      setFeedback(null);
+    }
+  };
+
   const handleReset = () => {
     setUserTranslation('');
     setFeedback(null);
+    if (textareaRef.current) textareaRef.current.focus();
   };
-  const handleNextSentence = () => {
-    if (currentSentenceIndex < sentences.length - 1) {
-      setCurrentSentenceIndex(prev => prev + 1);
-      handleReset();
-    }
-  };
-  const handlePrevSentence = () => {
-    if (currentSentenceIndex > 0) {
-      setCurrentSentenceIndex(prev => prev - 1);
-      handleReset();
-    }
-  };
+
   const handleNextLesson = async () => {
     try {
       const { data, error } = await supabase
         .from('writing_lessons')
         .select('id')
-        .eq('level', lesson.level)
+        .gt('created_at', lesson.created_at)
         .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
+        .limit(1);
 
+      if (error) throw error;
       if (data && data.length > 0) {
-        const currentIndex = data.findIndex(d => d.id === lesson.id);
-        if (currentIndex !== -1 && currentIndex < data.length - 1) {
-          navigate(`/writing/${data[currentIndex + 1].id}`);
-          return;
-        }
+        navigate(`/writing/${data[0].id}`);
+      } else {
+        navigate('/writing');
       }
-
-      // No more lessons in this level, go back to list
-      navigate('/writing');
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
       navigate('/writing');
     }
   };
-  if (loading || !lesson) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-pink-50 dark:bg-[#160B1E] text-slate-800 dark:text-slate-100 transition-colors">
-        <div className="w-8 h-8 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-  // Helper to format newlines
+
+  // Format text helper
   const formatText = (text) => {
     if (!text) return null;
-    const lines = text.split('\\n');
+    const lines = text.replace(/\\n/g, '\n').split('\n');
     return lines.map((line, i) => (
       <span key={i}>
         {line}
@@ -162,181 +272,494 @@ export default function WritingDetail() {
       </span>
     ));
   };
-  // Helper to highlight the current sentence in the full content
+
+  // Render full context with highlighted target sentence
   const renderFullContentWithHighlight = () => {
-    if (!lesson.full_content || !currentSentence) return null;
+    if (!lesson?.full_content || !currentSentence) return null;
 
     const escapeRegExp = (string) => {
       return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
-    const regex = new RegExp(`(${escapeRegExp(currentSentence.text_to_translate)})`, 'i');
+    const target = currentSentence.text_to_translate.trim();
+    const regex = new RegExp(`(${escapeRegExp(target)})`, 'i');
     const parts = lesson.full_content.split(regex);
 
     if (parts.length === 1) {
-      // If exact match fails, fallback to rendering just the target text
       return (
-        <div className="font-bold text-pink-500 my-4 inline-block">
-          {formatText(currentSentence.text_to_translate)}
-        </div>
+        <p className="text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+          {formatText(lesson.full_content)}
+        </p>
       );
     }
+
     return (
-      <>
+      <div className="text-sm sm:text-base leading-relaxed text-slate-700 dark:text-slate-300 font-medium">
         {parts.map((part, index) => {
-          if (index % 2 === 0) {
-            return <span key={index}>{formatText(part)}</span>;
-          } else {
+          if (part.toLowerCase() === target.toLowerCase()) {
             return (
-              <span key={index} className="font-bold text-pink-600 dark:text-pink-400 bg-pink-100/10 px-1 rounded">
+              <mark
+                key={index}
+                className="bg-blue-500/25 dark:bg-cyan-500/30 text-blue-950 dark:text-cyan-100 font-black px-2 py-0.5 rounded-lg border-b-2 border-blue-500 shadow-xs"
+              >
                 {formatText(part)}
-              </span>
+              </mark>
             );
           }
+          return <span key={index}>{formatText(part)}</span>;
         })}
-      </>
+      </div>
     );
   };
-  return (
-    <div className="flex-1 flex flex-col h-full lg:overflow-hidden overflow-auto transition-colors duration-300 bg-pink-50 dark:bg-[#160B1E] text-slate-800 dark:text-slate-100">
-      {/* Header */}
-      <div className="border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300 bg-white dark:bg-[#1E1226] border-pink-200 dark:border-[#3A2F43] shadow-sm">
-        <div className="flex items-center">
-          <button
-            onClick={() => navigate('/writing')}
-            className="w-10 h-10 rounded-full flex items-center justify-center transition-colors mr-4 hover:bg-pink-100 dark:hover:bg-[#2A1F33] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">{lesson.title}</h1>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Dịch câu được in đậm (màu hồng) sang tiếng Anh</p>
-          </div>
-        </div>
 
-        {/* Toggle Theme & Navigation */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 mr-4">
-            <button
-              onClick={handlePrevSentence}
-              disabled={currentSentenceIndex === 0}
-              className={`p-2 rounded-lg transition-colors hover:bg-pink-100 dark:hover:bg-[#2A1F33] cursor-pointer ${currentSentenceIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <span className="text-sm font-medium">Câu {currentSentenceIndex + 1}/{sentences.length}</span>
-            <button
-              onClick={handleNextSentence}
-              disabled={currentSentenceIndex === sentences.length - 1}
-              className={`p-2 rounded-lg transition-colors hover:bg-pink-100 dark:hover:bg-[#2A1F33] cursor-pointer ${currentSentenceIndex === sentences.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
+  if (loading || !lesson) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-transparent text-slate-800 dark:text-slate-100 min-h-[60vh] gap-3">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin"></div>
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse">
+          Đang tải bài luyện viết...
+        </span>
       </div>
-      {/* Split Content */}
-      <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden overflow-visible p-4 md:p-8 gap-6 max-w-7xl mx-auto w-full">
-        {/* Left: Context Passage & Input */}
-        <div className="w-full lg:w-1/2 lg:overflow-y-auto overflow-visible flex flex-col gap-6">
-          <div className="rounded-2xl p-8 shadow-lg border text-lg leading-loose transition-colors duration-300 bg-white dark:bg-[#1E1226] border-pink-200 dark:border-[#3A2F43] text-slate-700 dark:text-slate-300">
-            {lesson.full_content ? renderFullContentWithHighlight() : (
-              <div className="font-bold my-4 inline-block text-pink-600 dark:text-pink-400">
-                {formatText(currentSentence?.text_to_translate)}
-              </div>
-            )}
-          </div>
-          <div className="rounded-2xl p-6 shadow-lg border transition-colors duration-300 bg-white dark:bg-[#1E1226] border-pink-200 dark:border-[#3A2F43]">
-            <h3 className="font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-200">
-              <PenTool size={18} className="text-fuchsia-500" /> Bản dịch của bạn
-            </h3>
-            <textarea
-              value={userTranslation}
-              onChange={(e) => setUserTranslation(e.target.value)}
-              disabled={isEvaluating || feedback}
-              placeholder="Nhập câu tiếng Anh vào đây..."
-              className="w-full border-2 focus:border-fuchsia-500 rounded-xl p-4 text-lg min-h-[120px] resize-none outline-none transition-colors duration-300 bg-pink-50 dark:bg-[#160B1E] border-pink-200 dark:border-[#3A2F43] text-slate-900 dark:text-white"
-            />
+    );
+  }
 
-            <div className="flex justify-end gap-3 mt-4">
-              {!feedback ? (
-                <button
-                  onClick={handleCheck}
-                  disabled={!userTranslation.trim() || isEvaluating}
-                  className="bg-fuchsia-600 text-white font-medium px-8 py-2.5 rounded-xl hover:bg-fuchsia-700 transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-                >
-                  {isEvaluating ? (
-                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang kiểm tra AI...</>
-                  ) : (
-                    'Kiểm tra (AI)'
-                  )}
-                </button>
-              ) : (
-                <>
+  const isCurrentSentenceDone = completedSentences.has(currentSentence?.id);
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-transparent text-slate-800 dark:text-slate-100 overflow-y-auto min-h-screen">
+      
+      {/* ================= 1. FLOATING ROUNDED LIQUID GLASS TOPBAR CAPSULE ================= */}
+      <div className="sticky top-3 z-30 px-4 sm:px-6 lg:px-8 py-1 max-w-7xl mx-auto w-full">
+        <header className="rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-950/45 border border-white/60 dark:border-white/15 shadow-[0_16px_36px_-10px_rgba(15,23,42,0.05),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.2)] px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all">
+          
+          {/* Left: Back button & Lesson Title */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => navigate('/writing')}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/65 dark:border-white/15 hover:bg-white/70 dark:hover:bg-white/20 hover:border-blue-500 text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-cyan-400 shadow-[0_2px_8px_rgba(0,0,0,0.04),_inset_0_1px_1px_rgba(255,255,255,0.85)] cursor-pointer shrink-0"
+              title="Quay lại danh sách bài viết"
+            >
+              <ArrowLeft size={18} />
+            </button>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-500/15 dark:bg-cyan-500/20 text-blue-800 dark:text-cyan-200 border border-blue-500/25">
+                  {lesson.level || 'Basic'}
+                </span>
+                <h1 className="text-base sm:text-lg font-black text-slate-950 dark:text-white truncate">
+                  {lesson.title}
+                </h1>
+              </div>
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 truncate mt-0.5">
+                Rèn luyện chuyển ngữ câu tự nhiên với phản hồi AI thời gian thực
+              </p>
+            </div>
+          </div>
+
+          {/* Center/Right: Sentence Stepper & Navigation */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            
+            {/* Step Pills */}
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/30 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-xl shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] overflow-x-auto max-w-[280px] sm:max-w-none hide-scrollbar">
+              {sentences.map((sentence, idx) => {
+                const isActive = idx === currentSentenceIndex;
+                const isDone = completedSentences.has(sentence.id);
+
+                return (
                   <button
-                    onClick={handleReset}
-                    className="font-medium px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2 bg-slate-200 dark:bg-[#232736] text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-[#3A2F43] cursor-pointer"
+                    key={sentence.id}
+                    type="button"
+                    onClick={() => handleSelectSentence(idx)}
+                    className={`h-8 min-w-[32px] px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-500/30'
+                        : isDone
+                        ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/35'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-700/60'
+                    }`}
+                    title={`Câu ${idx + 1}`}
                   >
-                    <RotateCcw size={18} /> Viết lại
-                  </button>
-                  {feedback.accuracy >= 80 && (
-                    currentSentenceIndex < sentences.length - 1 ? (
-                      <button
-                        onClick={handleNextSentence}
-                        className="font-medium px-8 py-2.5 rounded-xl transition-colors flex items-center gap-2 bg-fuchsia-600 text-white hover:bg-fuchsia-700 cursor-pointer shadow-md shadow-fuchsia-500/20"
-                      >
-                        Tiếp tục <ArrowRight size={18} />
-                      </button>
+                    {isDone && !isActive ? (
+                      <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
                     ) : (
-                      <button
-                        onClick={handleNextLesson}
-                        className="font-medium px-8 py-2.5 rounded-xl transition-colors flex items-center gap-2 bg-fuchsia-600 text-white hover:bg-fuchsia-700 cursor-pointer shadow-md shadow-fuchsia-500/20"
-                      >
-                        Bài tiếp theo <ArrowRight size={18} />
-                      </button>
-                    )
-                  )}
-                </>
+                      <span>{idx + 1}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Prev / Next buttons */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handlePrevSentence}
+                disabled={currentSentenceIndex === 0}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/60 dark:border-white/15 backdrop-blur-md ${
+                  currentSentenceIndex === 0
+                    ? 'opacity-40 cursor-not-allowed text-slate-400'
+                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 cursor-pointer shadow-xs'
+                }`}
+                title="Câu trước"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextSentence}
+                disabled={currentSentenceIndex === sentences.length - 1}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/60 dark:border-white/15 backdrop-blur-md ${
+                  currentSentenceIndex === sentences.length - 1
+                    ? 'opacity-40 cursor-not-allowed text-slate-400'
+                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 cursor-pointer shadow-xs'
+                }`}
+                title="Câu sau"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+          </div>
+
+        </header>
+      </div>
+
+      {/* ================= 2. LIQUID GLASS 2-COLUMN WORKSPACE ================= */}
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pb-20">
+          
+          {/* ================= CỘT TRÁI: NGỮ CẢNH & CÂU CẦN DỊCH ================= */}
+          <div className="lg:col-span-6 space-y-6">
+            
+            {/* 1. FOCUS CARD: CÂU CẦN DỊCH (LIQUID GLASS PANEL) */}
+            <div className="rounded-[2rem] p-6 sm:p-7 backdrop-blur-2xl bg-white/35 dark:bg-slate-950/45 border-2 border-blue-500/40 dark:border-cyan-500/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.85),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_1px_2px_rgba(255,255,255,0.25)] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/15 via-cyan-400/10 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+              {/* Card Header (Nút loa đã được xóa theo yêu cầu) */}
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/15 dark:bg-cyan-500/20 text-blue-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
+                    <Target size={16} />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-cyan-300">
+                    Câu cần dịch #{currentSentenceIndex + 1}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentSentence?.text_to_translate)}
+                    className="p-2 rounded-xl text-xs font-bold transition-all bg-white/45 hover:bg-white/70 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-cyan-400 border border-white/60 dark:border-white/15 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)] cursor-pointer"
+                    title="Sao chép câu"
+                  >
+                    {copied ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Target Vietnamese Sentence */}
+              <div className="relative z-10">
+                <p className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white leading-relaxed tracking-tight">
+                  {formatText(currentSentence?.text_to_translate)}
+                </p>
+              </div>
+
+              {/* Status pill if completed */}
+              {isCurrentSentenceDone && (
+                <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-white/10 flex items-center gap-2 text-xs font-black text-emerald-800 dark:text-emerald-300">
+                  <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>Bạn đã hoàn thành câu này đạt chuẩn.</span>
+                </div>
               )}
             </div>
-          </div>
-        </div>
-        {/* Right: Feedback */}
-        <div className="w-full lg:w-1/2 lg:overflow-y-auto overflow-visible pb-10 lg:pb-0">
-          <div className="rounded-2xl p-6 shadow-lg border transition-colors duration-300 bg-white dark:bg-[#1E1226] border-pink-200 dark:border-[#3A2F43] h-full flex flex-col">
-            {/* Stats */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1 rounded-xl p-4 flex flex-col items-center justify-center border transition-colors bg-pink-50 dark:bg-[#160B1E] border-pink-200 dark:border-[#3A2F43]">
-                <Target size={24} className={feedback?.is_correct ? "text-green-500 mb-2" : (feedback ? "text-amber-500 mb-2" : "text-slate-400 mb-2")} />
-                <span className={`font-bold ${feedback?.is_correct ? "text-green-500" : (feedback ? "text-amber-500" : "text-slate-400")}`}>
-                  {feedback ? `${feedback.accuracy}% Accuracy` : '-- Accuracy'}
-                </span>
-              </div>
-            </div>
-            <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white transition-colors">Feedback</h3>
-            {feedback ? (
-              <div className="rounded-xl p-5 border space-y-4 text-base transition-colors bg-pink-50 dark:bg-[#160B1E] border-pink-200 dark:border-[#3A2F43]">
-                <div className={`flex items-center gap-2 font-bold ${feedback.is_correct ? 'text-green-500' : 'text-amber-500'}`}>
-                  {feedback.is_correct ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                  {feedback.is_correct ? 'Good translation!' : 'Needs improvement'}
+
+            {/* 2. CONTEXT PASSAGE CARD: NGỮ CẢNH TOÀN BÀI (LIQUID GLASS PANEL) */}
+            {lesson.full_content && (
+              <div className="rounded-[2rem] p-6 backdrop-blur-2xl bg-white/30 dark:bg-slate-950/40 border border-white/55 dark:border-white/15 shadow-[0_16px_36px_-10px_rgba(15,23,42,0.05),_inset_0_1.5px_1px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/15 dark:bg-cyan-500/20 text-blue-600 dark:text-cyan-400 flex items-center justify-center">
+                    <BookOpen size={15} />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                    Ngữ cảnh toàn bài đọc
+                  </h3>
                 </div>
 
-                <div>
-                  <span className="font-bold text-pink-500">Suggestion:</span> <span className="text-slate-700 dark:text-slate-300">{feedback.suggestion}</span>
+                {/* Scrollable passage container */}
+                <div className="max-h-[240px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                  {renderFullContentWithHighlight()}
                 </div>
-                <div>
-                  <span className={`font-bold ${feedback.is_correct ? 'text-green-500' : 'text-amber-500'}`}>Nhận xét:</span> <span className="text-slate-700 dark:text-slate-300">{feedback.feedback}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl p-8 border flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400 bg-pink-50/50 dark:bg-[#160B1E]/50 border-pink-200/50 dark:border-[#3A2F43]/50 border-dashed">
-                <PenTool size={32} className="mb-4 opacity-50" />
-                <p>Hãy hoàn thành bài dịch bên trái và bấm <b className="text-fuchsia-500 font-medium">Kiểm tra (AI)</b> để xem nhận xét và điểm số nhé.</p>
               </div>
             )}
+
           </div>
+
+          {/* ================= CỘT PHẢI: KHU VỰC LÀM BÀI & AI FEEDBACK ================= */}
+          <div className="lg:col-span-6 space-y-6">
+            
+            {/* 1. Ô NHẬP BẢN DỊCH (LIQUID GLASS WORKSPACE) */}
+            <div className="rounded-[2rem] p-6 sm:p-7 backdrop-blur-2xl bg-white/35 dark:bg-slate-950/45 border border-white/55 dark:border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_1px_2px_rgba(255,255,255,0.2)]">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/15 dark:bg-cyan-500/20 text-blue-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
+                    <PenTool size={16} />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                    Bản dịch tiếng Anh của bạn
+                  </h3>
+                </div>
+
+                {/* Word & Char counter */}
+                <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  {textStats.words} từ • {textStats.chars} ký tự
+                </div>
+              </div>
+
+              {/* Textarea with crystal glass translucency */}
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  value={userTranslation}
+                  onChange={(e) => setUserTranslation(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isEvaluating}
+                  rows={4}
+                  placeholder="Nhập câu dịch tiếng Anh của bạn tại đây... (Nhấn Ctrl + Enter để kiểm tra)"
+                  className="w-full rounded-2xl p-4 text-base sm:text-lg font-semibold leading-relaxed bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/60 dark:border-white/10 text-slate-950 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-cyan-400 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.03)] resize-none transition-all"
+                />
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:flex">
+                  <span className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800/80 border border-white/60 dark:border-white/10 font-mono text-[10px] shadow-2xs">
+                    Ctrl + Enter
+                  </span>
+                  <span>để kiểm tra nhanh</span>
+                </div>
+
+                <div className="flex items-center gap-2.5 ml-auto">
+                  {userTranslation && (
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      disabled={isEvaluating}
+                      className="px-3.5 py-2.5 rounded-xl text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Viết lại</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleCheck}
+                    disabled={!userTranslation.trim() || isEvaluating}
+                    className={`px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 cursor-pointer shadow-md ${
+                      !userTranslation.trim() || isEvaluating
+                        ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
+                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-blue-500/25 hover:shadow-lg hover:opacity-95 active:scale-95'
+                    }`}
+                  >
+                    {isEvaluating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Đang chấm điểm AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} />
+                        <span>Kiểm tra (AI)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* 2. KẾT QUẢ & GÓP Ý AI (LIQUID GLASS FEEDBACK STUDIO) */}
+            <div className="rounded-[2rem] p-6 sm:p-7 backdrop-blur-2xl bg-white/35 dark:bg-slate-950/45 border border-white/55 dark:border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_1px_2px_rgba(255,255,255,0.2)] min-h-[260px] flex flex-col justify-between">
+              
+              {feedback ? (
+                /* Có kết quả Feedback */
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-5 flex-1 flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    
+                    {/* Score & Accuracy Header */}
+                    <div className="flex items-center justify-between pb-4 border-b border-white/40 dark:border-white/10">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                            feedback.accuracy >= 80
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                          }`}
+                        >
+                          <Award size={20} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-black text-slate-950 dark:text-white">
+                              {feedback.accuracy}%
+                            </span>
+                            <span
+                              className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
+                                feedback.accuracy >= 80
+                                  ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/35'
+                                  : 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/35'
+                              }`}
+                            >
+                              {feedback.accuracy >= 80 ? 'Xuất sắc • Đạt chuẩn' : 'Cần cải thiện'}
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                            Đánh giá phản xạ ngữ pháp và từ vựng
+                          </p>
+                        </div>
+                      </div>
+
+                      {feedback.suggestion && (
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakEnglish(feedback.suggestion)}
+                          className="p-2 rounded-xl bg-white/45 hover:bg-white/70 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-cyan-400 border border-white/60 dark:border-white/15 backdrop-blur-md shadow-xs"
+                          title="Nghe phát âm bản dịch gợi ý (Tiếng Anh)"
+                        >
+                          <Volume2 size={16} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Reference / Suggested Translation */}
+                    {feedback.suggestion && (
+                      <div className="p-4 rounded-2xl bg-blue-500/15 dark:bg-slate-900/60 border border-blue-500/25 dark:border-slate-700/60 backdrop-blur-md space-y-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-cyan-300">
+                            Bản dịch chuẩn gợi ý:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(feedback.suggestion)}
+                            className="text-xs font-bold text-blue-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Copy size={12} />
+                            <span>Sao chép</span>
+                          </button>
+                        </div>
+                        <p className="text-base font-black text-slate-950 dark:text-white leading-relaxed">
+                          {feedback.suggestion}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* AI Feedback Analysis */}
+                    {feedback.feedback && (
+                      <div className="p-4 rounded-2xl bg-white/35 dark:bg-slate-900/40 border border-white/45 dark:border-white/10 backdrop-blur-md space-y-1">
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                          Nhận xét chi tiết từ AI:
+                        </span>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
+                          {feedback.feedback}
+                        </p>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Feedback Action Buttons */}
+                  <div className="pt-4 mt-4 border-t border-white/40 dark:border-white/10 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-4 py-2 rounded-xl text-xs font-black bg-white/45 hover:bg-white/70 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-white/60 dark:border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Viết lại</span>
+                    </button>
+
+                    {feedback.accuracy >= 80 && (
+                      currentSentenceIndex < sentences.length - 1 ? (
+                        <button
+                          type="button"
+                          onClick={handleNextSentence}
+                          className="px-5 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/25 active:scale-95"
+                        >
+                          <span>Tiếp tục câu sau</span>
+                          <ArrowRight size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleNextLesson}
+                          className="px-5 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/25 active:scale-95"
+                        >
+                          <span>Hoàn thành bài học</span>
+                          <CheckCircle2 size={14} />
+                        </button>
+                      )
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                /* Chưa có Feedback: Hiển thị Thẻ Mẹo AI thông minh với kính lỏng */
+                <div className="h-full flex flex-col justify-between space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <Lightbulb size={18} />
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                        Mẹo luyện dịch tự nhiên từ AI
+                      </h4>
+                    </div>
+
+                    <div className="space-y-3 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-md shadow-2xs">
+                        <span className="text-blue-600 dark:text-cyan-400 font-black">1.</span>
+                        <p>
+                          <strong>Xác định đúng chủ ngữ & thì</strong>: Câu văn mang tính quy trình thường sử dụng thì hiện tại đơn hoặc thể bị động (Passive Voice).
+                        </p>
+                      </div>
+
+                      <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-md shadow-2xs">
+                        <span className="text-cyan-600 dark:text-cyan-400 font-black">2.</span>
+                        <p>
+                          <strong>Mục tiêu hoàn thành</strong>: Đạt độ chính xác từ <strong>80% trở lên</strong> để vượt qua câu này và tích lũy điểm kinh nghiệm EXP.
+                        </p>
+                      </div>
+
+                      <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-md shadow-2xs">
+                        <span className="text-indigo-600 dark:text-cyan-400 font-black">3.</span>
+                        <p>
+                          <strong>Phím tắt nhanh</strong>: Nhấn <code>Ctrl + Enter</code> trên bàn phím để nộp bài kiểm tra tức thì.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/40 dark:border-white/10 flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <Sparkles size={14} className="text-blue-500" />
+                    <span>AI sẽ phân tích câu của bạn ngay sau khi bấm Kiểm tra.</span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
         </div>
-      </div>
+      </main>
+
     </div>
   );
 }

@@ -1,11 +1,34 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mic, X, Sparkles, MapPin, Users, Target, Play, Volume2, RotateCcw, Languages, Loader2, CheckCircle2, TrendingUp, AlertCircle, Sun, Moon, Square } from 'lucide-react';
+import {
+  ArrowLeft,
+  Mic,
+  MicOff,
+  X,
+  Sparkles,
+  MapPin,
+  Users,
+  Target,
+  Play,
+  Volume2,
+  RotateCcw,
+  Languages,
+  Loader2,
+  CheckCircle2,
+  TrendingUp,
+  AlertCircle,
+  Square,
+  Award,
+  ChevronLeft,
+  Flame,
+  Clock,
+  Compass,
+  ArrowRight,
+} from 'lucide-react';
 import { chatSpeaking, chatSpeakingStream, translateText, evaluateSpeaking } from '../lib/gemini';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useAudioRecorder } from '../lib/useAudioRecorder';
 
@@ -21,21 +44,47 @@ const VOICES = [
 ];
 
 const SPEEDS = [
-  { id: 'slow', label: 'Slow', rate: 0.7 },
-  { id: 'normal', label: 'Normal', rate: 1.0 },
-  { id: 'fast', label: 'Fast', rate: 1.3 },
+  { id: 'slow', label: 'Chậm (0.7x)', rate: 0.7 },
+  { id: 'normal', label: 'Chuẩn (1.0x)', rate: 1.0 },
+  { id: 'fast', label: 'Nhanh (1.3x)', rate: 1.3 },
 ];
+
+const LEVEL_THEMES = {
+  A1: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  A2: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  B1: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+  B2: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
+  C1: 'bg-indigo-500/15 text-indigo-700 dark:text-cyan-300 border-indigo-500/30',
+};
 
 export default function SpeakingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
-  
+
   const [scenario, setScenario] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isTranslatingDesc, setIsTranslatingDesc] = useState(false);
   const [descTranslation, setDescTranslation] = useState('');
+
+  const [phase, setPhase] = useState('intro'); // 'intro' | 'chat' | 'evaluating' | 'result'
+  const [selectedVoice, setSelectedVoice] = useState(VOICES[0]);
+  const [selectedSpeed, setSelectedSpeed] = useState(SPEEDS[1]);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+
+  usePracticeSessionTimer('speaking', user, Boolean(scenario && phase !== 'intro' && phase !== 'result'));
+
+  const [messages, setMessages] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isAIThinking, setIsAIThinking] = useState(false);
+  const [evaluation, setEvaluation] = useState(null);
+  const [isEnded, setIsEnded] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const latestHandleUserMessage = useRef();
+  const selectedVoiceRef = useRef(VOICES[0]);
+  const selectedSpeedRef = useRef(SPEEDS[1]);
+  const pendingTranscriptRef = useRef('');
 
   useEffect(() => {
     fetchScenario();
@@ -43,55 +92,36 @@ export default function SpeakingDetail() {
 
   const fetchScenario = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('speaking_scenarios')
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) throw error;
 
       if (data) {
         setScenario({
           id: data.id,
-          level: data.level,
+          level: data.level || 'A1',
           title: data.title,
           description: data.description,
           partner: {
-            name: data.partner_name,
-            role: data.partner_role,
-            initial: data.partner_initial,
+            name: data.partner_name || 'AI Assistant',
+            role: data.partner_role || 'Partner',
+            initial: data.partner_initial || (data.partner_name ? data.partner_name[0] : 'A'),
           },
           image: data.image_url,
-          suggestions: data.suggestions
+          suggestions: data.suggestions || [],
         });
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching scenario:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  const [phase, setPhase] = useState('intro'); // 'intro' | 'chat' | 'evaluating' | 'result'
-  const [selectedVoice, setSelectedVoice] = useState(VOICES[0]);
-  const [selectedSpeed, setSelectedSpeed] = useState(SPEEDS[1]);
-
-  usePracticeSessionTimer('speaking', user, Boolean(scenario && phase !== 'intro' && phase !== 'result'));
-  
-  const [messages, setMessages] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isAIThinking, setIsAIThinking] = useState(false);
-  const [evaluation, setEvaluation] = useState(null);
-  const [speechError, setSpeechError] = useState('');
-  const [isEnded, setIsEnded] = useState(false);
-
-  const messagesEndRef = useRef(null);
-  const latestHandleUserMessage = useRef();
-  const selectedVoiceRef = useRef(VOICES[0]);
-  const selectedSpeedRef = useRef(SPEEDS[1]);
-  // Holds the latest final transcript from the hook until recording ends
-  const pendingTranscriptRef = useRef('');
 
   const handleFinalTranscript = useCallback((transcript) => {
     pendingTranscriptRef.current = transcript;
@@ -107,7 +137,6 @@ export default function SpeakingDetail() {
 
   const {
     isRecording,
-    permissionDenied,
     recordingTime,
     startRecording,
     stopRecording,
@@ -117,11 +146,11 @@ export default function SpeakingDetail() {
         const base64Clean = data.base64.split(',')[1];
         const inlineData = {
           mimeType: data.mimeType,
-          data: base64Clean
+          data: base64Clean,
         };
         await latestHandleUserMessage.current('', inlineData);
       }
-    }
+    },
   });
 
   const formatTime = (seconds) => {
@@ -131,17 +160,33 @@ export default function SpeakingDetail() {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => { scrollToBottom(); }, [messages, isAIThinking]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isAIThinking]);
 
   useEffect(() => () => {
-    window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
   }, []);
 
+  // Pro Spacebar shortcut to speak during chat
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (phase !== 'chat') return;
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        toggleRecording();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [phase, isRecording]);
+
   const handleStart = async () => {
-    // Unlock speech synthesis on iOS/Safari by speaking an empty utterance synchronously on user interaction
     if (window.speechSynthesis) {
       const unlockUtterance = new SpeechSynthesisUtterance('');
       unlockUtterance.volume = 0;
@@ -159,7 +204,9 @@ export default function SpeakingDetail() {
         `[SYSTEM: The user just started the conversation. Start naturally with a greeting. Keep it short (1-2 sentences).]`,
         []
       );
-      const aiText = typeof greeting === 'string' ? greeting : (greeting?.reply || `Hi there! I'm ${scenario.partner.name}. Nice to meet you!`);
+      const aiText = typeof greeting === 'string'
+        ? greeting
+        : (greeting?.reply || `Hi there! I'm ${scenario.partner.name}. Nice to meet you!`);
       const initialSuggestions = Array.isArray(greeting?.suggestions) && greeting.suggestions.length > 0
         ? greeting.suggestions
         : (Array.isArray(scenario.suggestions) ? scenario.suggestions : []);
@@ -177,7 +224,6 @@ export default function SpeakingDetail() {
   };
 
   const toggleRecording = () => {
-    setSpeechError('');
     if (isRecording) {
       stopRecording();
     } else {
@@ -185,12 +231,20 @@ export default function SpeakingDetail() {
     }
   };
 
-  const handleUserMessage = async (text, inlineData = null) => {
+  const handleUserMessage = async (textInput, inlineData = null) => {
     setIsAIThinking(true);
     setSuggestions([]);
 
+    const initialUserText = textInput || (inlineData ? '🎤 Đang nhận diện giọng nói...' : '');
+    // Append user bubble and empty AI placeholder immediately
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: initialUserText },
+      { role: 'ai', content: '' },
+    ]);
+
     let finalReply = '';
-    let finalTranscript = text || '';
+    let finalTranscript = textInput || '';
     let finalSuggestions = [];
 
     try {
@@ -199,17 +253,37 @@ export default function SpeakingDetail() {
         scenarioDesc: scenario.description,
         partnerName: scenario.partner.name,
         partnerRole: scenario.partner.role,
-        userMessage: text,
+        userMessage: textInput,
         history: messages,
         level: scenario.level,
         audioData: inlineData,
         onChunk: (chunk) => {
           finalReply += chunk;
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (updated[lastIdx]?.role === 'ai') {
+              updated[lastIdx] = { ...updated[lastIdx], content: finalReply };
+            }
+            return updated;
+          });
         },
         onMeta: ({ suggestions: newSuggestions, userTranscript, isFinished }) => {
-          finalSuggestions = newSuggestions;
+          if (newSuggestions && newSuggestions.length > 0) {
+            finalSuggestions = newSuggestions;
+          }
           if (inlineData && userTranscript) {
             finalTranscript = userTranscript;
+            setMessages((prev) => {
+              if (prev.length < 2) return prev;
+              const updated = [...prev];
+              const userIdx = updated.length - 2;
+              if (updated[userIdx]?.role === 'user') {
+                updated[userIdx] = { ...updated[userIdx], content: userTranscript };
+              }
+              return updated;
+            });
           }
           if (isFinished) {
             setIsEnded(true);
@@ -218,22 +292,22 @@ export default function SpeakingDetail() {
         onDone: () => {},
       });
 
-      // Update UI all at once after thinking finishes
-      setMessages(prev => [
-        ...prev, 
-        { role: 'user', content: finalTranscript },
-        { role: 'ai', content: finalReply }
-      ]);
       setSuggestions(finalSuggestions);
       if (finalReply) playAudio(finalReply);
-
     } catch (error) {
       console.error(error);
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', content: finalTranscript },
-        { role: 'ai', content: "Sorry, I couldn't understand. Could you try again?" }
-      ]);
+      setMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (updated[lastIdx]?.role === 'ai') {
+          updated[lastIdx] = {
+            role: 'ai',
+            content: "Sorry, I couldn't catch that clearly. Could you say it again?",
+          };
+        }
+        return updated;
+      });
     } finally {
       setIsAIThinking(false);
     }
@@ -247,25 +321,26 @@ export default function SpeakingDetail() {
     handleUserMessage(word);
   };
 
-  const playAudio = (text, customVoice = null, customSpeed = null) => {
+  const playAudio = (textToSpeak, customVoice = null, customSpeed = null) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Use refs to always get the latest selected voice/speed
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+
     const voiceToUse = customVoice || selectedVoiceRef.current;
     const speedToUse = customSpeed || selectedSpeedRef.current;
 
     utterance.lang = voiceToUse.accent === 'GB' ? 'en-GB' : 'en-US';
     utterance.rate = speedToUse.rate;
-    
+
     const voices = window.speechSynthesis.getVoices();
     const langPrefix = voiceToUse.accent === 'GB' ? 'en-GB' : 'en-US';
-    // Try to find a voice matching the preferred lang
-    const match = voices.find(v => v.lang.startsWith(langPrefix))
-      || voices.find(v => v.lang.startsWith('en'));
+    const match = voices.find((v) => v.lang.startsWith(langPrefix)) || voices.find((v) => v.lang.startsWith('en'));
     if (match) utterance.voice = match;
-    
+
+    utterance.onstart = () => setIsAISpeaking(true);
+    utterance.onend = () => setIsAISpeaking(false);
+    utterance.onerror = () => setIsAISpeaking(false);
+
     window.speechSynthesis.speak(utterance);
   };
 
@@ -275,17 +350,16 @@ export default function SpeakingDetail() {
     playAudio(`Hi, I'm ${voice.name}. Let's practice English together!`, voice, selectedSpeedRef.current);
   };
 
-  const handleTranslateMessage = async (idx, text) => {
-    // Optimistic UI update: Set a loading flag on the message
-    setMessages(prev => {
+  const handleTranslateMessage = async (idx, textToTranslate) => {
+    setMessages((prev) => {
       const newMsgs = [...prev];
       newMsgs[idx] = { ...newMsgs[idx], isTranslating: true };
       return newMsgs;
     });
 
-    const translated = await translateText(text);
+    const translated = await translateText(textToTranslate);
 
-    setMessages(prev => {
+    setMessages((prev) => {
       const newMsgs = [...prev];
       newMsgs[idx] = { ...newMsgs[idx], translation: translated, isTranslating: false };
       return newMsgs;
@@ -294,7 +368,7 @@ export default function SpeakingDetail() {
 
   const handleTranslateDesc = async () => {
     if (descTranslation) {
-      setDescTranslation(''); // toggle off
+      setDescTranslation('');
       return;
     }
     setIsTranslatingDesc(true);
@@ -304,258 +378,340 @@ export default function SpeakingDetail() {
   };
 
   const handleEndSession = async () => {
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     setPhase('evaluating');
-    
+
     try {
       const result = await evaluateSpeaking(
-        scenario.title, 
-        scenario.description, 
-        scenario.partner.name, 
+        scenario.title,
+        scenario.description,
+        scenario.partner.name,
         messages
       );
       setEvaluation(result);
       setPhase('result');
     } catch (error) {
       console.error(error);
-      alert('Could not generate evaluation. Please try again later.');
+      alert('Không thể tạo đánh giá lúc này. Vui lòng thử lại sau.');
       navigate('/speaking');
     }
   };
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Đang tải tình huống...</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white/30 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/35 dark:border-white/10 shadow-xl text-center">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            Đang chuẩn bị phòng hội thoại AI...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!scenario) {
-    return <div className="flex-1 flex items-center justify-center p-10 text-slate-500">Không tìm thấy tình huống.</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white/30 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/35 dark:border-white/10 shadow-xl text-center max-w-md">
+          <p className="text-base font-bold text-slate-800 dark:text-slate-100">
+            Không tìm thấy tình huống hội thoại
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/speaking')}
+            className="mt-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer shadow-lg shadow-indigo-600/20"
+          >
+            Quay lại danh sách
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  // ==================== INTRO PHASE ====================
+  // ==================== 1. INTRO PHASE ====================
   if (phase === 'intro') {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-pink-50 dark:bg-[#160B1E] overflow-y-auto p-4 md:p-10 transition-colors">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-2xl bg-white dark:bg-[#1E1226] rounded-3xl overflow-hidden shadow-2xl border border-pink-200 dark:border-fuchsia-900/40 relative transition-colors"
-        >
-          {/* Close button */}
-          <button 
-            onClick={() => navigate('/speaking')} 
-            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/30 text-white/80 hover:bg-black/50 hover:text-white transition-colors backdrop-blur-sm"
-          >
-            <X size={20} />
-          </button>
+    const levelStyle = LEVEL_THEMES[scenario.level] || LEVEL_THEMES.A1;
 
-          {/* Hero Image */}
-          <div className="relative h-52 md:h-64 overflow-hidden">
-            <img src={scenario.image} alt={scenario.title} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-[#1E1226] via-white/40 dark:via-[#1E1226]/40 to-transparent transition-colors" />
-            
-            {/* Title overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-fuchsia-600 flex items-center justify-center shadow-lg">
-                  <Sparkles size={24} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider">Kịch bản hội thoại</p>
-                  <h1 className="text-xl md:text-2xl font-extrabold text-slate-800 dark:text-white transition-colors">{scenario.title}</h1>
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 flex flex-col justify-start lg:justify-center items-center hide-scrollbar">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="w-full max-w-5xl my-auto rounded-3xl backdrop-blur-2xl bg-white/45 dark:bg-slate-900/60 border border-white/50 dark:border-white/10 shadow-2xl relative overflow-hidden p-4 sm:p-6 lg:p-7"
+        >
+          {/* Main 2-Column Responsive Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+            {/* LEFT COLUMN (Artwork & Partner Persona Card) */}
+            <div className="lg:col-span-5 flex flex-col justify-between gap-3.5">
+              {/* Scenario Artwork - Generous aspect ratio with object-top to prevent head cropping */}
+              <div className="relative rounded-2xl overflow-hidden border border-white/30 dark:border-white/10 shadow-lg bg-slate-950/60 aspect-[16/10] sm:aspect-[16/11] shrink-0 group">
+                <img
+                  src={scenario.image}
+                  alt={scenario.title}
+                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-black/20 pointer-events-none" />
+
+                {/* Level Badge */}
+                <div className="absolute top-3 left-3 pointer-events-none">
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-black border backdrop-blur-md shadow-md ${levelStyle}`}>
+                    {scenario.level}
+                  </span>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-teal-500 text-white text-xs font-extrabold rounded-lg shadow">{scenario.level}</span>
-            </div>
-          </div>
 
-          {/* Content */}
-          <div className="p-6 space-y-5">
-            {/* Context */}
-            <div className="bg-pink-100 dark:bg-[#2A1F33] rounded-2xl p-5 border border-pink-200 dark:border-fuchsia-900/30 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400">
-                  <MapPin size={16} />
-                  <span className="text-xs font-bold uppercase tracking-wider">Bối cảnh</span>
+              {/* Partner Persona Card */}
+              <div className="rounded-2xl p-3.5 backdrop-blur-xl bg-white/30 dark:bg-slate-800/35 border border-white/30 dark:border-white/5 flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-600/30">
+                    {scenario.partner.initial}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 animate-pulse" />
                 </div>
-                <button 
-                  onClick={handleTranslateDesc}
-                  disabled={isTranslatingDesc}
-                  className="flex items-center gap-1.5 text-xs text-fuchsia-400/70 hover:text-fuchsia-300 transition-colors disabled:opacity-50"
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">
+                      {scenario.partner.name}
+                    </h3>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-md font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Sẵn sàng
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
+                    {scenario.partner.role}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN (Header, Context, Audio Controls & Launch CTA) */}
+            <div className="lg:col-span-7 flex flex-col justify-between gap-4">
+              {/* Header with Title and Close Button */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-cyan-400 text-[11px] font-black uppercase tracking-wider">
+                    <Sparkles size={12} />
+                    <span>AI Speaking Studio</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                    {scenario.title}
+                  </h1>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/speaking')}
+                  className="p-2 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/30 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/80 transition-all cursor-pointer shrink-0 shadow-xs"
+                  title="Đóng và quay lại"
                 >
-                  {isTranslatingDesc ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
-                  <span>{descTranslation ? 'Ẩn bản dịch' : 'Dịch'}</span>
+                  <X size={18} />
                 </button>
               </div>
-              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed transition-colors">
-                {scenario.description}
-              </p>
-              {descTranslation && (
-                <div className="mt-3 pt-3 border-t border-pink-200 dark:border-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-200/90 text-sm leading-relaxed transition-colors">
-                  {descTranslation}
-                </div>
-              )}
-            </div>
 
-            {/* Conversation Partner */}
-            <div className="bg-pink-100 dark:bg-[#2A1F33] rounded-2xl p-5 border border-pink-200 dark:border-fuchsia-900/30 transition-colors">
-              <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400 mb-3">
-                <Users size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">Đối tác hội thoại</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-fuchsia-100 dark:bg-fuchsia-600/20 border-2 border-fuchsia-400 dark:border-fuchsia-500/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400 font-extrabold text-lg shrink-0 transition-colors">
-                  {scenario.partner.initial}
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-white text-lg transition-colors">{scenario.partner.name}</h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm transition-colors">{scenario.partner.role}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Your Turn */}
-            <div className="bg-fuchsia-50 dark:bg-fuchsia-950/50 rounded-2xl p-5 border border-fuchsia-200 dark:border-fuchsia-600/40 transition-colors">
-              <div className="flex items-center gap-2 text-fuchsia-600 dark:text-fuchsia-400 mb-3">
-                <Target size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">Lượt của bạn</span>
-              </div>
-              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed transition-colors">
-                Lắng nghe, sau đó nhấn micro để trả lời. Hãy thử dùng các từ gợi ý để duy trì cuộc hội thoại một cách tự nhiên nhé!
-              </p>
-            </div>
-
-            {/* Voice Selection */}
-            <div>
-              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Giọng đọc</p>
-              <div className="flex flex-wrap gap-2">
-                {VOICES.map(voice => (
+              {/* Scenario Context Box */}
+              <div className="rounded-2xl p-3.5 sm:p-4 backdrop-blur-xl bg-white/30 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-cyan-400 uppercase tracking-wider">
+                    <MapPin size={14} />
+                    <span>Bối cảnh tình huống</span>
+                  </span>
                   <button
-                    key={voice.id}
-                    onClick={() => previewVoice(voice)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold transition-all border ${
-                      selectedVoice.id === voice.id
-                        ? 'bg-fuchsia-100 dark:bg-fuchsia-600/20 border-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300'
-                        : 'bg-pink-100 dark:bg-[#2A1F33] border-pink-200 dark:border-[#3A2F43] text-slate-600 dark:text-slate-400 hover:border-fuchsia-400 dark:hover:border-fuchsia-600/40 hover:text-slate-800 dark:hover:text-slate-300'
-                    }`}
+                    type="button"
+                    onClick={handleTranslateDesc}
+                    disabled={isTranslatingDesc}
+                    className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-cyan-400 hover:text-indigo-700 dark:hover:text-cyan-300 transition-colors disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="text-fuchsia-500 text-[10px]">{voice.accent}</span>
-                    <span className="font-extrabold text-slate-800 dark:text-white transition-colors">{voice.name}</span>
-                    <span className="text-slate-500">{voice.gender}</span>
-                    <Play size={10} className="text-fuchsia-400" />
+                    {isTranslatingDesc ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />}
+                    <span>{descTranslation ? 'Ẩn dịch' : 'Dịch tiếng Việt'}</span>
                   </button>
-                ))}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                  {scenario.description}
+                </p>
+                {descTranslation && (
+                  <div className="mt-2 pt-2 border-t border-white/20 dark:border-white/10 text-xs sm:text-sm text-indigo-800 dark:text-cyan-300 leading-relaxed font-semibold italic">
+                    {descTranslation}
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Speed Selection */}
-            <div>
-              <p className="text-xs font-bold text-fuchsia-400/70 uppercase tracking-wider mb-3">Tốc độ</p>
-              <div className="grid grid-cols-3 gap-2">
-                {SPEEDS.map(speed => (
-                  <button
-                    key={speed.id}
-                    onClick={() => { setSelectedSpeed(speed); selectedSpeedRef.current = speed; }}
-                    className={`py-2.5 rounded-full text-sm font-bold transition-all border ${
-                      selectedSpeed.id === speed.id
-                        ? 'bg-fuchsia-100 dark:bg-fuchsia-600/20 border-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300'
-                        : 'bg-pink-100 dark:bg-[#2A1F33] border-pink-200 dark:border-[#3A2F43] text-slate-600 dark:text-slate-400 hover:border-fuchsia-400 dark:hover:border-fuchsia-600/40'
-                    }`}
-                  >
-                    {speed.label}
-                  </button>
-                ))}
+              {/* Audio Controls (Voice & Speed) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Voice Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Volume2 size={13} className="text-indigo-500 dark:text-cyan-400" />
+                    <span>Giọng đọc ({selectedVoice.accent})</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {VOICES.map((v) => {
+                      const isSelected = selectedVoice.id === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => previewVoice(v)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25'
+                              : 'bg-white/30 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
+                          }`}
+                        >
+                          <span className="text-[10px] opacity-80">{v.accent}</span>
+                          <span>{v.name}</span>
+                          <Play size={9} className="opacity-80" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Speed Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Clock size={13} className="text-indigo-500 dark:text-cyan-400" />
+                    <span>Tốc độ</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {SPEEDS.map((s) => {
+                      const isSelected = selectedSpeed.id === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSpeed(s);
+                            selectedSpeedRef.current = s;
+                          }}
+                          className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer text-center ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25'
+                              : 'bg-white/30 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Start Button */}
-            <button
-              onClick={handleStart}
-              className="w-full py-4 bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white font-extrabold text-lg rounded-2xl hover:from-fuchsia-500 hover:to-pink-400 transition-all shadow-lg shadow-fuchsia-600/30 flex items-center justify-center gap-3"
-            >
-              <Sparkles size={22} />
-              Hiểu rồi, bắt đầu thôi!
-            </button>
+              {/* Launch CTA Button */}
+              <button
+                type="button"
+                onClick={handleStart}
+                className="w-full py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-black text-sm sm:text-base shadow-xl shadow-indigo-600/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles size={18} />
+                <span>Bắt đầu cuộc trò chuyện cùng {scenario.partner.name}</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>
     );
   }
 
-  // ==================== EVALUATING PHASE ====================
+  // ==================== 2. EVALUATING PHASE ====================
   if (phase === 'evaluating') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-80px)] bg-pink-50 dark:bg-[#160B1E] transition-colors">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent text-slate-800 dark:text-white">
         <motion.div
           animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
           transition={{ repeat: Infinity, duration: 2 }}
-          className="w-20 h-20 bg-fuchsia-600/20 rounded-full flex items-center justify-center mb-6 border-2 border-fuchsia-500/50"
+          className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-6"
         >
-          <Sparkles size={32} className="text-fuchsia-400" />
+          <Sparkles size={38} className="text-white animate-spin" style={{ animationDuration: '4s' }} />
         </motion.div>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Đang phân tích cuộc hội thoại...</h2>
-        <p className="text-slate-600 dark:text-slate-400 text-center max-w-md transition-colors">
-          AI đang xem xét ngữ pháp, từ vựng và độ trôi chảy của bạn. Quá trình này có thể mất vài giây.
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 text-center">
+          AI Đang phân tích cuộc hội thoại...
+        </h2>
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300 text-center max-w-md">
+          Đang đánh giá ngữ pháp, từ vựng và độ trôi chảy phản xạ tự nhiên của bạn. Vui lòng đợi trong giây lát.
         </p>
       </div>
     );
   }
 
-  // ==================== RESULT PHASE ====================
+  // ==================== 3. RESULT PHASE ====================
   if (phase === 'result' && evaluation) {
+    const score = evaluation.score || 85;
+
     return (
-      <div className="flex-1 overflow-y-auto bg-pink-50 dark:bg-[#160B1E] p-4 md:p-10 transition-colors">
-        <div className="max-w-3xl mx-auto space-y-8 pb-10">
-          
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-transparent text-slate-800 dark:text-white hide-scrollbar">
+        <div className="max-w-3xl mx-auto space-y-6 pb-12">
+          {/* Top Bar */}
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white flex items-center gap-2 transition-colors">
-              <Target className="text-fuchsia-500" /> Đánh giá buổi luyện tập
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Award className="text-indigo-500" />
+              <span>Đánh giá kết quả phản xạ</span>
             </h1>
-            <button 
+            <button
+              type="button"
               onClick={() => navigate('/speaking')}
-              className="px-5 py-2 bg-[#3A2F43] text-white rounded-xl font-bold hover:bg-[#3A2F43] transition-colors"
+              className="px-4 py-2 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/35 dark:border-white/10 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white/50 cursor-pointer"
             >
-              Xong
+              Hoàn thành
             </button>
           </div>
 
-          <div className="bg-white dark:bg-[#1E1226] rounded-3xl p-6 md:p-8 border border-pink-200 dark:border-fuchsia-900/40 shadow-2xl relative overflow-hidden transition-colors">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-            
-            <div className="flex flex-col md:flex-row gap-8 items-center mb-10 relative z-10">
-              {/* Score Circle */}
-              <div className="relative w-40 h-40 shrink-0">
+          {/* Hero Result Glass Card */}
+          <div className="rounded-3xl p-6 sm:p-8 backdrop-blur-2xl bg-white/35 dark:bg-slate-900/45 border border-white/40 dark:border-white/10 shadow-2xl relative overflow-hidden space-y-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 border-b border-white/20 dark:border-white/10 pb-6">
+              {/* Score Dial */}
+              <div className="relative w-36 h-36 shrink-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#3A2F43" strokeWidth="8" />
-                  <motion.circle 
-                    initial={{ strokeDasharray: "0 1000" }}
-                    animate={{ strokeDasharray: `${(evaluation.score / 100) * 283} 1000` }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    cx="50" cy="50" r="45" fill="none" stroke="#d946ef" strokeWidth="8" strokeLinecap="round" 
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" className="text-slate-200 dark:text-slate-800" strokeWidth="8" />
+                  <motion.circle
+                    initial={{ strokeDasharray: '0 1000' }}
+                    animate={{ strokeDasharray: `${(score / 100) * 276} 1000` }}
+                    transition={{ duration: 1.5, ease: 'easeOut' }}
+                    cx="50"
+                    cy="50"
+                    r="44"
+                    fill="none"
+                    stroke="#4f46e5"
+                    strokeWidth="8"
+                    strokeLinecap="round"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-extrabold text-slate-800 dark:text-white transition-colors">{evaluation.score}</span>
-                  <span className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-bold uppercase tracking-wider">Điểm số</span>
+                  <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums">{score}</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 dark:text-cyan-400">Điểm tổng</span>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 transition-colors">Nhận xét của giáo viên</h3>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base transition-colors">
+
+              {/* Feedback Summary */}
+              <div className="space-y-2 text-center sm:text-left">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-black">
+                  <CheckCircle2 size={14} />
+                  <span>{score >= 80 ? 'Phản xạ giao tiếp rất tốt!' : 'Hoàn thành buổi luyện tập!'}</span>
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Nhận xét từ đối tác {scenario.partner.name}
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                   {evaluation.feedback}
                 </p>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 relative z-10">
+            {/* Strengths & Improvements Columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Strengths */}
-              <div className="bg-emerald-50 dark:bg-[#3A2F43]/50 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-900/30 transition-colors">
-                <h4 className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold mb-4">
-                  <CheckCircle2 size={20} /> Điểm mạnh
+              <div className="rounded-2xl p-4 sm:p-5 bg-emerald-500/10 border border-emerald-500/25 space-y-3">
+                <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 size={16} />
+                  <span>Điểm mạnh ghi nhận</span>
                 </h4>
-                <ul className="space-y-3">
-                  {evaluation.strengths?.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300 transition-colors">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                <ul className="space-y-2">
+                  {(evaluation.strengths || ['Phát âm rõ ràng', 'Duy trì hội thoại tốt']).map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                       <span>{s}</span>
                     </li>
                   ))}
@@ -563,255 +719,299 @@ export default function SpeakingDetail() {
               </div>
 
               {/* Improvements */}
-              <div className="bg-amber-50 dark:bg-[#3A2F43]/50 rounded-2xl p-5 border border-amber-200 dark:border-amber-900/30 transition-colors">
-                <h4 className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold mb-4">
-                  <TrendingUp size={20} /> Điểm cần cải thiện
+              <div className="rounded-2xl p-4 sm:p-5 bg-amber-500/10 border border-amber-500/25 space-y-3">
+                <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  <TrendingUp size={16} />
+                  <span>Điểm cần cải thiện</span>
                 </h4>
-                <ul className="space-y-3">
-                  {evaluation.improvements?.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300 transition-colors">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                      <span>{s}</span>
+                <ul className="space-y-2">
+                  {(evaluation.improvements || ['Thử nối âm tự nhiên hơn']).map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
-            
+
+            {/* Bottom Actions */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-white/20 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setPhase('intro');
+                  setMessages([]);
+                  setEvaluation(null);
+                  setIsEnded(false);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs font-black text-slate-800 dark:text-white hover:bg-white/60 cursor-pointer shadow-sm"
+              >
+                <RotateCcw size={15} />
+                <span>Luyện lại tình huống này</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/speaking')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black hover:shadow-lg transition-all cursor-pointer shadow-md shadow-indigo-500/25"
+              >
+                <span>Khám phá tình huống khác</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // ==================== CHAT PHASE ====================
+  // ==================== 4. CHAT PHASE (ACTIVE STUDIO) ====================
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-80px)] bg-pink-50 dark:bg-[#160B1E] transition-colors relative">
-      {/* Header */}
-      <div className="h-16 flex items-center justify-between px-3 md:px-6 bg-white dark:bg-[#1E1226] border-b border-pink-200 dark:border-[#3A2F43] z-10 shrink-0 transition-colors gap-2">
-        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-          <button 
-            onClick={() => { window.speechSynthesis.cancel(); navigate('/speaking'); }}
-            className="p-1.5 md:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-pink-100 dark:hover:bg-[#2A1F33] hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
+    <div className="flex flex-1 min-h-0 w-full flex-col bg-transparent text-slate-800 dark:text-white h-full overflow-hidden p-2 sm:p-4 lg:p-5 max-w-5xl mx-auto gap-3 relative">
+      {/* 1. TOPBAR STUDIO DOCK */}
+      <header className="relative z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.speechSynthesis) window.speechSynthesis.cancel();
+              navigate('/speaking');
+            }}
+            className="flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer"
           >
-            <ArrowLeft size={20} />
+            <ChevronLeft size={18} />
+            <span className="hidden sm:inline">Thoát</span>
           </button>
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-fuchsia-100 dark:bg-fuchsia-600/20 border-2 border-fuchsia-400 dark:border-fuchsia-500/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400 font-extrabold text-sm md:text-base shrink-0 transition-colors">
-            {scenario.partner.initial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-slate-800 dark:text-white text-sm transition-colors truncate">{scenario.partner.name}</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 transition-colors truncate">
-              <span className="text-teal-600 dark:text-teal-400 font-bold mr-1">{scenario.level}</span>
-              {scenario.title}
-            </p>
+
+          <div className="h-5 w-px bg-white/20 dark:bg-white/10 shrink-0" />
+
+          {/* Partner Avatar & Status */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-black text-sm shadow-md">
+                {scenario.partner.initial}
+              </div>
+              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${isAISpeaking ? 'bg-indigo-500 animate-ping' : 'bg-emerald-500'}`} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                  {scenario.partner.name}
+                </h2>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-md font-extrabold bg-indigo-500/15 text-indigo-700 dark:text-cyan-300 border border-indigo-500/30">
+                  {scenario.level}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-semibold">
+                {scenario.partner.role} • {selectedVoice.name} ({selectedVoice.accent})
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-          <button 
-            onClick={toggleTheme}
-            className="flex items-center justify-center w-8 h-8 md:w-auto md:px-3 md:py-1.5 bg-pink-100 dark:bg-[#2A1F33] rounded-full text-xs text-slate-700 dark:text-slate-300 hover:bg-pink-200 dark:hover:bg-[#321F3F] transition-colors border border-pink-200 dark:border-[#3A2F43] cursor-pointer shrink-0"
-          >
-            {isDarkMode ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-500" />}
-          </button>
-          <div className="flex items-center justify-center w-8 h-8 md:w-auto md:px-3 md:py-1.5 gap-2 bg-pink-100 dark:bg-[#2A1F33] rounded-full text-xs text-slate-700 dark:text-slate-300 border border-pink-200 dark:border-[#3A2F43] shrink-0">
-            <Volume2 size={14} className="text-fuchsia-600 dark:text-fuchsia-400 transition-colors" />
-            <span className="hidden md:inline">{selectedVoice.accent} {selectedVoice.name}</span>
-          </div>
-          <button 
+
+        {/* Right Action: End Session */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
             onClick={handleEndSession}
-            className="flex items-center justify-center w-8 h-8 md:w-auto md:px-3 md:py-1.5 gap-1.5 bg-pink-100 dark:bg-[#2A1F33] rounded-full text-xs text-slate-700 dark:text-slate-300 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors border border-pink-200 dark:border-[#3A2F43] cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 hover:shadow-lg transition-all cursor-pointer"
           >
-            <X size={14} />
-            <span className="hidden md:inline">Kết thúc</span>
+            <CheckCircle2 size={14} />
+            <span className="hidden sm:inline">Kết thúc & Chấm điểm</span>
+            <span className="sm:hidden">Kết thúc</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
-          {/* Scenario Card */}
-          <div className="bg-white dark:bg-[#1E1226] rounded-2xl p-5 border border-pink-200 dark:border-[#3A2F43] text-center transition-colors">
-            <p className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider mb-2">Kịch bản</p>
-            <h3 className="font-bold text-slate-800 dark:text-white mb-2 transition-colors">{scenario.title}</h3>
-            <p className="text-slate-700 dark:text-slate-400 text-sm leading-relaxed transition-colors">{scenario.description}</p>
-          </div>
+      {/* 2. CHAT STREAM CONTAINER */}
+      <section className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-4 hide-scrollbar min-h-0">
+        {/* Scenario Context Banner */}
+        <div className="rounded-2xl p-3 sm:p-4 backdrop-blur-xl bg-white/20 dark:bg-slate-800/25 border border-white/25 dark:border-white/5 text-center">
+          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-cyan-400">
+            Tình huống: {scenario.title}
+          </span>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2">
+            {scenario.description}
+          </p>
+        </div>
 
-          {/* Messages */}
-          {messages.map((msg, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-            >
-              {msg.role === 'ai' ? (
-                <div className="space-y-2">
-                  {/* AI avatar + name */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-fuchsia-100 dark:bg-fuchsia-600/20 border border-fuchsia-400 dark:border-fuchsia-500/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400 font-bold text-sm shrink-0 transition-colors">
-                      {scenario.partner.initial}
+        {/* Message Bubbles */}
+        {messages.map((msg, idx) => (
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {msg.role === 'ai' ? (
+              <div className="space-y-1.5 max-w-[90%] sm:max-w-[80%]">
+                {/* AI Bubble */}
+                <div className="rounded-2xl rounded-tl-sm p-3.5 sm:p-4 backdrop-blur-xl bg-white/40 dark:bg-slate-800/50 border border-white/35 dark:border-white/10 text-slate-800 dark:text-slate-100 shadow-xs leading-relaxed font-medium text-sm sm:text-base">
+                  {msg.content === '' ? (
+                    <div className="flex gap-1.5 items-center h-5 py-1">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
                     </div>
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">{scenario.partner.name}</span>
-                  </div>
-                  {/* AI bubble */}
-                  <div className="ml-11 bg-white dark:bg-[#1E1226] rounded-2xl rounded-tl-sm p-4 border border-pink-200 dark:border-[#3A2F43] text-slate-700 dark:text-slate-200 leading-relaxed transition-colors min-h-[48px]">
-                    {msg.content === '' ? (
-                      <div className="flex gap-1.5 items-center h-5">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
-                      </div>
-                    ) : (
-                      <>
-                        {msg.content}
-                        {msg.translation && (
-                          <div className="mt-3 pt-3 border-t border-pink-100 dark:border-[#3A2F43] text-fuchsia-600 dark:text-fuchsia-300 text-sm transition-colors">
-                            {msg.translation}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {/* AI action buttons - only show when content is fully streamed */}
-                  {msg.content && (
-                  <div className="ml-11 flex items-center gap-4 text-xs text-slate-500">
-                    <button onClick={() => playAudio(msg.content)} className="flex items-center gap-1 hover:text-fuchsia-400 transition-colors">
-                      <RotateCcw size={12} /> Phát lại
-                    </button>
-                    <button 
-                      onClick={() => handleTranslateMessage(idx, msg.content)} 
-                      disabled={msg.isTranslating}
-                      className="flex items-center gap-1 hover:text-fuchsia-400 transition-colors disabled:opacity-50"
-                    >
-                      {msg.isTranslating ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />} 
-                      Dịch
-                    </button>
-                  </div>
+                  ) : (
+                    <>
+                      <div>{msg.content}</div>
+                      {msg.translation && (
+                        <div className="mt-2.5 pt-2.5 border-t border-white/25 dark:border-white/10 text-xs sm:text-sm text-indigo-700 dark:text-cyan-300 font-semibold italic">
+                          {msg.translation}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
-              ) : (
-                <div className="flex justify-end">
-                  <div className="max-w-[80%] bg-fuchsia-600 text-white rounded-2xl rounded-br-sm p-4 leading-relaxed shadow-lg shadow-fuchsia-600/10">
-                    {msg.content === '🎤 [Audio Message]' ? (
-                      <div className="flex items-center gap-3">
-                        <span className="text-white/90 text-sm font-medium">Đang nhận diện giọng nói...</span>
-                        <div className="flex items-center gap-1 h-4">
-                          <motion.div animate={{ scaleY: [1, 2, 1] }} transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }} className="w-1 h-3 bg-white rounded-full origin-bottom" />
-                          <motion.div animate={{ scaleY: [1, 2.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2, ease: "easeInOut" }} className="w-1 h-4 bg-white rounded-full origin-bottom" />
-                          <motion.div animate={{ scaleY: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4, ease: "easeInOut" }} className="w-1 h-2 bg-white rounded-full origin-bottom" />
-                          <motion.div animate={{ scaleY: [1, 2.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.6, ease: "easeInOut" }} className="w-1 h-4 bg-white rounded-full origin-bottom" />
-                          <motion.div animate={{ scaleY: [1, 2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.8, ease: "easeInOut" }} className="w-1 h-3 bg-white rounded-full origin-bottom" />
-                        </div>
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
 
-
-
-
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
-      </div>
-
-      {/* Bottom Controls */}
-      <div className="bg-white dark:bg-[#1E1226] border-t border-pink-200 dark:border-[#3A2F43] p-4 md:p-6 transition-colors">
-        <div className="max-w-2xl mx-auto space-y-4">
-          {/* Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="bg-pink-100 dark:bg-[#2A1F33] rounded-2xl p-4 border border-pink-200 dark:border-fuchsia-900/30 transition-colors">
-              <p className="text-xs text-fuchsia-600 dark:text-fuchsia-400 font-bold mb-3 flex items-center gap-1.5">
-                <Target size={12} /> Thử dùng những từ này:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((word, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestionClick(word)}
-                    disabled={isAIThinking}
-                    className="px-4 py-2 bg-white dark:bg-[#1E1226] border border-pink-300 dark:border-[#3A2F43] rounded-full text-sm text-slate-700 dark:text-slate-300 font-medium hover:border-fuchsia-500 hover:text-fuchsia-600 dark:hover:text-fuchsia-300 transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    {word}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bottom Controls Area */}
-          {isEnded ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <CheckCircle2 size={48} className="mb-4 text-emerald-500" />
-              <p className="mb-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">Cuộc trò chuyện đã kết thúc!</p>
-              <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">AI đã hoàn thành tình huống giả định này.</p>
-              <button
-                onClick={() => setPhase('evaluating')}
-                className="rounded-xl bg-gradient-to-tr from-fuchsia-600 to-pink-500 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-500/30 transition-all hover:scale-105 active:scale-95"
-              >
-                Xem đánh giá tổng quan
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 mt-4 mb-2">
-              <div className="relative flex items-center justify-center">
-                {isAIThinking ? (
-                  <div className="relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center">
-                    <svg className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite]" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 0.2)" strokeWidth="4" />
-                      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(217, 70, 239, 1)" strokeWidth="4" strokeDasharray="75 300" strokeLinecap="round" />
-                    </svg>
-                    <Loader2 size={24} className="text-fuchsia-500 animate-spin" />
-                  </div>
-                ) : (
-                  <>
-                    {isRecording && (
-                      <>
-                        <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
-                        <span className="absolute w-20 h-20 rounded-full bg-red-500/40 animate-pulse" />
-                      </>
-                    )}
+                {/* AI Bubble Actions */}
+                {msg.content && (
+                  <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 pl-1">
                     <button
-                      onClick={toggleRecording}
-                      className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
-                        isRecording
-                          ? 'bg-red-500 shadow-red-500/40 scale-105'
-                          : 'bg-gradient-to-tr from-fuchsia-600 to-pink-500 shadow-fuchsia-600/30 hover:scale-105 active:scale-95'
-                      }`}
+                      type="button"
+                      onClick={() => playAudio(msg.content)}
+                      className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer"
                     >
-                      {isRecording ? (
-                        <Square size={24} fill="currentColor" className="text-white md:w-8 md:h-8" />
-                      ) : (
-                        <Mic size={28} className="text-white md:w-9 md:h-9" />
-                      )}
+                      <RotateCcw size={12} />
+                      <span>Nghe lại</span>
                     </button>
-                  </>
+                    <button
+                      type="button"
+                      onClick={() => handleTranslateMessage(idx, msg.content)}
+                      disabled={msg.isTranslating}
+                      className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {msg.isTranslating ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />}
+                      <span>Dịch nghĩa</span>
+                    </button>
+                  </div>
                 )}
               </div>
-              <p className={`text-sm font-bold transition-colors ${
-                isRecording 
-                  ? 'text-red-500 dark:text-red-400' 
-                  : isAIThinking 
-                    ? 'text-slate-400 dark:text-slate-500' 
-                    : 'text-slate-500 dark:text-slate-400'
-              }`}>
-                {isRecording 
-                  ? `Listening... ${formatTime(recordingTime)}` 
-                  : isAIThinking 
-                    ? 'Đang suy nghĩ...' 
-                    : 'Tap to speak'
-                }
-              </p>
+            ) : (
+              /* User Bubble */
+              <div className="flex justify-end">
+                <div className="max-w-[90%] sm:max-w-[80%] rounded-2xl rounded-br-sm p-3.5 sm:p-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium text-sm sm:text-base shadow-lg shadow-indigo-500/20 leading-relaxed">
+                  {msg.content}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        ))}
+
+        {isAIThinking && messages[messages.length - 1]?.role === 'user' && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-white/20 dark:bg-slate-800/20 border border-white/20 text-xs font-bold text-slate-500 dark:text-slate-400 w-fit">
+            <Loader2 size={14} className="animate-spin text-indigo-500" />
+            <span>{scenario.partner.name} đang suy nghĩ câu trả lời...</span>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} className="h-2" />
+      </section>
+
+      {/* 3. STUDIO INTERACTION DOCK */}
+      <footer className="rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-3 sm:p-4 shadow-lg shadow-black/5 shrink-0 space-y-3">
+        {/* Suggestion Chips */}
+        {suggestions.length > 0 && !isEnded && (
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-0.5">
+            <span className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-indigo-600 dark:text-cyan-400 shrink-0">
+              <Target size={12} />
+              <span>Gợi ý:</span>
+            </span>
+            {suggestions.map((word, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSuggestionClick(word)}
+                disabled={isAIThinking}
+                className="shrink-0 px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-cyan-300 transition-all cursor-pointer shadow-xs disabled:opacity-40"
+              >
+                {word}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Main Microphone Interaction */}
+        {isEnded ? (
+          <div className="flex flex-col items-center justify-center py-2 text-center gap-2">
+            <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+              Cuộc trò chuyện đã hoàn thành!
+            </p>
+            <button
+              type="button"
+              onClick={() => setPhase('evaluating')}
+              className="px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 cursor-pointer"
+            >
+              Xem báo cáo đánh giá
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2">
+            {/* Dynamic Waveform & Mic Button */}
+            <div className="relative flex items-center justify-center">
+              {isRecording && (
+                <>
+                  <span className="absolute w-28 h-28 rounded-full bg-red-500/20 animate-ping pointer-events-none" style={{ animationDuration: '1.8s' }} />
+                  <span className="absolute w-24 h-24 rounded-full bg-red-500/30 animate-pulse pointer-events-none" />
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={toggleRecording}
+                disabled={isAIThinking}
+                className={`relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center text-white transition-all duration-300 shadow-xl cursor-pointer ${
+                  isRecording
+                    ? 'scale-110 bg-gradient-to-tr from-red-600 to-rose-500 shadow-red-500/50 ring-4 ring-red-500/30'
+                    : isAIThinking
+                    ? 'bg-slate-400 dark:bg-slate-700 opacity-60 cursor-wait'
+                    : 'bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 shadow-indigo-600/35 hover:scale-105 active:scale-95'
+                }`}
+                title="Bấm hoặc nhấn Space để nói"
+              >
+                {isRecording ? (
+                  <Square size={24} className="fill-current animate-pulse" />
+                ) : (
+                  <Mic size={28} />
+                )}
+              </button>
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Live Audio Waves Bars when recording */}
+            {isRecording && (
+              <div className="flex items-center gap-1 mt-1">
+                {[10, 22, 34, 16, 38, 24, 42, 18, 32, 20].map((h, i) => (
+                  <span
+                    key={i}
+                    className="w-1 rounded-full bg-gradient-to-t from-red-500 to-pink-400 animate-pulse"
+                    style={{
+                      height: `${h}px`,
+                      animationDuration: `${0.4 + (i % 4) * 0.15}s`,
+                    }}
+                  />
+                ))}
+                <span className="ml-2 font-mono text-xs font-black text-red-500 tabular-nums">
+                  {formatTime(recordingTime)}
+                </span>
+              </div>
+            )}
+
+            {/* Status text & Spacebar ergonomic pill */}
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span>
+                {isRecording
+                  ? 'Đang lắng nghe giọng bạn...'
+                  : isAIThinking
+                  ? 'AI đang suy nghĩ...'
+                  : 'Bấm Mic hoặc nhấn Space để bắt đầu nói'}
+              </span>
+              <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
+                Space
+              </kbd>
+            </div>
+          </div>
+        )}
+      </footer>
     </div>
   );
 }

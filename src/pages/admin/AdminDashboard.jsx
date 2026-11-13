@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   BookOpen, LibraryBig, PenTool, Headphones, FileText, BookType,
-  TrendingUp, Database
+  TrendingUp, Database, Sparkles, Trophy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { Link } from 'react-router-dom';
@@ -18,6 +18,8 @@ export default function AdminDashboard() {
     vocab_categories: 0,
     vocabularies: 0,
     library_books: 0,
+    avatar_frames: 0,
+    level_configs: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,8 @@ export default function AdminDashboard() {
         supabase.from('categories').select('id', { count: 'exact', head: true }),
         supabase.from('vocabularies').select('id', { count: 'exact', head: true }),
         supabase.from('library_books').select('id', { count: 'exact', head: true }),
+        supabase.from('avatar_frames').select('id', { count: 'exact', head: true }),
+        supabase.from('level_configs').select('level', { count: 'exact', head: true }),
       ];
 
       const results = await Promise.all(queries);
@@ -53,6 +57,8 @@ export default function AdminDashboard() {
         vocab_categories: results[7].count || 0,
         vocabularies: results[8].count || 0,
         library_books: results[9].count || 0,
+        avatar_frames: results[10].count || 0,
+        level_configs: results[11].count || 0,
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -62,6 +68,16 @@ export default function AdminDashboard() {
   };
 
   const cards = [
+    {
+      title: 'Cấp độ & EXP',
+      to: '/admin/levels',
+      icon: Trophy,
+      color: 'amber',
+      stats: [
+        { label: 'Mốc cấp độ', value: stats.level_configs },
+      ],
+    },
+
     {
       title: 'Luyện viết',
       to: '/admin/writing',
@@ -118,6 +134,15 @@ export default function AdminDashboard() {
       color: 'fuchsia',
       stats: [
         { label: 'Sách', value: stats.library_books },
+      ],
+    },
+    {
+      title: 'Khung Avatar',
+      to: '/admin/avatar-frames',
+      icon: Sparkles,
+      color: 'indigo',
+      stats: [
+        { label: 'Khung avatar', value: stats.avatar_frames },
       ],
     },
   ];

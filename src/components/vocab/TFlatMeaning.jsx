@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { decodeTFlatAv, parseTFlatEntry } from '../../utils/tflatParser';
 
 function cleanFallbackMean(mean = '') {
@@ -9,6 +9,23 @@ function cleanFallbackMean(mean = '') {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+const getPosBadgeClass = (pos = '') => {
+  const p = pos.toLowerCase();
+  if (p.includes('danh') || p.includes('n')) {
+    return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+  }
+  if (p.includes('động') || p.includes('v')) {
+    return 'bg-indigo-500/15 text-indigo-700 dark:text-cyan-300 border-indigo-500/30';
+  }
+  if (p.includes('tính') || p.includes('adj')) {
+    return 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+  }
+  if (p.includes('trạng') || p.includes('adv')) {
+    return 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+  }
+  return 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30';
+};
 
 export default function TFlatMeaning({ word }) {
   const [decodedSource, setDecodedSource] = useState('');
@@ -54,9 +71,9 @@ export default function TFlatMeaning({ word }) {
 
   if (isDecoding) {
     return (
-      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-        <Loader2 size={18} className="animate-spin text-fuchsia-500" />
-        <span>Đang đọc dữ liệu từ điển...</span>
+      <div className="flex items-center gap-3 py-8 text-slate-500 dark:text-slate-400">
+        <Loader2 size={22} className="animate-spin text-indigo-600 dark:text-cyan-400" />
+        <span className="text-sm font-bold">Đang giải mã dữ liệu từ điển TFlat...</span>
       </div>
     );
   }
@@ -66,77 +83,96 @@ export default function TFlatMeaning({ word }) {
 
     if (!cleanMean && decodeError) {
       return (
-        <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed">
-          Không đọc được dữ liệu chi tiết của từ này.
-        </p>
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-semibold flex items-center gap-2">
+          <AlertCircle size={18} />
+          <span>Không đọc được dữ liệu chi tiết của từ này trong kho TFlat.</span>
+        </div>
       );
     }
 
     if (!cleanMean) return null;
 
     return (
-      <p className="text-slate-700 dark:text-slate-300 text-base leading-relaxed">{cleanMean}</p>
+      <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-slate-800 dark:text-slate-200 text-base leading-relaxed font-semibold">
+        {cleanMean}
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6 text-left text-slate-800 dark:text-slate-200">
+    <div className="space-y-7 text-left">
+      {/* Root inflection notice */}
       {word?._note && (
-        <div className="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-sm text-fuchsia-700 dark:border-fuchsia-500/20 dark:bg-fuchsia-500/10 dark:text-fuchsia-300">
-          {word._note}
+        <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 dark:bg-cyan-500/10 px-4 py-3 text-xs sm:text-sm font-bold text-indigo-800 dark:text-cyan-300 flex items-center gap-2">
+          <Sparkles size={16} className="text-indigo-500 dark:text-cyan-400 shrink-0" />
+          <span>{word._note}</span>
         </div>
       )}
 
       {entry.pronunciation && !word?.pro && (
-        <div className="font-mono text-sm text-slate-500 dark:text-slate-400">{entry.pronunciation}</div>
+        <div className="font-mono text-sm font-bold text-slate-600 dark:text-slate-400 bg-white/50 dark:bg-white/10 px-3 py-1 rounded-lg inline-block">
+          {entry.pronunciation}
+        </div>
       )}
 
+      {/* Sections by Part of Speech */}
       {entry.sections.map((section, sectionIndex) => (
         <div
           key={`${section.pos || 'general'}-${sectionIndex}`}
-          className="border-b border-pink-200 pb-6 transition-colors last:border-0 last:pb-0 dark:border-[#3A2F43]"
+          className="pb-7 border-b border-white/50 dark:border-white/10 last:border-0 last:pb-0 space-y-4"
         >
           {section.pos && (
-            <div className="mb-4">
-              <span className="inline-block rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold tracking-wider text-fuchsia-700 transition-colors dark:border-fuchsia-500/20 dark:bg-fuchsia-500/10 dark:text-fuchsia-400">
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center px-3.5 py-1 rounded-xl text-xs font-black tracking-wider uppercase border shadow-2xs ${getPosBadgeClass(
+                  section.pos
+                )}`}
+              >
                 {section.pos}
               </span>
             </div>
           )}
 
+          {/* Definitions */}
           {section.meanings.length > 0 && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {section.meanings.map((meaning, meaningIndex) => (
-                <div key={`${meaning.text}-${meaningIndex}`} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-slate-500 transition-colors dark:bg-[#2A1F33] dark:text-slate-400">
+                <div key={`${meaning.text}-${meaningIndex}`} className="flex items-start gap-3.5">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white text-xs font-black shadow-xs">
                     {meaningIndex + 1}
                   </span>
 
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 space-y-2">
                     {meaning.text && (
                       <p
                         className={`text-base leading-relaxed ${
                           meaning.isEnglish
-                            ? 'text-slate-500 dark:text-slate-400'
-                            : 'text-slate-700 dark:text-slate-300'
+                            ? 'text-slate-600 dark:text-slate-400 font-medium italic'
+                            : 'text-slate-950 dark:text-white font-bold'
                         }`}
                       >
                         {meaning.isEnglish ? `[EN] ${meaning.text}` : meaning.text}
                       </p>
                     )}
 
+                    {/* Example Sentences */}
                     {meaning.examples.length > 0 && (
-                      <div className="mt-3 space-y-2">
+                      <div className="space-y-2 pt-1">
                         {meaning.examples.map((example, exampleIndex) => (
                           <div
                             key={`${example.en}-${exampleIndex}`}
-                            className="space-y-0.5 border-l-2 border-slate-300 pl-3 dark:border-slate-600"
+                            className="p-3.5 rounded-xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 border-l-4 border-l-indigo-500 dark:border-l-cyan-400 shadow-2xs space-y-1 transition-all hover:bg-white/60 dark:hover:bg-white/10"
                           >
                             {example.en && (
-                              <p className="text-sm italic text-slate-600 dark:text-slate-400">{example.en}</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                {example.en}
+                              </p>
                             )}
                             {example.vi && (
-                              <p className="text-sm text-slate-500 dark:text-slate-500">→ {example.vi}</p>
+                              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                <span className="opacity-70 font-bold">→</span>
+                                <span>{example.vi}</span>
+                              </p>
                             )}
                           </div>
                         ))}
@@ -148,17 +184,26 @@ export default function TFlatMeaning({ word }) {
             </div>
           )}
 
+          {/* Phrases & Idioms */}
           {section.phrases.length > 0 && (
-            <div className="mt-6 rounded-xl border border-pink-100 bg-pink-50/80 p-4 dark:border-[#3A2F43] dark:bg-[#160B1E]">
-              <div className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Cụm từ & thành ngữ
+            <div className="mt-5 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-white/5 p-4 sm:p-5 backdrop-blur-md space-y-3">
+              <div className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-cyan-400 flex items-center gap-1.5">
+                <Sparkles size={14} />
+                <span>Cụm từ & thành ngữ thông dụng ({section.phrases.length})</span>
               </div>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {section.phrases.map((phrase, phraseIndex) => (
-                  <div key={`${phrase.text}-${phraseIndex}`} className="grid gap-1 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] sm:gap-4">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{phrase.text}</span>
+                  <div
+                    key={`${phrase.text}-${phraseIndex}`}
+                    className="p-3 rounded-xl bg-white/60 dark:bg-black/25 border border-white/50 dark:border-white/10 hover:border-indigo-500/40 transition-all flex flex-col justify-between"
+                  >
+                    <span className="font-black text-slate-950 dark:text-white text-sm">
+                      {phrase.text}
+                    </span>
                     {phrase.meaning && (
-                      <span className="text-slate-500 dark:text-slate-400">{phrase.meaning}</span>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                        {phrase.meaning}
+                      </span>
                     )}
                   </div>
                 ))}

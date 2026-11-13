@@ -45,6 +45,7 @@ Desktop.ini
 # ===== Misc =====
 *.local
 *.tsbuildinfo
+scratch/
 
 # ===== Temp/test files with hardcoded data =====
 test_data.js

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { calculateStreakFromDates, getLocalCheckInDates, fetchPastActivityDates } from './attendance';
 
 const chunkArray = (items, size = 500) => {
   const chunks = [];
@@ -48,88 +49,22 @@ export const fetchSuggestedCategories = async (userId) => {
   }
 };
 
+
 /**
- * Tính toán chuỗi ngày học liên tiếp (Streak)
+ * Tính toán chuỗi ngày học liên tiếp (Streak) dựa trên ngày điểm danh của học sinh
  */
-export const fetchUserStreak = async (userId) => {
-  if (!userId) return 0;
+export const fetchUserStreak = async (userId, customDates = null) => {
+  if (!userId && !customDates) return 0;
   try {
-    // Giới hạn phạm vi tính streak trong 90 ngày gần nhất để tránh tải hàng chục nghìn bản ghi lịch sử
-    const sinceDate = new Date();
-    sinceDate.setDate(sinceDate.getDate() - 90);
-    const sinceIso = sinceDate.toISOString();
-
-    // 1. Lấy các ngày học từ vựng gần đây
-    const vocabPromise = supabase
-      .from('user_topic_vocabularies')
-      .select('created_at')
-      .eq('user_id', userId)
-      .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
-      .limit(300);
-      
-    // 2. Lấy các ngày luyện tập gần đây
-    const practicePromise = supabase
-      .from('user_practice_sessions')
-      .select('created_at')
-      .eq('user_id', userId)
-      .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
-      .limit(300);
-
-    const [vocabRes, practiceRes] = await Promise.all([vocabPromise, practicePromise]);
-
-    if (vocabRes.error) throw vocabRes.error;
-    if (practiceRes.error) throw practiceRes.error;
-
-    const combinedData = [...(vocabRes.data || []), ...(practiceRes.data || [])];
-    
-    if (combinedData.length === 0) return 0;
-
-    // Lọc ra danh sách các ngày duy nhất (format YYYY-MM-DD theo múi giờ địa phương)
-    const uniqueDates = [...new Set(
-      combinedData
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .map(item => {
-          const d = new Date(item.created_at);
-          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-          return d.toISOString().split('T')[0];
-        })
-    )];
-    
-    if (uniqueDates.length === 0) return 0;
-
-    // Kiểm tra xem hôm nay hoặc hôm qua có hoạt động không
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    const today = now.toISOString().split('T')[0];
-    
-    const yest = new Date();
-    yest.setDate(yest.getDate() - 1);
-    yest.setMinutes(yest.getMinutes() - yest.getTimezoneOffset());
-    const yesterday = yest.toISOString().split('T')[0];
-
-    if (uniqueDates[0] !== today && uniqueDates[0] !== yesterday) {
-      return 0; // Đã mất chuỗi
+    if (Array.isArray(customDates) && customDates.length > 0) {
+      return calculateStreakFromDates(customDates);
     }
-
-    let streak = 1;
-    let currentDate = new Date(uniqueDates[0]);
-
-    for (let i = 1; i < uniqueDates.length; i++) {
-      const prevDate = new Date(uniqueDates[i]);
-      const diffTime = Math.abs(currentDate - prevDate);
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        streak++;
-        currentDate = prevDate;
-      } else {
-        break; // Chuỗi bị đứt gãy
-      }
+    const stored = getLocalCheckInDates(userId);
+    if (stored.length > 0) {
+      return calculateStreakFromDates(stored);
     }
-
-    return streak;
+    const pastDates = await fetchPastActivityDates(userId);
+    return calculateStreakFromDates(pastDates);
   } catch (error) {
     console.error('Error fetching streak:', error);
     return 0;

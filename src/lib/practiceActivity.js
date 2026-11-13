@@ -2,12 +2,14 @@ import { useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 export const PRACTICE_SKILLS = [
-  { id: 'dictation', labels: { vi: 'Chính tả', en: 'Dictation' } },
-  { id: 'shadowing', labels: { vi: 'Shadowing', en: 'Shadowing' } },
-  { id: 'speaking', labels: { vi: 'Nói', en: 'Speaking' } },
-  { id: 'vocabulary', labels: { vi: 'Từ vựng', en: 'Vocabulary' } },
-  { id: 'writing', labels: { vi: 'Viết', en: 'Writing' } },
-  { id: 'reading', labels: { vi: 'Đọc hiểu', en: 'Reading' } },
+  { id: 'all', labels: { vi: 'Tất cả', en: 'All' }, color: '#8b5cf6' },
+  { id: 'vocabulary', labels: { vi: 'Từ vựng', en: 'Vocabulary' }, color: '#10b981' },
+  { id: 'grammar', labels: { vi: 'Ngữ pháp', en: 'Grammar' }, color: '#a855f7' },
+  { id: 'dictation', labels: { vi: 'Chính tả', en: 'Dictation' }, color: '#06b6d4' },
+  { id: 'shadowing', labels: { vi: 'Shadowing', en: 'Shadowing' }, color: '#f43f5e' },
+  { id: 'reading', labels: { vi: 'Đọc hiểu', en: 'Reading' }, color: '#f59e0b' },
+  { id: 'writing', labels: { vi: 'Viết', en: 'Writing' }, color: '#3b82f6' },
+  { id: 'speaking', labels: { vi: 'Nói', en: 'Speaking' }, color: '#ec4899' },
 ];
 
 const MIN_SESSION_SECONDS = 10;
@@ -38,6 +40,32 @@ export const getPracticeSkillLabel = (skill, locale = 'vi') => (
   || PRACTICE_SKILLS.find((item) => item.id === skill)?.labels?.en
   || skill
 );
+
+export const formatPracticeDuration = (seconds = 0, locale = 'vi') => {
+  const s = Math.round(Number(seconds) || 0);
+  if (s <= 0) return locale === 'vi' ? '0 phút' : '0 min';
+
+  const mins = Math.floor(s / 60);
+  const remainingSecs = s % 60;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+
+  if (hours > 0) {
+    if (locale === 'en') {
+      return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+    }
+    return remainingMins > 0 ? `${hours} giờ ${remainingMins} phút` : `${hours} giờ`;
+  }
+
+  if (mins > 0) {
+    if (locale === 'en') {
+      return remainingSecs > 0 ? `${mins}m ${remainingSecs}s` : `${mins}m`;
+    }
+    return remainingSecs > 0 ? `${mins} phút ${remainingSecs}s` : `${mins} phút`;
+  }
+
+  return `${s}s`;
+};
 
 export const buildLast7PracticeDays = (now = new Date(), locale = 'vi') => {
   const today = new Date(now);
@@ -97,29 +125,35 @@ export const fetchPracticeActivityLast7Days = async (userId, skill, locale = 'vi
     };
 
     try {
-      const { data: aggregatedData, error: aggregateError } = await supabase.rpc('get_practice_activity', {
-        p_skill: skill,
-        p_since: start.toISOString(),
-        p_timezone: timezone,
-      });
+      if (skill !== 'all') {
+        const { data: aggregatedData, error: aggregateError } = await supabase.rpc('get_practice_activity', {
+          p_skill: skill,
+          p_since: start.toISOString(),
+          p_timezone: timezone,
+        });
 
-      if (!aggregateError) {
-        addRowsToDays(aggregatedData, true);
-        activityCache.set(cacheKey, { data: days, expiresAt: Date.now() + ACTIVITY_CACHE_TTL_MS });
-        return days.map((day) => ({ ...day }));
+        if (!aggregateError && aggregatedData) {
+          addRowsToDays(aggregatedData, true);
+          activityCache.set(cacheKey, { data: days, expiresAt: Date.now() + ACTIVITY_CACHE_TTL_MS });
+          return days.map((day) => ({ ...day }));
+        }
       }
     } catch {
-      // The RPC is deployed separately from the frontend. Fall back while a
-      // deployment is in progress or when an older project has no RPC yet.
+      // Fallback to table query if RPC is missing or fails
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_practice_sessions')
       .select('duration_seconds, created_at')
       .eq('user_id', userId)
-      .eq('skill', skill)
       .gte('created_at', start.toISOString())
       .order('created_at', { ascending: true });
+
+    if (skill !== 'all') {
+      query = query.eq('skill', skill);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     addRowsToDays(data, false);
