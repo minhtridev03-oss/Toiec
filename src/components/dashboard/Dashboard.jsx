@@ -274,7 +274,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('greeting');
   const [skillsProgress, setSkillsProgress] = useState(null);
   const [checkInToast, setCheckInToast] = useState(null);
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const { locale } = useLocale();
   const {
     streak,
@@ -285,7 +285,7 @@ export default function Dashboard() {
   } = useStats();
   const text = COPY[locale];
 
-  const displayName = user?.user_metadata?.custom_full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student';
+  const displayName = user?.user_metadata?.custom_full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || (locale === 'vi' ? 'Bạn mới' : 'Learner');
 
   const weekDays = useMemo(
     () => getDaysOfCurrentWeek(new Date(), checkInDates),
@@ -293,6 +293,10 @@ export default function Dashboard() {
   );
 
   const handleDayClick = async (day) => {
+    if (!user) {
+      openAuthModal('login');
+      return;
+    }
     if (day.isCheckedIn) {
       setCheckInToast(text.alreadyCheckedInDay(day.dayNum));
       setTimeout(() => setCheckInToast(null), 3000);

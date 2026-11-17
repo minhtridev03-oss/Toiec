@@ -9,8 +9,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authEvent, setAuthEvent] = useState(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'signup' | 'forgot'
   const userIdRef = useRef(null);
   const userFingerprintRef = useRef(null);
+
+  const openAuthModal = (mode = 'login') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setAuthModalOpen(false);
+  };
 
   useEffect(() => {
     // Helper: update user state if user ID or security metadata/role changes
@@ -51,8 +62,12 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     loading,
-    authEvent
-  }), [user, loading, authEvent]);
+    authEvent,
+    authModalOpen,
+    authModalMode,
+    openAuthModal,
+    closeAuthModal,
+  }), [user, loading, authEvent, authModalOpen, authModalMode]);
 
   return (
     <AuthContext.Provider value={value}>

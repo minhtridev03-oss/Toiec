@@ -1,6 +1,7 @@
 import {
   Bell,
   ChevronDown,
+  KeyRound,
   Languages,
   LogOut,
   Menu,
@@ -57,7 +58,7 @@ export default function Topbar({ onMenuClick }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const { locale, setLocale } = useLocale();
   const { userLevel = 1 } = useStats();
@@ -91,7 +92,8 @@ export default function Topbar({ onMenuClick }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    setDropdownOpen(false);
+    navigate('/dashboard');
   };
 
   const today = new Date();
@@ -201,84 +203,95 @@ export default function Topbar({ onMenuClick }) {
           <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-slate-900 bg-indigo-600 dark:bg-indigo-400" />
         </button>
 
-        {/* User Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => setDropdownOpen((open) => !open)}
-            className={`glass-panel rounded-full py-1.5 flex items-center shadow-xs hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer ${
-              isImageFrame ? 'pl-3.5 pr-4' : 'pl-2.5 pr-4'
-            }`}
-          >
-            <div className={`shrink-0 flex items-center justify-center relative ${isImageFrame ? 'mx-0.5' : ''}`}>
-              <UserAvatar
-                src={user?.user_metadata?.custom_avatar_url || user?.user_metadata?.avatar_url}
-                frameId={avatarFrameId}
-                size="sm"
-                fallbackText={displayName}
-              />
-            </div>
-            <span
-              className={`hidden max-w-[140px] truncate text-xs font-black text-slate-950 dark:text-slate-200 sm:block tracking-tight ${nameMarginClass}`}
+        {/* User Dropdown or Guest Auth Action Buttons */}
+        {user ? (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDropdownOpen((open) => !open)}
+              className={`glass-panel rounded-full py-1.5 flex items-center shadow-xs hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer ${
+                isImageFrame ? 'pl-3.5 pr-4' : 'pl-2.5 pr-4'
+              }`}
             >
-              {displayName}
-            </span>
-            <ChevronDown
-              size={14}
-              className={`text-slate-700 dark:text-slate-300 transition-transform duration-200 shrink-0 ml-2.5 ${dropdownOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
+              <div className={`shrink-0 flex items-center justify-center relative ${isImageFrame ? 'mx-0.5' : ''}`}>
+                <UserAvatar
+                  src={user?.user_metadata?.custom_avatar_url || user?.user_metadata?.avatar_url}
+                  frameId={avatarFrameId}
+                  size="sm"
+                  fallbackText={displayName}
+                />
+              </div>
+              <span
+                className={`hidden max-w-[140px] truncate text-xs font-black text-slate-950 dark:text-slate-200 sm:block tracking-tight ${nameMarginClass}`}
+              >
+                {displayName}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-slate-700 dark:text-slate-300 transition-transform duration-200 shrink-0 ml-2.5 ${dropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
 
-          {dropdownOpen && (
-            <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl glass-panel bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-2xl p-1.5 shadow-2xl border border-white/50 dark:border-white/10 transition-all animate-in fade-in zoom-in-95">
-              {/* User Header */}
-              <div className="px-3 py-2.5 border-b border-white/40 dark:border-white/10">
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {displayName}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  {user?.email}
-                </p>
-                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 px-2 py-0.5 text-[10px] font-black text-white shadow-2xs">
-                    <Sparkles size={10} />
-                    <span>Lv.{userLevel}</span>
-                  </span>
-                  <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
-                    {isAdmin ? text.roleAdmin : text.roleStudent}
-                  </span>
+            {dropdownOpen && (
+              <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl glass-panel bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-2xl p-1.5 shadow-2xl border border-white/50 dark:border-white/10 transition-all animate-in fade-in zoom-in-95">
+                {/* User Header */}
+                <div className="px-3 py-2.5 border-b border-white/40 dark:border-white/10">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {user?.email}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 px-2 py-0.5 text-[10px] font-black text-white shadow-2xs">
+                      <Sparkles size={10} />
+                      <span>Lv.{userLevel}</span>
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
+                      {isAdmin ? text.roleAdmin : text.roleStudent}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      navigate('/profile');
+                    }}
+                    className="dropdown-btn"
+                  >
+                    <User size={16} className="text-slate-400 dark:text-slate-400" />
+                    <span>{text.profile}</span>
+                  </button>
+                </div>
+
+                {/* Divider & Logout */}
+                <div className="border-t border-white/40 dark:border-white/10 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 cursor-pointer"
+                  >
+                    <LogOut size={16} className="text-red-500" />
+                    <span>{text.logout}</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Menu Items */}
-              <div className="py-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    navigate('/profile');
-                  }}
-                  className="dropdown-btn"
-                >
-                  <User size={16} className="text-slate-400 dark:text-slate-400" />
-                  <span>{text.profile}</span>
-                </button>
-              </div>
-
-              {/* Divider & Logout */}
-              <div className="border-t border-white/40 dark:border-white/10 pt-1">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 cursor-pointer"
-                >
-                  <LogOut size={16} className="text-red-500" />
-                  <span>{text.logout}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openAuthModal('login')}
+            className="glass-panel hover:glass-pill-active rounded-xl sm:rounded-2xl px-3.5 sm:px-4 py-2 text-xs font-black text-slate-800 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs pointer-events-auto"
+          >
+            <KeyRound size={14} className="text-indigo-600 dark:text-cyan-400" />
+            <span>{locale === 'vi' ? 'Đăng nhập' : 'Sign in'}</span>
+          </button>
+        )}
       </div>
     </header>
   );

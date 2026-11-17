@@ -11,7 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/layout/Footer';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
-const Auth = React.lazy(() => import('./pages/Auth'));
+const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
 const Categories = React.lazy(() => import('./pages/Categories'));
 const SubCategories = React.lazy(() => import('./pages/SubCategories'));
 const PersonalVocabulary = React.lazy(() => import('./pages/PersonalVocabulary'));
@@ -23,7 +23,7 @@ const GlobalFeedback = React.lazy(() => import('./components/GlobalFeedback'));
 const LearningBotDock = React.lazy(() => import('./components/layout/LearningBotDock'));
 const VocabularyDetail = React.lazy(() => import('./pages/VocabularyDetail'));
 const Practice = React.lazy(() => import('./pages/Practice'));
-const KidsZone = React.lazy(() => import('./pages/KidsZone'));
+const _KidsZone = React.lazy(() => import('./pages/KidsZone'));
 const TenseList = React.lazy(() => import('./pages/TenseList'));
 const TenseDetail = React.lazy(() => import('./pages/TenseDetail'));
 const DictationList = React.lazy(() => import('./pages/DictationList'));
@@ -42,7 +42,6 @@ const MockTestList = React.lazy(() => import('./pages/MockTestList'));
 const MockTestSession = React.lazy(() => import('./pages/MockTestSession'));
 
 const Profile = React.lazy(() => import('./pages/Profile'));
-const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
 
 // Admin
@@ -62,10 +61,13 @@ const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // HOC bảo vệ route (chỉ cho user đã đăng nhập)
 const PrivateRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, openAuthModal } = useAuth();
   const { t } = useLocale();
   if (loading) return <div className="h-screen w-screen flex items-center justify-center">{t('common.loading')}</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    openAuthModal?.('login');
+    return <Navigate to="/dashboard" replace />;
+  }
   return children ? children : <Outlet />;
 };
 
@@ -90,7 +92,21 @@ const MainLayout = () => {
   const { isDarkMode } = useTheme();
   const videoRef = useRef(null);
   const location = useLocation();
+  const { user, openAuthModal } = useAuth();
   const isStudioMode = /^\/(dictation|shadowing|speaking)\/[^/]+$/.test(location.pathname);
+
+  // Auto-open Auth modal when guest visits /login, /register, or /forgot-password
+  useEffect(() => {
+    if (!user) {
+      if (location.pathname === '/login') {
+        openAuthModal('login');
+      } else if (location.pathname === '/register') {
+        openAuthModal('signup');
+      } else if (location.pathname === '/forgot-password') {
+        openAuthModal('forgot');
+      }
+    }
+  }, [location.pathname, user, openAuthModal]);
 
   // Sync video play/pause with user controls
   useEffect(() => {
@@ -191,6 +207,7 @@ const MainLayout = () => {
         <LearningBotDock />
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />
+        <AuthModal />
       </Suspense>
     </div>
   );
@@ -201,8 +218,6 @@ export default function App() {
     <ErrorBoundary>
     <Suspense fallback={<GlobalSkeletonLoader />}>
       <Routes>
-        <Route path="/login" element={<Auth />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route 
           path="/reset-password" 
           element={
@@ -223,19 +238,16 @@ export default function App() {
         />
 
         {/* Nhóm các trang học tập dùng chung MainLayout duy trì ổn định */}
-        <Route 
-          element={
-            <PrivateRoute>
-              <MainLayout />
-            </PrivateRoute>
-          }
-        >
+        <Route element={<MainLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<Dashboard />} />
+          <Route path="/register" element={<Dashboard />} />
+          <Route path="/forgot-password" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tflat" element={<TFlat />} />
           <Route path="/categories" element={<Categories />} />
-          <Route path="/my-vocabulary" element={<PersonalVocabulary />} />
-          <Route path="/my-vocabulary/review/:index" element={<PersonalVocabReview />} />
+          <Route path="/my-vocabulary" element={<PrivateRoute><PersonalVocabulary /></PrivateRoute>} />
+          <Route path="/my-vocabulary/review/:index" element={<PrivateRoute><PersonalVocabReview /></PrivateRoute>} />
           <Route path="/subcategories/:mainGroupName" element={<SubCategories />} />
           <Route path="/categories/:id" element={<WordList />} />
           <Route path="/vocabularies/:id" element={<VocabularyDetail />} />
@@ -256,7 +268,7 @@ export default function App() {
           <Route path="/writing/:id" element={<WritingDetail />} />
           <Route path="/library" element={<Library />} />
           <Route path="/mock-tests" element={<MockTestList />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         </Route>
 
         {/* Admin Routes */}

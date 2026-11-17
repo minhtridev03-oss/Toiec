@@ -96,7 +96,7 @@ function NavItem({ to, label, icon: Icon, isActive, isCollapsed, onClick }) {
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileMenuOpen, setIsMobileMenuOpen }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const { t } = useLocale();
   const isAdmin = user?.app_metadata?.role === 'admin';
   const path = location.pathname;
@@ -242,6 +242,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileMenuOpen,
             </p>
             <button
               type="button"
+              onClick={() => {
+                if (!user) openAuthModal('signup');
+              }}
               className="relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 dark:bg-black dark:text-cyan-400 dark:border dark:border-white/15 py-2.5 px-3 w-full text-xs font-extrabold text-white shadow-md transition-all hover:brightness-105 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Sparkles size={14} className="text-white dark:text-cyan-400" />
