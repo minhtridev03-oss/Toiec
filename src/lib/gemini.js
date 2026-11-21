@@ -64,6 +64,9 @@ const invokeAI = async (body) => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth-modal:open', { detail: { mode: 'login' } }));
+    }
     throw new AppError('Vui lòng đăng nhập để sử dụng tính năng AI.', 401);
   }
 
@@ -105,6 +108,9 @@ const invokeAIStream = async (body) => {
   const accessToken = sessionData?.session?.access_token;
 
   if (!accessToken) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth-modal:open', { detail: { mode: 'login' } }));
+    }
     throw new AppError('Vui lòng đăng nhập để sử dụng tính năng AI.', 401);
   }
 
@@ -117,6 +123,13 @@ const invokeAIStream = async (body) => {
     },
     body: JSON.stringify(safeBody),
   });
+
+  if (response.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth-modal:open', { detail: { mode: 'login' } }));
+    }
+    throw new AppError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401);
+  }
 
   if (!response.ok || !response.body) {
     throw new AppError('Không thể kết nối AI. Vui lòng thử lại sau.', response.status);

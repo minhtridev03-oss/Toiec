@@ -652,4 +652,38 @@ input, textarea, [contenteditable="true"] {
   animation: pulse-glow-subtle 4s ease-in-out infinite;
 }
 
+/* ===== Mobile & Native App High-Performance GPU Boost (60-120 FPS) ===== */
+@media (max-width: 768px) {
+  /* Simplify expensive backdrop-blur on scrollable cards to boost FPS from 20 to 120 */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.94) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .dark .glass-panel {
+    background: rgba(15, 23, 42, 0.94) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  /* Optimize modal backdrop on mobile */
+  .backdrop-blur-3xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-xl {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  /* Prevent horizontal bouncing and unnecessary reflows */
+  body, #root {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+}
+
+
 

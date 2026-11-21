@@ -116,7 +116,7 @@ export default function LearningBotDock() {
           isDraggingRef.current = false;
         }, 150);
       }}
-      className="fixed bottom-20 right-3 z-[60] sm:bottom-6 sm:right-6 select-none touch-none cursor-grab active:cursor-grabbing"
+      className="fixed bottom-[5.5rem] right-3 z-[60] sm:bottom-6 sm:right-6 select-none touch-none cursor-grab active:cursor-grabbing"
     >
       {/* 1. Mascot Hover Tooltip Greeting */}
       <AnimatePresence>

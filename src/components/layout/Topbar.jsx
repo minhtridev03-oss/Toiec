@@ -127,7 +127,7 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
     <header
       className="sticky top-0 z-50 flex items-center justify-between bg-transparent border-none px-3 sm:px-6 md:px-8 transition-all pointer-events-none"
       style={{
-        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 38px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 48px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
         paddingBottom: '8px',
       }}
     >

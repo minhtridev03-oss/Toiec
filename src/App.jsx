@@ -101,7 +101,8 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, openAuthModal, authModalOpen, closeAuthModal } = useAuth();
-  const isStudioMode = /^\/(dictation|shadowing|speaking)\/[^/]+$/.test(location.pathname);
+  const isStudioMode = /^\/(dictation|shadowing|speaking|writing|reading|tenses|vocabularies|mock-tests)\/[^/]+$/.test(location.pathname) ||
+    /^\/(practice|my-vocabulary\/review)/.test(location.pathname);
 
   // Native Android Capacitor Lifecycle & Hardware Back Button Handling
   useEffect(() => {
@@ -147,6 +148,15 @@ const MainLayout = () => {
       }
     }
   }, [location.pathname, user, openAuthModal]);
+
+  // Global event listener to open auth modal from anywhere (e.g. AI requests, guest clicks)
+  useEffect(() => {
+    const handleOpenAuth = (e) => {
+      openAuthModal?.(e.detail?.mode || 'login');
+    };
+    window.addEventListener('auth-modal:open', handleOpenAuth);
+    return () => window.removeEventListener('auth-modal:open', handleOpenAuth);
+  }, [openAuthModal]);
 
   // Sync video play/pause with user controls
   useEffect(() => {
@@ -232,7 +242,7 @@ const MainLayout = () => {
       
       <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${
         isNative
-          ? 'w-full pb-20'
+          ? (isStudioMode ? 'w-full pb-0' : 'w-full pb-20')
           : isCollapsed
             ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)] w-full'
             : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)] w-full'
@@ -251,7 +261,7 @@ const MainLayout = () => {
       {isMobileWeb && <AppDownloadBanner />}
 
       <Suspense fallback={null}>
-        <LearningBotDock />
+        {!isStudioMode && <LearningBotDock />}
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />
         <AuthModal />
