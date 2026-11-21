@@ -3,12 +3,17 @@ import {
   Film,
 } from 'lucide-react';
 import { useAmbient } from '../../contexts/AmbientContext';
+import { usePlatform } from '../../hooks/usePlatform';
 
 export default function AmbientVideoWidget() {
+  const { isNative } = usePlatform();
   const {
     videoEnabled,
     toggleVideo,
   } = useAmbient();
+
+  // Ẩn hoàn toàn trên App APK
+  if (isNative) return null;
 
   return (
     <div className="glass-panel rounded-[1.75rem] p-4 sm:p-4.5 shadow-xl transition-all duration-300 w-full select-none">

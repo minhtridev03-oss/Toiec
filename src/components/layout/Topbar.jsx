@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAvatarFrames } from '../../contexts/AvatarFramesContext';
 import { useStats } from '../../contexts/StatsContext';
 import { getAvatarFrameById } from '../../lib/avatarFrames';
+import { usePlatform } from '../../hooks/usePlatform';
 import UserAvatar from '../common/UserAvatar';
 
 const COPY = {
@@ -55,6 +56,7 @@ const COPY = {
 };
 
 export default function Topbar({ onMenuClick, hideMenuButton = false }) {
+  const { isNative } = usePlatform();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -122,18 +124,32 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
     : 'ml-3.5';
 
   return (
-    <header className="sticky top-0 z-50 flex h-18 items-center justify-between bg-transparent border-none px-4 md:px-8 transition-colors pointer-events-none">
+    <header
+      className="sticky top-0 z-50 flex items-center justify-between bg-transparent border-none px-3 sm:px-6 md:px-8 transition-all pointer-events-none"
+      style={{
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 38px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+        paddingBottom: '8px',
+      }}
+    >
       {/* Left: Mobile trigger & Date/Quote Island */}
-      <div className="flex items-center gap-2.5 flex-1 min-w-0 pointer-events-auto">
+      <div className="flex items-center gap-2 flex-1 min-w-0 pointer-events-auto">
         {!hideMenuButton && (
           <button
             type="button"
             onClick={onMenuClick}
-            className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl glass-panel text-slate-600 transition-all hover:scale-105 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:text-white lg:hidden cursor-pointer"
+            className="mr-1 flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl glass-panel text-slate-600 transition-all hover:scale-105 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:text-white lg:hidden cursor-pointer"
             aria-label="Mở menu"
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
+        )}
+
+        {hideMenuButton && (
+          <div className="flex sm:hidden items-center gap-1.5 py-1 px-2.5 rounded-xl glass-panel shadow-xs select-none">
+            <span className="text-xs font-black bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">
+              T-English
+            </span>
+          </div>
         )}
 
         {/* Date & Daily Quote ("Câu hay") Island */}
@@ -152,20 +168,20 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
       </div>
 
       {/* Right Controls: Liquid Glass Buttons */}
-      <div className="ml-4 flex items-center gap-2 sm:gap-2.5 pointer-events-auto">
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 pointer-events-auto shrink-0">
         {/* Language Switcher */}
         <div
-          className="glass-panel rounded-2xl p-1 inline-flex items-center gap-0.5 shadow-xs"
+          className="glass-panel rounded-xl sm:rounded-2xl p-0.5 sm:p-1 inline-flex items-center gap-0.5 shadow-xs shrink-0"
           role="group"
           aria-label={text.language}
         >
-          <Languages size={14} className="mx-1.5 text-slate-700 dark:text-slate-300 shrink-0" />
+          <Languages size={13} className="mx-1 text-slate-700 dark:text-slate-300 shrink-0 hidden xs:inline" />
           {['vi', 'en'].map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setLocale(option)}
-              className={`rounded-xl px-2.5 py-1 text-xs font-extrabold transition-all cursor-pointer ${
+              className={`rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-1 text-xs font-extrabold transition-all cursor-pointer ${
                 locale === option
                   ? 'glass-pill-active text-indigo-800 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
                   : 'text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
@@ -181,14 +197,14 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
         <button
           type="button"
           onClick={toggleTheme}
-          className="glass-panel rounded-2xl h-10 w-10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="glass-panel rounded-xl sm:rounded-2xl h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
           title={text.theme}
           aria-label={text.theme}
         >
           <span className={`inline-flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-amber-400' : 'text-slate-800 dark:text-slate-200'}`}>
             <MorphIcon
               icon={isDarkMode ? SunIcon : MoonIcon}
-              size={18}
+              size={17}
               strokeWidth={2}
               spring="bouncy"
             />
@@ -198,16 +214,16 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
         {/* Notification Bell */}
         <button
           type="button"
-          className="glass-panel rounded-2xl h-10 w-10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer relative"
+          className="glass-panel rounded-xl sm:rounded-2xl h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer relative shrink-0"
           aria-label="Thông báo"
         >
-          <Bell size={18} />
-          <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-slate-900 bg-indigo-600 dark:bg-indigo-400" />
+          <Bell size={17} />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-slate-900 bg-indigo-600 dark:bg-indigo-400" />
         </button>
 
         {/* User Dropdown or Guest Auth Action Buttons */}
         {user ? (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative shrink-0" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setDropdownOpen((open) => !open)}
@@ -288,10 +304,10 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
           <button
             type="button"
             onClick={() => openAuthModal('login')}
-            className="glass-panel hover:glass-pill-active rounded-xl sm:rounded-2xl px-3.5 sm:px-4 py-2 text-xs font-black text-slate-800 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs pointer-events-auto"
+            className="glass-panel hover:glass-pill-active rounded-xl sm:rounded-2xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-black text-slate-800 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-xs pointer-events-auto shrink-0 whitespace-nowrap"
           >
-            <KeyRound size={14} className="text-indigo-600 dark:text-cyan-400" />
-            <span>{locale === 'vi' ? 'Đăng nhập' : 'Sign in'}</span>
+            <KeyRound size={13} className="text-indigo-600 dark:text-cyan-400 shrink-0" />
+            <span className="whitespace-nowrap">{locale === 'vi' ? 'Đăng nhập' : 'Sign in'}</span>
           </button>
         )}
       </div>

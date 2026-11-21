@@ -28,6 +28,7 @@ export default function LearningBotDock() {
   const [botExpression, setBotExpression] = useState('idle'); // 'idle' | 'cheer' | 'heart'
   const [heartCount, setHeartCount] = useState(0);
   const cheerTimerRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   // Trigger cheerful confetti celebration from bot position
   const fireCheerConfetti = () => {
@@ -77,6 +78,7 @@ export default function LearningBotDock() {
   }, []);
 
   const handleToggleMenu = () => {
+    if (isDraggingRef.current) return;
     playPopSound();
     setIsMenuOpen((prev) => !prev);
   };
@@ -102,7 +104,20 @@ export default function LearningBotDock() {
   };
 
   return (
-    <div className="fixed bottom-4 right-3 z-[60] sm:bottom-6 sm:right-6 select-none">
+    <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0.08}
+      onDragStart={() => {
+        isDraggingRef.current = true;
+      }}
+      onDragEnd={() => {
+        setTimeout(() => {
+          isDraggingRef.current = false;
+        }, 150);
+      }}
+      className="fixed bottom-20 right-3 z-[60] sm:bottom-6 sm:right-6 select-none touch-none cursor-grab active:cursor-grabbing"
+    >
       {/* 1. Mascot Hover Tooltip Greeting */}
       <AnimatePresence>
         {isHovered && !isMenuOpen && !currentCheer && (
@@ -314,9 +329,9 @@ export default function LearningBotDock() {
         }
         onMouseEnter={handleMascotEnter}
         onMouseLeave={handleMascotLeave}
-        className="relative flex h-20 w-20 items-center justify-center overflow-visible border-0 bg-transparent p-0 drop-shadow-[0_12px_24px_rgba(236,72,153,0.35)] sm:h-24 sm:w-24 cursor-pointer focus:outline-none"
+        className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center overflow-visible border-0 bg-transparent p-0 drop-shadow-[0_12px_24px_rgba(236,72,153,0.35)] cursor-pointer focus:outline-none"
         aria-label={isMenuOpen ? 'Đóng menu trợ lý' : 'Mở menu trợ lý T-English'}
-        title="Trợ lý T-English"
+        title="Trợ lý T-English (Kéo thả để di chuyển)"
       >
         {hasMascotImage ? (
           <img
@@ -326,16 +341,16 @@ export default function LearningBotDock() {
             onError={() => setHasMascotImage(false)}
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white shadow-xl shadow-pink-500/40">
-            <Bot size={34} strokeWidth={1.8} />
+          <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white shadow-xl shadow-pink-500/40">
+            <Bot size={30} strokeWidth={1.8} />
           </div>
         )}
 
         {/* Ambient status ring glow */}
-        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-pink-500 to-purple-600 shadow-md dark:border-slate-900">
-          <Sparkles size={11} className="text-white animate-pulse" />
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-pink-500 to-purple-600 shadow-md dark:border-slate-900">
+          <Sparkles size={10} className="text-white animate-pulse" />
         </span>
       </motion.button>
-    </div>
+    </motion.div>
   );
 }

@@ -12,15 +12,13 @@ import { useLocale } from '../../contexts/LocaleContext';
 const NAV_ITEMS = [
   {
     to: '/dashboard',
-    labelKey: 'nav.dashboard',
-    defaultLabel: 'Trang chủ',
+    label: { vi: 'Trang chủ', en: 'Home' },
     icon: LayoutDashboard,
     isActive: (pathname) => pathname === '/dashboard' || pathname === '/',
   },
   {
     to: '/categories',
-    labelKey: 'nav.vocabulary',
-    defaultLabel: 'Từ vựng',
+    label: { vi: 'Từ vựng', en: 'Vocab' },
     icon: BookOpen,
     isActive: (pathname) =>
       pathname.startsWith('/categories') ||
@@ -29,8 +27,7 @@ const NAV_ITEMS = [
   },
   {
     to: '/practice',
-    labelKey: 'nav.exercises',
-    defaultLabel: 'Luyện tập',
+    label: { vi: 'Luyện tập', en: 'Practice' },
     icon: Pencil,
     isActive: (pathname) =>
       pathname.startsWith('/practice') ||
@@ -43,15 +40,13 @@ const NAV_ITEMS = [
   },
   {
     to: '/mock-tests',
-    labelKey: 'nav.mockTests',
-    defaultLabel: 'Thi thử',
+    label: { vi: 'Thi thử', en: 'Tests' },
     icon: GraduationCap,
     isActive: (pathname) => pathname.startsWith('/mock-tests'),
   },
   {
     to: '/profile',
-    labelKey: 'nav.profile',
-    defaultLabel: 'Cá nhân',
+    label: { vi: 'Hồ sơ', en: 'Profile' },
     icon: User,
     isActive: (pathname) => pathname.startsWith('/profile') || pathname.startsWith('/my-vocabulary'),
   },
@@ -59,7 +54,7 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const location = useLocation();
-  const { t } = useLocale();
+  const { locale } = useLocale();
 
   return (
     <nav
@@ -73,7 +68,7 @@ export default function BottomNav() {
         {NAV_ITEMS.map((item) => {
           const active = item.isActive(location.pathname);
           const Icon = item.icon;
-          const label = t ? t(item.labelKey) : item.defaultLabel;
+          const labelText = item.label[locale] || item.label.vi;
 
           return (
             <Link
@@ -104,8 +99,8 @@ export default function BottomNav() {
                 <Icon size={20} strokeWidth={active ? 2.5 : 2} />
               </div>
 
-              <span className="text-[11px] leading-tight mt-0.5 tracking-tight truncate max-w-[64px]">
-                {label || item.defaultLabel}
+              <span className="text-[11px] leading-tight mt-0.5 tracking-tight whitespace-nowrap">
+                {labelText}
               </span>
             </Link>
           );

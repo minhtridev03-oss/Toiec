@@ -16,6 +16,7 @@ import { useStats } from '../../contexts/StatsContext';
 import { getDaysOfCurrentWeek } from '../../lib/attendance';
 import { fetchAllSkillsProgress } from '../../lib/progressService';
 import AmbientVideoWidget from './AmbientVideoWidget';
+import { usePlatform } from '../../hooks/usePlatform';
 import fireGif from '../../assets/fire-0nen.gif';
 
 const PracticeActivityChart = lazy(() => import('./PracticeActivityChart'));
@@ -272,6 +273,7 @@ function SkillCircularCard({ cfg, skillData, text, index = 0 }) {
 }
 
 export default function Dashboard() {
+  const { isNative } = usePlatform();
   const [activeTab, setActiveTab] = useState('greeting');
   const [skillsProgress, setSkillsProgress] = useState(null);
   const [checkInToast, setCheckInToast] = useState(null);
@@ -433,7 +435,7 @@ export default function Dashboard() {
 
               {/* Tên người dùng & Chuỗi lửa nhỏ đẹp động sáng */}
               <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 mb-3.5 sm:mb-4">
-                <h1 className="app-display text-xl sm:text-3xl xl:text-4xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] tracking-tight break-words">
+                <h1 className="app-display text-xl sm:text-3xl xl:text-4xl font-black text-slate-900 dark:text-white drop-shadow-xs dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] tracking-tight break-words">
                   {text.greeting(displayName)}
                 </h1>
 
@@ -533,10 +535,12 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Cột phải: Khung điều khiển Video nền */}
-            <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 select-none">
-              <AmbientVideoWidget />
-            </div>
+            {/* Cột phải: Khung điều khiển Video nền (Ẩn hoàn toàn trên App APK) */}
+            {!isNative && (
+              <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 select-none">
+                <AmbientVideoWidget />
+              </div>
+            )}
           </div>
         </div>
       )}
