@@ -12,9 +12,9 @@
     "import:listening-audio": "node scripts/import_listening_audio.js",
     "align:listening-timestamps": "node scripts/align_listening_timestamps_local.js",
     "preview": "vite preview",
-    "cap:build": "vite build --emptyOutDir false && cap sync",
+    "cap:build": "vite build --outDir dist-app && cap sync",
     "cap:open": "cap open android",
-    "apk:build": "vite build --emptyOutDir false && cap sync && cd android && gradlew assembleDebug && cd .. && powershell -Command Copy-Item android/app/build/outputs/apk/debug/app-debug.apk T-English.apk -Force"
+    "apk:build": "vite build --outDir dist-app && cap sync && cd android && gradlew assembleDebug && cd .. && powershell -Command Copy-Item android/app/build/outputs/apk/debug/app-debug.apk T-English.apk -Force"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",

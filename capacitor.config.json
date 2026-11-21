@@ -1,7 +1,7 @@
 {
   "appId": "com.tenglish.app",
   "appName": "T-English",
-  "webDir": "dist",
+  "webDir": "dist-app",
   "server": {
     "androidScheme": "https"
   },
