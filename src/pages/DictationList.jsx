@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import VideoListModal from '../components/VideoListModal';
 import { prefetchDictationLesson } from '../lib/lessonCache';
+import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
 
 const CACHE_DURATION = 5 * 60 * 1000;
 let dictationCache = {};
@@ -255,10 +256,11 @@ export default function DictationList() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-transparent pb-24">
-      {/* 1. HERO STUDIO BANNER */}
-      <div className="px-4 md:px-8 pt-6 pb-2">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 backdrop-blur-2xl bg-white/25 dark:bg-slate-900/30 border border-white/35 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)]">
+      {/* 1. HERO STUDIO BANNER & SKILL SWITCH TABS */}
+      <div className="px-4 md:px-8 pt-4 pb-2">
+        <div className="max-w-7xl mx-auto space-y-3">
+          <SkillSwitchTabs />
+          <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 md:p-8 backdrop-blur-2xl bg-white/25 dark:bg-slate-900/30 border border-white/35 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)]">
             {/* Ambient Glow */}
             <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-indigo-500/15 via-blue-500/10 to-cyan-400/15 rounded-full blur-3xl pointer-events-none"></div>
 

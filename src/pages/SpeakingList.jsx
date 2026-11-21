@@ -21,6 +21,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useLocale } from '../contexts/LocaleContext';
 import { useInfiniteScroll } from '../lib/useInfiniteScroll';
+import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
 
 const CEFR_LEVELS = ['All', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const PAGE_SIZE = 24;
@@ -198,7 +199,9 @@ export default function SpeakingList() {
 
   return (
     <div className="flex-1 bg-transparent text-slate-800 dark:text-white overflow-y-auto min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-5 sm:space-y-7 pb-20">
+        {/* Top Quick Skill Tabs */}
+        <SkillSwitchTabs />
         
         {/* 1. HERO GLASS BANNER & DAILY SPOTLIGHT */}
         <div className="relative rounded-3xl p-6 sm:p-8 lg:p-10 backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-2xl shadow-indigo-500/5 overflow-hidden">

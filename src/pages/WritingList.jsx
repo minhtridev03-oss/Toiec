@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { prefetchWritingLesson } from '../lib/lessonCache';
+import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
 
 const LEVELS = ['All', 'Basic', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Toeic'];
 
@@ -370,7 +371,9 @@ export default function WritingList() {
 
   return (
     <div className="flex-1 bg-transparent text-slate-800 dark:text-white overflow-y-auto min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 pb-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-5 sm:space-y-7 pb-24">
+        {/* Top Quick Skill Tabs */}
+        <SkillSwitchTabs />
         
         {/* ================= 1. HERO GLASS BANNER & SPOTLIGHT ================= */}
         <div className="relative rounded-[2.5rem] p-6 sm:p-8 lg:p-10 backdrop-blur-2xl bg-white/40 dark:bg-slate-950/45 border border-white/60 dark:border-white/15 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.08),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_1px_2px_rgba(255,255,255,0.25)] overflow-hidden">

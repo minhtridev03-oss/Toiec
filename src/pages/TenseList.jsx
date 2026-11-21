@@ -28,6 +28,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import useSWR from 'swr';
+import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
 
 const COPY = {
   vi: {
@@ -471,7 +472,10 @@ export default function TenseList() {
 
   return (
     <div className="min-h-full flex-1 p-4 sm:p-6 md:p-8 lg:p-10 transition-colors pb-20">
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto space-y-4">
+        {/* Top Quick Skill Tabs */}
+        <SkillSwitchTabs />
+
         {/* ============================================================ */}
         {/* 1. HERO MASTERY BANNER (LIQUID GLASS) */}
         {/* ============================================================ */}

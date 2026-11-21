@@ -26,7 +26,13 @@ import {
   Layers,
   Target,
   Brain,
+  Headphones,
+  Repeat,
+  PenTool,
+  Mic,
+  FileText,
 } from 'lucide-react';
+import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { fetchLearnedPracticeWords } from '../lib/api';
@@ -84,6 +90,81 @@ const PRACTICE_MODES = [
     gradient: 'from-indigo-600 via-blue-600 to-cyan-600',
     iconBg: 'bg-indigo-500/15 dark:bg-blue-500/20 text-indigo-600 dark:text-cyan-400',
     tags: ['✍️ Chuẩn chính tả', 'Phát âm bản xứ', 'Thử thách trí nhớ'],
+  },
+];
+
+const SKILL_PRACTICE_HUBS = [
+  {
+    id: 'dictation',
+    to: '/dictation',
+    title: 'Luyện Nghe Chép Chính Tả',
+    subtitle: 'Rèn đôi tai bắt trọn từng âm tiết, ngữ điệu và chuẩn chính tả qua video thực tế.',
+    icon: Headphones,
+    iconBg: 'bg-indigo-500/15 text-indigo-600 dark:text-cyan-400',
+    borderGlow: 'hover:border-indigo-500/50 hover:shadow-indigo-500/10',
+    stats: '481 bài nghe',
+    badge: 'Kỹ Năng Nghe',
+    tags: ['🎧 Video thực tế', 'Chuẩn âm điệu', 'A1 - C2'],
+  },
+  {
+    id: 'shadowing',
+    to: '/shadowing',
+    title: 'Luyện Nghe Nhại (Shadowing)',
+    subtitle: 'Nhại giọng người bản xứ, tinh chỉnh phát âm, luyến láy và phản xạ tự nhiên.',
+    icon: Repeat,
+    iconBg: 'bg-rose-500/15 text-rose-600 dark:text-pink-400',
+    borderGlow: 'hover:border-rose-500/50 hover:shadow-rose-500/10',
+    stats: 'Phòng thu âm',
+    badge: 'Kỹ Năng Nói',
+    tags: ['🗣️ Thu âm & So sánh', 'Khẩu hình bản xứ', 'Phản xạ nói'],
+  },
+  {
+    id: 'writing',
+    to: '/writing',
+    title: 'Luyện Viết Câu (Writing)',
+    subtitle: 'Dịch câu thực tế, rèn cấu trúc ngữ pháp với Trợ lý AI chấm chữa và sửa lỗi tức thì.',
+    icon: PenTool,
+    iconBg: 'bg-blue-500/15 text-blue-600 dark:text-cyan-400',
+    borderGlow: 'hover:border-blue-500/50 hover:shadow-blue-500/10',
+    stats: 'Chấm điểm AI',
+    badge: 'Kỹ Năng Viết',
+    tags: ['✍️ Dịch câu chuẩn', 'AI chấm chi tiết', '30+ Chủ đề'],
+  },
+  {
+    id: 'reading',
+    to: '/reading',
+    title: 'Luyện Đọc Hiểu (Reading)',
+    subtitle: 'Đọc hiểu văn bản TOEIC thương mại song ngữ, tra từ vựng 1 chạm trực tiếp trong bài.',
+    icon: BookOpen,
+    iconBg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    borderGlow: 'hover:border-emerald-500/50 hover:shadow-emerald-500/10',
+    stats: 'Song ngữ thông minh',
+    badge: 'Kỹ Năng Đọc',
+    tags: ['📖 Đọc hiểu TOEIC', 'Tra từ 1 chạm', 'Part 5, 6, 7'],
+  },
+  {
+    id: 'speaking',
+    to: '/speaking',
+    title: 'Luyện Nói Phản Xạ',
+    subtitle: 'Luyện phát âm từng từ, nói câu phản xạ và kiểm tra độ chính xác khẩu hình người học.',
+    icon: Mic,
+    iconBg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    borderGlow: 'hover:border-amber-500/50 hover:shadow-amber-500/10',
+    stats: 'Nhận diện giọng nói',
+    badge: 'Giao Tiếp',
+    tags: ['🎙️ Nhận diện AI', 'Sửa phát âm', 'Giao tiếp thực'],
+  },
+  {
+    id: 'tenses',
+    to: '/tenses',
+    title: '12 Thì Ngữ Pháp',
+    subtitle: 'Nắm trọn bản chất 12 thì tiếng Anh, sơ đồ tư duy thời gian và bài tập trắc nghiệm trọng tâm.',
+    icon: FileText,
+    iconBg: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+    borderGlow: 'hover:border-violet-500/50 hover:shadow-violet-500/10',
+    stats: 'Lý thuyết & Bài tập',
+    badge: 'Ngữ Pháp',
+    tags: ['📐 Trọng tâm TOEIC', 'Sơ đồ thì', 'Trắc nghiệm phản xạ'],
   },
 ];
 
@@ -592,8 +673,11 @@ export default function Practice() {
 
     return (
       <div className="flex-1 bg-transparent text-slate-800 dark:text-white overflow-y-auto min-h-screen">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 pb-24">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-6 sm:space-y-7 pb-24">
           
+          {/* Top Quick Skill Navigation Pills */}
+          <SkillSwitchTabs />
+
           {/* HERO GLASS BANNER & STATS */}
           <div className="relative rounded-[2.5rem] p-6 sm:p-8 lg:p-10 backdrop-blur-2xl bg-white/40 dark:bg-slate-950/45 border border-white/60 dark:border-white/15 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.08),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_1px_2px_rgba(255,255,255,0.25)] overflow-hidden">
             {/* Ambient Glows */}
@@ -680,6 +764,82 @@ export default function Practice() {
               </div>
 
             </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* SUPER SKILL HUB: 6 CORE PRACTICE MODULES                   */}
+          {/* ========================================================= */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white shadow-md shadow-indigo-500/25">
+                    <Sparkles size={16} />
+                  </span>
+                  <span>Luyện Tập Kỹ Năng Chuyên Sâu</span>
+                </h2>
+                <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                  Chọn kỹ năng bạn muốn bứt phá hôm nay: Nghe chép, Nghe nhại, Luyện viết, Luyện đọc, Nói hay Ngữ pháp.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {SKILL_PRACTICE_HUBS.map((skill) => {
+                const Icon = skill.icon;
+                return (
+                  <motion.div
+                    key={skill.id}
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate(skill.to)}
+                    className={`group relative rounded-[2rem] p-5 sm:p-6 backdrop-blur-2xl bg-white/40 dark:bg-slate-950/45 border border-white/60 dark:border-white/15 shadow-[0_16px_36px_-10px_rgba(15,23,42,0.05),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.2)] ${skill.borderGlow} transition-all cursor-pointer flex flex-col justify-between overflow-hidden min-h-[210px]`}
+                  >
+                    <div className="space-y-3 relative z-10">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${skill.iconBg} group-hover:scale-110 transition-transform duration-300`}>
+                          <Icon size={24} />
+                        </div>
+
+                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-white/45 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-white/60 dark:border-white/15 shadow-2xs">
+                          {skill.badge}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-black text-slate-950 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-cyan-400 transition-colors">
+                          {skill.title}
+                        </h3>
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-relaxed mt-1 line-clamp-2">
+                          {skill.subtitle}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-auto border-t border-white/40 dark:border-white/10 flex items-center justify-between relative z-10">
+                      <span className="text-[11px] font-extrabold text-indigo-700 dark:text-cyan-400">
+                        {skill.stats}
+                      </span>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/50 dark:bg-white/10 border border-white/60 dark:border-white/15 text-slate-700 dark:text-slate-200 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
+                        <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* VOCABULARY ARENA: 2 INTERACTIVE REVIEW MODES              */}
+          {/* ========================================================= */}
+          <div className="space-y-4 pt-2">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white shadow-md shadow-amber-500/25">
+                <Zap size={16} />
+              </span>
+              <span>Đấu Trường Ôn Luyện Từ Vựng</span>
+            </h2>
           </div>
 
           {/* TWO MAIN MODE CARDS */}

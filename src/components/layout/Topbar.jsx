@@ -152,8 +152,8 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
           </div>
         )}
 
-        {/* Date & Daily Quote ("Câu hay") Island */}
-        <div className="hidden sm:flex items-center gap-3 glass-panel rounded-2xl px-4 py-2 shadow-xs max-w-md xl:max-w-2xl select-none">
+        {/* Date & Daily Quote ("Câu hay") Island - Only on large Desktop screens */}
+        <div className="hidden lg:flex items-center gap-3 glass-panel rounded-2xl px-4 py-2 shadow-xs max-w-md xl:max-w-2xl select-none min-w-0">
           <span className="text-xs font-black capitalize tracking-tight text-slate-950 dark:text-white whitespace-nowrap">
             {dateString}
           </span>

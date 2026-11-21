@@ -102,7 +102,7 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const { user, openAuthModal, authModalOpen, closeAuthModal } = useAuth();
   const isStudioMode = /^\/(dictation|shadowing|speaking|writing|reading|tenses|vocabularies|mock-tests)\/[^/]+$/.test(location.pathname) ||
-    /^\/(practice|my-vocabulary\/review)/.test(location.pathname);
+    /^\/my-vocabulary\/review/.test(location.pathname);
 
   // Native Android Capacitor Lifecycle & Hardware Back Button Handling
   useEffect(() => {
@@ -247,7 +247,7 @@ const MainLayout = () => {
             ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)] w-full'
             : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)] w-full'
       } ${isStudioMode ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
-        <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} hideMenuButton={isNative} />
+        {!isStudioMode && <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} hideMenuButton={isNative} />}
         <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-hidden' : 'overflow-x-hidden'}`}>
           <Outlet />
         </main>

@@ -328,9 +328,14 @@ export default function WritingDetail() {
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent text-slate-800 dark:text-slate-100 overflow-y-auto min-h-screen">
       
-      {/* ================= 1. FLOATING ROUNDED LIQUID GLASS TOPBAR CAPSULE ================= */}
-      <div className="sticky top-3 z-30 px-4 sm:px-6 lg:px-8 py-1 max-w-7xl mx-auto w-full">
-        <header className="rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-950/45 border border-white/60 dark:border-white/15 shadow-[0_16px_36px_-10px_rgba(15,23,42,0.05),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.2)] px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all">
+      {/* ================= 1. STUDIO IMMERSIVE TOPBAR CAPSULE ================= */}
+      <div 
+        className="sticky top-0 z-30 px-3 sm:px-6 lg:px-8 py-2 max-w-7xl mx-auto w-full backdrop-blur-xl bg-white/95 dark:bg-[#0c0d14]/95 border-b border-slate-200/80 dark:border-white/10 shadow-xs"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 36px)',
+        }}
+      >
+        <header className="rounded-2xl px-2 sm:px-4 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 transition-all">
           
           {/* Left: Back button & Lesson Title */}
           <div className="flex items-center gap-3 w-full sm:w-auto">

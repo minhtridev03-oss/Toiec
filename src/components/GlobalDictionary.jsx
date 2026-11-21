@@ -236,11 +236,11 @@ export default function GlobalDictionary({ showTrigger = true }) {
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
               className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 transition-colors"
             >
-              {/* Search Header Bar (Redesigned) */}
-              <div className="border-b border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-white/10 dark:bg-slate-800/50 sm:p-4">
-                <div className="flex items-center gap-2.5 rounded-2xl border border-indigo-400/30 bg-white px-3 py-2 shadow-sm transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-white/10 dark:bg-slate-950">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
-                    <Search size={18} />
+              {/* Search Header Bar (Responsive & Overflow-Safe) */}
+              <div className="border-b border-slate-200/80 bg-slate-50/70 p-2.5 sm:p-4 dark:border-white/10 dark:bg-slate-800/50">
+                <div className="flex items-center gap-1.5 sm:gap-2.5 rounded-2xl border border-indigo-400/30 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-sm transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-white/10 dark:bg-slate-950">
+                  <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
+                    <Search size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </div>
 
                   <input
@@ -249,8 +249,8 @@ export default function GlobalDictionary({ showTrigger = true }) {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleInputKeyDown}
-                    placeholder="Tra từ vựng tiếng Anh, cụm từ, nghĩa tiếng Việt..."
-                    className="flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-base"
+                    placeholder="Tra từ tiếng Anh, cụm từ, nghĩa..."
+                    className="flex-1 min-w-0 bg-transparent text-xs sm:text-base font-bold text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
                   />
 
                   {query && (
@@ -261,9 +261,10 @@ export default function GlobalDictionary({ showTrigger = true }) {
                         setResult(null);
                         setError('');
                       }}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      aria-label="Xóa từ"
                     >
-                      <X size={16} />
+                      <X size={14} />
                     </button>
                   )}
 
@@ -271,13 +272,13 @@ export default function GlobalDictionary({ showTrigger = true }) {
                     type="button"
                     onClick={() => handleSearch()}
                     disabled={isSearching || !query.trim()}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md shadow-indigo-500/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="shrink-0 inline-flex items-center gap-1 sm:gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-black text-white shadow-md shadow-indigo-500/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSearching ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={15} className="animate-spin" />
                     ) : (
                       <>
-                        <Sparkles size={14} />
+                        <Sparkles size={13} />
                         <span>Tra từ</span>
                       </>
                     )}
@@ -286,9 +287,10 @@ export default function GlobalDictionary({ showTrigger = true }) {
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:hidden"
+                    className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                    aria-label="Đóng từ điển"
                   >
-                    <X size={18} />
+                    <X size={16} />
                   </button>
                 </div>
               </div>

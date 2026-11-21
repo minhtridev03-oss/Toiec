@@ -850,6 +850,12 @@ export default function VideoDictationPlayer({ videoData, segments }) {
     }
   };
 
+  const handleTextareaFocus = () => {
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 280);
+  };
+
   const handleInputChange = (event) => {
     const value = event.target.value;
     setInputValue(value);
@@ -1274,8 +1280,9 @@ export default function VideoDictationPlayer({ videoData, segments }) {
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleTextareaKeyDown}
+              onFocus={handleTextareaFocus}
               placeholder={text.typeWhatYouHear}
-              className={`min-h-32 w-full resize-none rounded-2xl p-4 text-base sm:text-lg font-semibold outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-inner ${
+              className={`min-h-28 sm:min-h-32 w-full resize-none rounded-2xl p-3.5 sm:p-4 text-base sm:text-lg font-semibold outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-inner ${
                 completedSegments.has(segment?.id)
                   ? 'bg-emerald-500/10 border-2 border-emerald-500/60 text-emerald-900 dark:text-emerald-100 shadow-emerald-500/10'
                   : isJustCorrect
@@ -1283,6 +1290,41 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                   : 'bg-white/30 dark:bg-slate-800/35 border border-white/40 dark:border-white/10 text-slate-900 dark:text-white focus:border-indigo-500 focus:bg-white/45 dark:focus:bg-slate-800/55 focus:ring-4 focus:ring-indigo-500/15'
               }`}
             />
+          </div>
+
+          {/* Mobile Ergonomic Action Bar (Thumb-friendly when keyboard opens) */}
+          <div className="flex sm:hidden items-center justify-between gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleReplaySegment}
+              className="flex-1 py-2 px-2.5 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-xs"
+            >
+              <RotateCcw size={14} className="text-indigo-600 dark:text-cyan-400" />
+              <span>Nghe lại</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeSpeed(playbackRate === 1 ? 0.75 : 1)}
+              className="py-2 px-3 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
+            >
+              <span>{playbackRate}x</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (segment && normalize(inputValue) === normalize(segment.answer)) {
+                  if (currentSegmentIndex < segments.length - 1) {
+                    changeSegment(currentSegmentIndex + 1);
+                  }
+                } else {
+                  handleReplaySegment();
+                }
+              }}
+              className="flex-1 py-2 px-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-indigo-500/25"
+            >
+              <CheckCircle2 size={14} />
+              <span>{segment && normalize(inputValue) === normalize(segment.answer) ? 'Tiếp ➔' : 'Kiểm tra'}</span>
+            </button>
           </div>
 
           {/* Ergonomic Shortcut Pill Hint */}
