@@ -8,9 +8,12 @@ import { useTheme } from './contexts/ThemeContext';
 import { useAmbient } from './contexts/AmbientContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
+import BottomNav from './components/layout/BottomNav';
+import AppDownloadBanner from './components/layout/AppDownloadBanner';
 import GlobalSkeletonLoader from './components/layout/GlobalSkeletonLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/layout/Footer';
+import { usePlatform } from './hooks/usePlatform';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
@@ -90,7 +93,9 @@ const AdminRoute = ({ children }) => {
 const MainLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isNative, isMobileWeb } = usePlatform();
   const { videoEnabled, isVideoPlaying, dimOverlay } = useAmbient();
+  const showVideo = videoEnabled && !isNative; // Trên Native App tắt video nền để tiết kiệm pin và đạt 120 FPS
   const { isDarkMode } = useTheme();
   const videoRef = useRef(null);
   const location = useLocation();
@@ -176,15 +181,15 @@ const MainLayout = () => {
 
   return (
     <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 ${
-      videoEnabled ? 'bg-transparent' : 'bg-slate-50/70 dark:bg-[#090a0f]'
+      showVideo ? 'bg-transparent' : 'bg-slate-50/70 dark:bg-[#090a0f]'
     }`}>
       {/* Global Background Video with Liquid Glass Layering */}
-      {videoEnabled && (
+      {showVideo && (
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
           <video
             ref={videoRef}
             src="/assets/videos/1027.mp4"
-            autoPlay={videoEnabled && isVideoPlaying}
+            autoPlay={showVideo && isVideoPlaying}
             loop
             muted
             playsInline
@@ -206,8 +211,8 @@ const MainLayout = () => {
         </div>
       )}
 
-      {/* Fallback ambient glows when video is disabled */}
-      {!videoEnabled && (
+      {/* Fallback ambient glows when video is disabled (Always on Native App for 120 FPS & battery saving) */}
+      {!showVideo && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-indigo-500/10 dark:hidden blur-3xl" />
           <div className="absolute top-1/3 -left-20 w-80 h-80 rounded-full bg-violet-400/8 dark:hidden blur-3xl" />
@@ -215,20 +220,36 @@ const MainLayout = () => {
         </div>
       )}
 
-      <Sidebar 
-        isCollapsed={isCollapsed} 
-        setIsCollapsed={setIsCollapsed} 
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-      />
+      {/* Sidebar: Chỉ hiển thị trên Web (Desktop/Mobile Web). Ẩn hoàn toàn trên Native App */}
+      {!isNative && (
+        <Sidebar 
+          isCollapsed={isCollapsed} 
+          setIsCollapsed={setIsCollapsed} 
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+        />
+      )}
       
-      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${isCollapsed ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)]' : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)]'} w-full ${isStudioMode ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
-        <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
+      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${
+        isNative
+          ? 'w-full pb-20'
+          : isCollapsed
+            ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)] w-full'
+            : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)] w-full'
+      } ${isStudioMode ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+        <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} hideMenuButton={isNative} />
         <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-hidden' : 'overflow-x-hidden'}`}>
           <Outlet />
         </main>
-        {!isStudioMode && <Footer />}
+        {!isStudioMode && !isNative && <Footer />}
       </div>
+
+      {/* Bottom Navigation Bar: Dành riêng cho Native App APK trên điện thoại & tablet */}
+      {isNative && !isStudioMode && <BottomNav />}
+
+      {/* Banner gợi ý tải App APK: Chỉ hiển thị cho người dùng duyệt Web trên Mobile/iPad */}
+      {isMobileWeb && <AppDownloadBanner />}
+
       <Suspense fallback={null}>
         <LearningBotDock />
         <GlobalDictionary showTrigger={false} />

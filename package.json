@@ -21,6 +21,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
     "@google/generative-ai": "^0.24.1",
     "@iamtraction/google-translate": "^2.0.1",
     "@supabase/supabase-js": "^2.110.7",

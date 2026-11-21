@@ -54,7 +54,7 @@ const COPY = {
   },
 };
 
-export default function Topbar({ onMenuClick }) {
+export default function Topbar({ onMenuClick, hideMenuButton = false }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -125,14 +125,16 @@ export default function Topbar({ onMenuClick }) {
     <header className="sticky top-0 z-50 flex h-18 items-center justify-between bg-transparent border-none px-4 md:px-8 transition-colors pointer-events-none">
       {/* Left: Mobile trigger & Date/Quote Island */}
       <div className="flex items-center gap-2.5 flex-1 min-w-0 pointer-events-auto">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl glass-panel text-slate-600 transition-all hover:scale-105 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:text-white lg:hidden cursor-pointer"
-          aria-label="Mở menu"
-        >
-          <Menu size={20} />
-        </button>
+        {!hideMenuButton && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl glass-panel text-slate-600 transition-all hover:scale-105 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:text-white lg:hidden cursor-pointer"
+            aria-label="Mở menu"
+          >
+            <Menu size={20} />
+          </button>
+        )}
 
         {/* Date & Daily Quote ("Câu hay") Island */}
         <div className="hidden sm:flex items-center gap-3 glass-panel rounded-2xl px-4 py-2 shadow-xs max-w-md xl:max-w-2xl select-none">
