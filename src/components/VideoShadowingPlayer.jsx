@@ -59,8 +59,8 @@ const COPY = {
     loopSentence: 'Lặp lại câu',
     nextSentence: 'Câu tiếp (Enter)',
     autoNext: 'Tự chuyển câu',
-    startRecording: 'Bấm hoặc nhấn Space để bắt đầu nói',
-    stopRecording: 'Bấm hoặc nhấn Space để dừng thu âm',
+    startRecording: 'Chạm mic để bắt đầu nói',
+    stopRecording: 'Chạm để dừng thu âm',
     listening: 'Đang lắng nghe... Nói nhại theo câu mẫu',
     transcribing: 'Đang phân tích phát âm với AI...',
     spoken: 'Kết quả nhận diện',
@@ -111,8 +111,8 @@ const COPY = {
     loopSentence: 'Loop sentence',
     nextSentence: 'Next sentence (Enter)',
     autoNext: 'Auto-next',
-    startRecording: 'Click or press Space to record',
-    stopRecording: 'Click or press Space to stop',
+    startRecording: 'Tap mic to start speaking',
+    stopRecording: 'Tap to stop recording',
     listening: 'Listening... Shadow along with the speaker',
     transcribing: 'Analyzing pronunciation with AI...',
     spoken: 'Recognition result',
@@ -1066,20 +1066,47 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
         </div>
 
         {/* 3. CONTROL DOCK + MINI SEGMENT SCRUBBER */}
-        <div className="flex flex-col gap-1.5 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-2.5 sm:p-3 shadow-lg shadow-black/5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="w-24 text-xs font-bold font-mono tabular-nums text-slate-600 dark:text-slate-300">
-              {currentTimeDisplay} / {durationDisplay}
+        <div className="flex flex-col gap-2 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-2.5 sm:p-3 shadow-lg shadow-black/5">
+          {/* Upper Row: Responsive 2-tier on mobile (< sm), 1-tier on desktop (>= sm) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            {/* Mobile Top Bar: Time Display on Left & Auto-Next Toggle on Right */}
+            <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
+              <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
+                {currentTimeDisplay} / {durationDisplay}
+              </div>
+
+              {/* Mobile Auto-Next Switch (Paired with time on mobile to never clip) */}
+              <button
+                type="button"
+                onClick={() => setAutoNext((v) => !v)}
+                title={text.autoNext}
+                className="flex sm:hidden items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none"
+              >
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Tự chuyển câu:</span>
+                <span
+                  className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${
+                    autoNext
+                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-sm shadow-rose-500/30'
+                      : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                      autoNext ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </span>
+              </button>
             </div>
 
-            {/* Central Transport Buttons */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            {/* Central Transport Buttons (Full width centered on mobile with comfortable thumb spacing) */}
+            <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full sm:w-auto py-0.5">
               <button
                 type="button"
                 onClick={() => currentSegmentIndex > 0 && setCurrentSegmentIndex((i) => i - 1)}
                 disabled={currentSegmentIndex === 0}
                 title={text.previousSentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipBack size={19} />
               </button>
@@ -1088,7 +1115,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={replaySegment}
                 title={text.replaySentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all cursor-pointer"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all cursor-pointer active:scale-95"
               >
                 <RotateCcw size={19} />
               </button>
@@ -1097,7 +1124,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={handlePlayPause}
                 title={isPlaying ? text.pause : text.play}
-                className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-rose-600 to-pink-500 text-white shadow-xl shadow-rose-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-0.5 sm:mx-1"
+                className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-rose-600 to-pink-500 text-white shadow-xl shadow-rose-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-1 sm:mx-1.5"
               >
                 {isPlaying ? <Pause size={20} className="fill-current" /> : <Play size={20} className="ml-0.5 fill-current" />}
               </button>
@@ -1106,7 +1133,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={() => setIsLooping((looping) => !looping)}
                 title={text.loopSentence}
-                className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer ${
+                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
                   isLooping
                     ? 'bg-rose-500/20 border border-rose-500/40 text-rose-500 shadow-md shadow-rose-500/10'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500'
@@ -1120,18 +1147,18 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 onClick={() => currentSegmentIndex < segments.length - 1 && setCurrentSegmentIndex((i) => i + 1)}
                 disabled={currentSegmentIndex === segments.length - 1}
                 title={text.nextSentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipForward size={19} />
               </button>
             </div>
 
-            {/* Auto-Next Switch */}
+            {/* Desktop Auto-Next Switch (Visible only on sm screens and up) */}
             <button
               type="button"
               onClick={() => setAutoNext((v) => !v)}
               title={text.autoNext}
-              className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-500 transition-colors cursor-pointer"
+              className="hidden sm:flex shrink-0 items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-500 transition-colors cursor-pointer select-none"
             >
               <span
                 className={`flex h-4 w-7 sm:h-5 sm:w-8 items-center rounded-full p-0.5 transition-colors ${
@@ -1146,7 +1173,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                   }`}
                 />
               </span>
-              <span className="hidden sm:inline">{text.autoNext}</span>
+              <span className="hidden md:inline">{text.autoNext}</span>
             </button>
           </div>
 
@@ -1181,7 +1208,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
           </div>
 
           {/* Sentence Tracker + Speed Pills */}
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/20 dark:border-white/10 text-xs">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pt-2 border-t border-white/20 dark:border-white/10 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300">
               <span className="px-2.5 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-black">
                 {text.sentence} {currentSegmentIndex + 1}/{segments.length}
@@ -1192,14 +1219,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
             </div>
 
             {/* Speed Pills */}
-            <div className="flex items-center gap-1 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/25 dark:border-white/5 p-1 font-black shrink-0">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider px-1.5 hidden sm:inline">Tốc độ:</span>
+            <div className="flex items-center gap-0.5 sm:gap-1 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/25 dark:border-white/5 p-0.5 sm:p-1 font-black shrink-0">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider px-1 hidden sm:inline">Tốc độ:</span>
               {[0.5, 0.75, 1, 1.25, 1.5].map((speed) => (
                 <button
                   key={speed}
                   type="button"
                   onClick={() => changeSpeed(speed)}
-                  className={`rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs transition-all cursor-pointer ${
+                  className={`rounded-lg px-1.5 sm:px-2.5 py-1 text-[11px] sm:text-xs transition-all cursor-pointer ${
                     playbackRate === speed
                       ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30'
                       : 'text-slate-600 dark:text-slate-300 hover:text-rose-500 hover:bg-white/40 dark:hover:bg-slate-700/40'
@@ -1417,8 +1444,8 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
             </div>
           </div>
 
-          {/* Ergonomic Shortcut Pill Hint */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          {/* Ergonomic Shortcut Pill Hint (Desktop keyboard shortcuts, hidden on mobile) */}
+          <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             <span className="flex items-center gap-1 font-medium">
               <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
                 Space

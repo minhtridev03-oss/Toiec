@@ -30,6 +30,7 @@ export default function WritingDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const textareaRef = useRef(null);
+  const stepperRef = useRef(null);
 
   const cachedData = writingLessonCache.get(id);
   const [lesson, setLesson] = useState(() => cachedData?.lesson || null);
@@ -58,6 +59,16 @@ export default function WritingDetail() {
       textareaRef.current.focus();
     }
   }, [currentSentenceIndex, isEvaluating]);
+
+  // Auto-scroll active pill into view inside stepper
+  useEffect(() => {
+    if (stepperRef.current) {
+      const activeEl = stepperRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [currentSentenceIndex]);
 
   const fetchLessonAndSentences = async () => {
     try {
@@ -149,6 +160,19 @@ export default function WritingDetail() {
   const handleCheck = async () => {
     if (!userTranslation.trim() || !currentSentence || isEvaluating) return;
 
+    if (!user) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-modal:open', { detail: { mode: 'login' } }));
+      }
+      setFeedback({
+        is_correct: false,
+        accuracy: 0,
+        feedback: 'Vui lòng đăng nhập để sử dụng tính năng chấm điểm và sửa lỗi bằng AI.',
+        suggestion: currentSentence.suggested_translation,
+      });
+      return;
+    }
+
     setIsEvaluating(true);
     setFeedback(null);
     try {
@@ -195,7 +219,7 @@ export default function WritingDetail() {
       setFeedback({
         is_correct: false,
         accuracy: 0,
-        feedback: 'Đã có lỗi xảy ra khi chấm bài qua AI. Vui lòng thử lại.',
+        feedback: error?.message || 'Đã có lỗi xảy ra khi chấm bài qua AI. Vui lòng thử lại.',
         suggestion: currentSentence.suggested_translation,
       });
     } finally {
@@ -328,45 +352,46 @@ export default function WritingDetail() {
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent text-slate-800 dark:text-slate-100 overflow-y-auto min-h-screen">
       
-      {/* ================= 1. STUDIO IMMERSIVE TOPBAR CAPSULE ================= */}
-      <div 
-        className="sticky top-0 z-30 px-3 sm:px-6 lg:px-8 py-2 max-w-7xl mx-auto w-full backdrop-blur-xl bg-white/95 dark:bg-[#0c0d14]/95 border-b border-slate-200/80 dark:border-white/10 shadow-xs"
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 36px)',
-        }}
-      >
-        <header className="rounded-2xl px-2 sm:px-4 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 transition-all">
+      {/* ================= 1. FLOATING STUDIO IMMERSIVE TOPBAR DOCK ================= */}
+      <div className="sticky top-0 z-30 w-full px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-2 transition-all">
+        <header className="max-w-7xl mx-auto rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/45 dark:bg-slate-900/45 border border-white/60 dark:border-white/10 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.08),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.15)] px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all">
           
           {/* Left: Back button & Lesson Title */}
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto min-w-0">
             <button
               onClick={() => navigate('/writing')}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/65 dark:border-white/15 hover:bg-white/70 dark:hover:bg-white/20 hover:border-blue-500 text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-cyan-400 shadow-[0_2px_8px_rgba(0,0,0,0.04),_inset_0_1px_1px_rgba(255,255,255,0.85)] cursor-pointer shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-400 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all cursor-pointer border border-white/50 dark:border-white/10 shadow-xs shrink-0"
               title="Quay lại danh sách bài viết"
             >
-              <ArrowLeft size={18} />
+              <ChevronLeft size={18} />
+              <span className="hidden sm:inline">Quay lại</span>
             </button>
 
-            <div className="min-w-0">
+            <div className="h-6 w-px bg-slate-300/60 dark:bg-white/10 shrink-0 hidden sm:block" />
+
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-500/15 dark:bg-cyan-500/20 text-blue-800 dark:text-cyan-200 border border-blue-500/25">
+                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-500/15 dark:bg-cyan-500/20 text-blue-700 dark:text-cyan-300 border border-blue-500/25 shrink-0">
                   {lesson.level || 'Basic'}
                 </span>
-                <h1 className="text-base sm:text-lg font-black text-slate-950 dark:text-white truncate">
+                <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
                   {lesson.title}
                 </h1>
               </div>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 truncate mt-0.5">
-                Rèn luyện chuyển ngữ câu tự nhiên với phản hồi AI thời gian thực
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                Câu {currentSentenceIndex + 1}/{sentences.length} • {completedSentences.size}/{sentences.length} câu hoàn thành
               </p>
             </div>
           </div>
 
           {/* Center/Right: Sentence Stepper & Navigation */}
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end shrink-0">
             
             {/* Step Pills */}
-            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/30 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-xl shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] overflow-x-auto max-w-[280px] sm:max-w-none hide-scrollbar">
+            <div 
+              ref={stepperRef}
+              className="flex items-center gap-1.5 p-1 rounded-xl sm:rounded-2xl bg-white/30 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 backdrop-blur-xl shadow-inner overflow-x-auto max-w-[220px] sm:max-w-xs md:max-w-md hide-scrollbar"
+            >
               {sentences.map((sentence, idx) => {
                 const isActive = idx === currentSentenceIndex;
                 const isDone = completedSentences.has(sentence.id);
@@ -375,12 +400,13 @@ export default function WritingDetail() {
                   <button
                     key={sentence.id}
                     type="button"
+                    data-active={isActive ? 'true' : undefined}
                     onClick={() => handleSelectSentence(idx)}
-                    className={`h-8 min-w-[32px] px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                    className={`h-7 min-w-[28px] sm:h-8 sm:min-w-[32px] px-2 rounded-lg sm:rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                       isActive
                         ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-500/30'
                         : isDone
-                        ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/35'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/35'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-700/60'
                     }`}
                     title={`Câu ${idx + 1}`}
@@ -403,8 +429,8 @@ export default function WritingDetail() {
                 disabled={currentSentenceIndex === 0}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/60 dark:border-white/15 backdrop-blur-md ${
                   currentSentenceIndex === 0
-                    ? 'opacity-40 cursor-not-allowed text-slate-400'
-                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 cursor-pointer shadow-xs'
+                    ? 'opacity-30 cursor-not-allowed text-slate-400'
+                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 dark:hover:text-cyan-400 cursor-pointer shadow-xs'
                 }`}
                 title="Câu trước"
               >
@@ -416,8 +442,8 @@ export default function WritingDetail() {
                 disabled={currentSentenceIndex === sentences.length - 1}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/45 dark:bg-white/10 border border-white/60 dark:border-white/15 backdrop-blur-md ${
                   currentSentenceIndex === sentences.length - 1
-                    ? 'opacity-40 cursor-not-allowed text-slate-400'
-                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 cursor-pointer shadow-xs'
+                    ? 'opacity-30 cursor-not-allowed text-slate-400'
+                    : 'text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 dark:hover:text-cyan-400 cursor-pointer shadow-xs'
                 }`}
                 title="Câu sau"
               >
