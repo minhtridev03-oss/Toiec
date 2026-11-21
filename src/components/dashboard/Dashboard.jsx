@@ -366,6 +366,18 @@ export default function Dashboard() {
     }
   }, [activeTab, user?.id]);
 
+  // On mobile / native app: keep activeTab strictly to 'greeting' or 'progress'
+  useEffect(() => {
+    const checkMobileTab = () => {
+      if ((isNative || window.innerWidth < 1024) && (activeTab === 'chart' || activeTab === 'leaderboard')) {
+        setActiveTab('greeting');
+      }
+    };
+    checkMobileTab();
+    window.addEventListener('resize', checkMobileTab);
+    return () => window.removeEventListener('resize', checkMobileTab);
+  }, [activeTab, isNative]);
+
   return (
     <main className="mx-auto min-w-0 w-[95%] sm:w-[90%] max-w-[1450px] py-4 sm:py-7">
       {/* Top Tab Bar Navigation */}
@@ -398,7 +410,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('chart')}
-            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'chart'
+            className={`hidden lg:flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'chart'
               ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
               : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
               }`}
@@ -410,7 +422,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('leaderboard')}
-            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'leaderboard'
+            className={`hidden lg:flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'leaderboard'
               ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
               : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
               }`}
@@ -541,6 +553,16 @@ export default function Dashboard() {
                 <AmbientVideoWidget />
               </div>
             )}
+          </div>
+
+          {/* Trên mobile: Biểu đồ học tập và Bảng xếp hạng gộp lại nằm ngay dưới lời chào & điểm danh */}
+          <div className="lg:hidden flex flex-col gap-6 mt-6 pb-16">
+            <Suspense fallback={<DashboardWidgetFallback />}>
+              <PracticeActivityChart userId={user?.id} />
+            </Suspense>
+            <Suspense fallback={<DashboardWidgetFallback />}>
+              <PracticeLeaderboard />
+            </Suspense>
           </div>
         </div>
       )}
