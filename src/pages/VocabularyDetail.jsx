@@ -7,8 +7,10 @@ import { useStats } from '../contexts/StatsContext';
 import { useSWRConfig } from 'swr';
 import { ChevronLeft, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
 import Flashcard from '../components/vocab/Flashcard';
+import { usePlatform } from '../hooks/usePlatform';
 
 export default function VocabularyDetail() {
+  const { isNative } = usePlatform();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -184,7 +186,12 @@ export default function VocabularyDetail() {
   const hasNext = currentIndex < wordIds.length - 1;
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full min-h-[85vh] animate-in fade-in duration-300">
+    <div 
+      className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full min-h-[85vh] animate-in fade-in duration-300"
+      style={{
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+      }}
+    >
       {/* ============================================================ */}
       {/* 1. TOP BAR (Liquid Glass Navigation & Counter Pill) */}
       {/* ============================================================ */}

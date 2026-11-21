@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Volume2, CheckCircle2, Circle, RotateCcw, Sparkles } from 'lucide-react';
 import { useLocale } from '../../contexts/LocaleContext';
+import { playWordAudio } from '../../lib/audioService';
 
 export default function Flashcard({ word, isLearned, onToggleLearned }) {
   const { locale } = useLocale();
@@ -45,12 +46,9 @@ export default function Flashcard({ word, isLearned, onToggleLearned }) {
   if (!cleanedData) return null;
 
   const speakWord = (e) => {
-    e.stopPropagation();
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleanedData.word);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
+    e?.stopPropagation();
+    if (cleanedData?.word) {
+      playWordAudio(cleanedData.word, 'en');
     }
   };
 
@@ -101,9 +99,15 @@ export default function Flashcard({ word, isLearned, onToggleLearned }) {
             {/* Phonetics & Part of Speech Pills */}
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-6 sm:mb-8">
               {cleanedData.pro && (
-                <span className="px-3 sm:px-4 py-1 sm:py-1.5 bg-indigo-500/10 dark:bg-cyan-400/10 border border-indigo-500/25 dark:border-cyan-400/30 text-indigo-800 dark:text-cyan-300 font-mono text-xs sm:text-base font-bold rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] select-none">
-                  {cleanedData.pro}
-                </span>
+                <button
+                  type="button"
+                  onClick={speakWord}
+                  className="px-3 sm:px-4 py-1 sm:py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 dark:bg-cyan-400/10 dark:hover:bg-cyan-400/20 border border-indigo-500/25 dark:border-cyan-400/30 text-indigo-800 dark:text-cyan-300 font-mono text-xs sm:text-base font-bold rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] select-none cursor-pointer flex items-center gap-1.5 transition-all"
+                  title={text.hear}
+                >
+                  <span>{cleanedData.pro}</span>
+                  <Volume2 size={13} className="opacity-70" />
+                </button>
               )}
               {cleanedData.pos && (
                 <span className="px-2.5 sm:px-3.5 py-0.5 sm:py-1 bg-gradient-to-r from-violet-600/15 to-fuchsia-600/15 dark:from-violet-500/20 dark:to-fuchsia-500/20 text-violet-800 dark:text-fuchsia-300 border border-violet-500/25 text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-lg select-none shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)]">

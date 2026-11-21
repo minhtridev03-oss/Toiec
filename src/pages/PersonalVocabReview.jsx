@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useStats } from '../contexts/StatsContext';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio } from '../lib/audioService';
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function PersonalVocabReview() {
+  const { isNative } = usePlatform();
   const { index } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -172,11 +175,8 @@ export default function PersonalVocabReview() {
 
   const speakWord = (e) => {
     e?.stopPropagation();
-    if ('speechSynthesis' in window && wordData?.word) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(wordData.word);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
+    if (wordData?.word) {
+      playWordAudio(wordData.word, 'en');
     }
   };
 
@@ -213,7 +213,12 @@ export default function PersonalVocabReview() {
   const isLearned = !!wordData.is_learned;
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full min-h-[85vh] animate-in fade-in duration-300">
+    <div 
+      className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full min-h-[85vh] animate-in fade-in duration-300"
+      style={{
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+      }}
+    >
       {/* ============================================================ */}
       {/* 1. TOP BAR (Liquid Glass Navigation & Counter Pill) */}
       {/* ============================================================ */}
