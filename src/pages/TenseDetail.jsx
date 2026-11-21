@@ -31,6 +31,8 @@ import LazyVideo from '../components/tenses/LazyVideo';
 import FillInBlankQuiz from '../components/tenses/FillInBlankQuiz';
 import { useAuth } from '../contexts/AuthContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio } from '../lib/audioService';
 
 // Danh sách 12 thì chuẩn tiếng Anh và các chuyên đề
 const TENSE_NAV_LIST = [
@@ -806,6 +808,7 @@ export default function TenseDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isNative, isMobile } = usePlatform();
 
   const [tense, setTense] = useState(null);
   const [exercises, setExercises] = useState({ basic: [], advanced: [] });
@@ -904,14 +907,10 @@ export default function TenseDetail() {
     setCompletedExerciseIds((prev) => (prev.includes(exerciseId) ? prev : [...prev, exerciseId]));
   };
 
-  // Pronounce sentence using Web Speech API
+  // Pronounce sentence using audioService
   const speakText = (text) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+    if (!text) return;
+    playWordAudio(text, 'en');
   };
 
   // Copy formula text
@@ -1012,37 +1011,42 @@ export default function TenseDetail() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
-      {/* 1. FLOATING LIQUID GLASS TOPBAR HEADER */}
-      <div className="sticky top-0 z-30 px-4 md:px-8 py-3.5 backdrop-blur-2xl bg-white/45 dark:bg-slate-950/60 border-b border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* 1. COMPACT LIQUID GLASS TOPBAR HEADER WITH SAFE-AREA INSET */}
+      <div
+        className="sticky top-0 z-30 px-3 sm:px-6 md:px-8 pb-3 backdrop-blur-2xl bg-white/60 dark:bg-slate-950/70 border-b border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all"
+        style={{
+          paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 14px)',
+        }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Back button + Title & Category */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => navigate('/tenses')}
-              className="group flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/60 dark:bg-slate-900/60 hover:bg-white/90 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-white/60 dark:border-white/10 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="group shrink-0 flex items-center justify-center w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-2xl bg-white/70 dark:bg-slate-900/70 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/60 dark:border-white/10 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
               title="Quay lại danh sách 12 thì"
             >
-              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="text-xs font-semibold hidden sm:inline">12 Thì</span>
+              <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+              <span className="text-xs font-bold hidden sm:inline ml-1.5">12 Thì</span>
             </button>
 
-            <div className="h-7 w-[1px] bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+            <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-current/20 flex items-center gap-1 ${categoryBadge.bg}`}>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={`text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-current/20 flex items-center gap-1 shrink-0 ${categoryBadge.bg}`}>
                   <span>{categoryBadge.icon}</span>
-                  <span>{categoryBadge.name}</span>
+                  <span className="truncate max-w-[90px] sm:max-w-none">{categoryBadge.name}</span>
                 </span>
                 {completionPercent === 100 && (
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Thành thạo 100%
+                  <span className="hidden sm:inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 items-center gap-1">
+                    <CheckCircle2 size={12} /> Thành thạo
                   </span>
                 )}
               </div>
-              <h1 className="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-                {tense.name_en}
-                <span className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400">
+              <h1 className="text-sm sm:text-base md:text-xl font-extrabold text-slate-800 dark:text-white tracking-tight truncate flex items-center gap-1.5 mt-0.5">
+                <span className="truncate">{tense.name_en}</span>
+                <span className="hidden md:inline text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 shrink-0">
                   ({tense.name_vi})
                 </span>
               </h1>
@@ -1050,47 +1054,47 @@ export default function TenseDetail() {
           </div>
 
           {/* Right: Quick Prev / Next Navigator & Stats */}
-          <div className="flex items-center justify-between md:justify-end gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Completion indicator */}
             {totalExercisesCount > 0 && (
-              <div className="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/50 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 text-xs">
-                <Award size={15} className="text-indigo-500" />
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/50 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 text-xs">
+                <Award size={14} className="text-indigo-500" />
                 <span className="font-semibold text-slate-700 dark:text-slate-200">
-                  {completedCount}/{totalExercisesCount} câu
+                  {completedCount}/{totalExercisesCount}
                 </span>
                 <span className="text-slate-400">({completionPercent}%)</span>
               </div>
             )}
 
-            {/* Prev / Next buttons */}
-            <div className="flex items-center gap-1.5 bg-white/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-white/40 dark:border-white/10">
+            {/* Prev / Current / Next buttons */}
+            <div className="flex items-center bg-white/60 dark:bg-slate-900/60 p-0.5 sm:p-1 rounded-2xl border border-white/50 dark:border-white/10 shadow-sm">
               <button
                 disabled={!prevTense}
                 onClick={() => prevTense && navigate(`/tenses/${prevTense.slug}`)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   prevTense
                     ? 'hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer hover:shadow-sm'
-                    : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-50'
+                    : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40'
                 }`}
                 title={prevTense ? `Thì trước: ${prevTense.name_en}` : 'Đang ở thì đầu tiên'}
               >
                 <ChevronLeft size={16} />
-                <span className="hidden sm:inline">Thì trước</span>
               </button>
 
-              <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800"></div>
+              <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 px-1 sm:px-2 tabular-nums">
+                {currentIndex >= 0 ? currentIndex + 1 : 1}/{TENSE_NAV_LIST.length}
+              </span>
 
               <button
                 disabled={!nextTense}
                 onClick={() => nextTense && navigate(`/tenses/${nextTense.slug}`)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   nextTense
                     ? 'hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer hover:shadow-sm'
-                    : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-50'
+                    : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40'
                 }`}
                 title={nextTense ? `Thì kế: ${nextTense.name_en}` : 'Đã đến thì cuối'}
               >
-                <span className="hidden sm:inline">Thì tiếp</span>
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1099,38 +1103,39 @@ export default function TenseDetail() {
       </div>
 
       {/* 2. MAIN SCROLLABLE CONTAINER */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* MODE NAVIGATION DOCK */}
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5">
+        <div className="max-w-7xl mx-auto space-y-5">
+          {/* MODE NAVIGATION DOCK (Responsive Segmented Control) */}
           <div className="flex justify-center">
-            <div className="inline-flex p-1.5 rounded-2xl bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] gap-1">
+            <div className="w-full sm:w-auto grid grid-cols-3 sm:flex p-1 sm:p-1.5 rounded-2xl bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)] gap-1">
               {/* Tab 1: Lesson */}
               <button
                 onClick={() => setActiveTab('lesson')}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all cursor-pointer ${
+                className={`relative flex items-center justify-center gap-1.5 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'lesson'
-                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25'
+                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40'
                 }`}
               >
-                <BookOpen size={16} />
-                <span>Lý thuyết & Video</span>
+                <BookOpen size={15} className="shrink-0" />
+                <span>Lý thuyết</span>
+                <span className="hidden md:inline">& Video</span>
               </button>
 
               {/* Tab 2: Basic Quiz */}
               <button
                 onClick={() => setActiveTab('basic')}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all cursor-pointer ${
+                className={`relative flex items-center justify-center gap-1.5 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'basic'
-                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25'
+                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40'
                 }`}
               >
-                <PenTool size={16} />
-                <span>Bài tập Cơ bản</span>
+                <PenTool size={15} className="shrink-0" />
+                <span>Cơ bản</span>
                 {exercises.basic.length > 0 && (
                   <span
-                    className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                    className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
                       activeTab === 'basic'
                         ? 'bg-white/20 text-white'
                         : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400'
@@ -1145,20 +1150,20 @@ export default function TenseDetail() {
               <button
                 onClick={() => isAdvancedUnlocked && setActiveTab('advanced')}
                 disabled={!isAdvancedUnlocked}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all ${
+                className={`relative flex items-center justify-center gap-1.5 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap ${
                   !isAdvancedUnlocked
                     ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
                     : activeTab === 'advanced'
-                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25 cursor-pointer'
+                    ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/25 cursor-pointer'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 cursor-pointer'
                 }`}
                 title={!isAdvancedUnlocked ? 'Hoàn thành ≥80% bài tập cơ bản để mở khóa' : 'Bài tập nâng cao'}
               >
-                {!isAdvancedUnlocked ? <Lock size={16} /> : <Sparkles size={16} />}
-                <span>Nâng Cao</span>
+                {!isAdvancedUnlocked ? <Lock size={15} className="shrink-0" /> : <Sparkles size={15} className="shrink-0" />}
+                <span>Nâng cao</span>
                 {exercises.advanced.length > 0 && (
                   <span
-                    className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                    className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
                       activeTab === 'advanced'
                         ? 'bg-white/20 text-white'
                         : 'bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400'
@@ -1422,16 +1427,15 @@ export default function TenseDetail() {
               className="pb-20"
             >
               {exercises.basic.length > 0 ? (
-                <div className="rounded-3xl p-6 md:p-8 bg-white/45 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)]">
-                  <FillInBlankQuiz
-                    exercises={exercises.basic}
-                    level="basic"
-                    tenseId={tense.id}
-                    completedExerciseIds={completedExerciseIds}
-                    onComplete={handleQuizComplete}
-                    onExerciseUpdate={handleExerciseUpdate}
-                  />
-                </div>
+                <FillInBlankQuiz
+                  exercises={exercises.basic}
+                  level="basic"
+                  tenseId={tense.id}
+                  completedExerciseIds={completedExerciseIds}
+                  onComplete={handleQuizComplete}
+                  onExerciseUpdate={handleExerciseUpdate}
+                  onOpenCheatSheet={() => setShowCheatSheet(true)}
+                />
               ) : (
                 <div className="rounded-3xl p-12 text-center bg-white/45 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-sm">
                   <p className="text-slate-500 dark:text-slate-400 font-medium">
@@ -1451,16 +1455,15 @@ export default function TenseDetail() {
               className="pb-20"
             >
               {exercises.advanced.length > 0 ? (
-                <div className="rounded-3xl p-6 md:p-8 bg-white/45 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.06)]">
-                  <FillInBlankQuiz
-                    exercises={exercises.advanced}
-                    level="advanced"
-                    tenseId={tense.id}
-                    completedExerciseIds={completedExerciseIds}
-                    onComplete={handleQuizComplete}
-                    onExerciseUpdate={handleExerciseUpdate}
-                  />
-                </div>
+                <FillInBlankQuiz
+                  exercises={exercises.advanced}
+                  level="advanced"
+                  tenseId={tense.id}
+                  completedExerciseIds={completedExerciseIds}
+                  onComplete={handleQuizComplete}
+                  onExerciseUpdate={handleExerciseUpdate}
+                  onOpenCheatSheet={() => setShowCheatSheet(true)}
+                />
               ) : (
                 <div className="rounded-3xl p-12 text-center bg-white/45 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-sm">
                   <p className="text-slate-500 dark:text-slate-400 font-medium">
@@ -1473,44 +1476,35 @@ export default function TenseDetail() {
         </div>
       </div>
 
-      {/* 3. FLOATING ACTION BUTTON: QUICK FORMULA CHEAT-SHEET DRAWER (When in Quiz mode) */}
-      {(activeTab === 'basic' || activeTab === 'advanced') && (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowCheatSheet(true)}
-          className="fixed bottom-5 right-24 sm:bottom-6 sm:right-32 z-40 flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 px-4 py-2.5 sm:px-5 sm:py-3 text-xs sm:text-sm font-black text-white shadow-xl shadow-indigo-500/30 backdrop-blur-xl transition-all cursor-pointer hover:shadow-indigo-500/50"
-          title="Tra nhanh công thức ngữ pháp"
-        >
-          <Sparkles size={16} className="text-amber-300 animate-pulse" />
-          <span className="hidden min-[380px]:inline">Tra nhanh công thức</span>
-          <span className="min-[380px]:hidden">Công thức</span>
-        </motion.button>
-      )}
-
-      {/* 4. MODAL / SLIDE DRAWER FOR CHEAT-SHEET */}
+      {/* 3. MODAL / BOTTOM SHEET DRAWER FOR CHEAT-SHEET */}
       <AnimatePresence>
         {showCheatSheet && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-end bg-black/40 backdrop-blur-sm p-4 md:p-6">
+          <div
+            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:justify-end bg-black/40 backdrop-blur-sm p-0 sm:p-6"
+            onClick={() => setShowCheatSheet(false)}
+          >
             <motion.div
-              initial={{ x: '100%', opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 240 }}
-              className="w-full max-w-md h-full max-h-[85vh] rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-2xl flex flex-col overflow-hidden"
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-md h-[80vh] sm:h-full sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t sm:border border-white/60 dark:border-white/10 shadow-2xl flex flex-col overflow-hidden"
             >
+              {/* Top Drag Indicator for Mobile */}
+              <div className="pt-3 pb-1 flex justify-center sm:hidden">
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+              </div>
+
               {/* Drawer Header */}
-              <div className="p-5 border-b border-slate-200/60 dark:border-white/10 flex items-center justify-between">
+              <div className="px-5 py-3 sm:py-4 border-b border-slate-200/60 dark:border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-500/25">
                     <Sparkles size={16} />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 dark:text-white text-sm">
-                      Phao Công Thức Nhanh
+                      Công Thức Nhanh
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{tense.name_en}</p>
                   </div>
@@ -1531,7 +1525,7 @@ export default function TenseDetail() {
                     <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                       Khẳng định (+)
                     </span>
-                    <code className="block mt-1 font-mono text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                    <code className="block mt-1 font-mono text-xs sm:text-sm font-bold text-emerald-900 dark:text-emerald-200 break-words">
                       {parsedFormula.affirmative}
                     </code>
                   </div>
@@ -1540,7 +1534,7 @@ export default function TenseDetail() {
                     <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase">
                       Phủ định (-)
                     </span>
-                    <code className="block mt-1 font-mono text-xs font-bold text-rose-900 dark:text-rose-200">
+                    <code className="block mt-1 font-mono text-xs sm:text-sm font-bold text-rose-900 dark:text-rose-200 break-words">
                       {parsedFormula.negative}
                     </code>
                   </div>
@@ -1549,7 +1543,7 @@ export default function TenseDetail() {
                     <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 uppercase">
                       Nghi vấn (?)
                     </span>
-                    <code className="block mt-1 font-mono text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                    <code className="block mt-1 font-mono text-xs sm:text-sm font-bold text-indigo-900 dark:text-indigo-200 break-words">
                       {parsedFormula.interrogative}
                     </code>
                   </div>
@@ -1573,30 +1567,32 @@ export default function TenseDetail() {
                 </div>
 
                 {/* TOEIC Tips */}
-                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30">
-                  <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
-                    <AlertTriangle size={14} className="text-amber-500" /> Lưu ý đề thi
-                  </h4>
-                  <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
-                    {currentTraps.map((t, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-amber-500 mt-0.5">•</span>
-                        <span>
-                          <strong>{t.title}:</strong> {t.desc}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {currentTraps.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30">
+                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="text-amber-500" /> Lưu ý đề thi
+                    </h4>
+                    <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                      {currentTraps.map((t, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-amber-500 mt-0.5">•</span>
+                          <span>
+                            <strong>{t.title}:</strong> {t.desc}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Drawer Footer */}
               <div className="p-4 border-t border-slate-200/60 dark:border-white/10 text-center">
                 <button
                   onClick={() => setShowCheatSheet(false)}
-                  className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs sm:text-sm hover:opacity-95 shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
                 >
-                  Đã hiểu, quay lại làm bài
+                  Đã hiểu, tiếp tục làm bài
                 </button>
               </div>
             </motion.div>

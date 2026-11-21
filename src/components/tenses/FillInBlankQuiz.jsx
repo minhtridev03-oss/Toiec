@@ -20,6 +20,8 @@ import {
 import { normalizeAnswer } from '../../utils/normalize';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePlatform } from '../../hooks/usePlatform';
+import { playWordAudio } from '../../lib/audioService';
 
 export default function FillInBlankQuiz({
   exercises = [],
@@ -28,8 +30,10 @@ export default function FillInBlankQuiz({
   completedExerciseIds = [],
   onComplete,
   onExerciseUpdate,
+  onOpenCheatSheet,
 }) {
   const { user } = useAuth();
+  const { isNative, isMobile } = usePlatform();
 
   // Mode: null (mặc định), 'all' (làm lại tất cả), 'wrong' (chỉ luyện lại câu sai)
   const [quizMode, setQuizMode] = useState(null);
@@ -86,17 +90,13 @@ export default function FillInBlankQuiz({
     }
   };
 
-  // Phát âm câu hỏi qua SpeechSynthesis
+  // Phát âm câu hỏi qua audioService (Google TTS)
   const speakQuestion = (question, answer) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    if (!question) return;
     const textToRead = isSubmitted && answer
       ? question.replace(/\[blank\]/g, ` ${answer} `)
       : question.replace(/\[blank\]/g, ' ... ');
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.88;
-    window.speechSynthesis.speak(utterance);
+    playWordAudio(textToRead, 'en');
   };
 
   // Nộp bài và kiểm tra đáp án
@@ -347,13 +347,12 @@ export default function FillInBlankQuiz({
   const renderQuestion = () => {
     const parts = currentExercise.question.split('[blank]');
     if (parts.length === 1) {
-      return <p className="text-lg md:text-xl font-medium">{currentExercise.question}</p>;
+      return <p className="text-base sm:text-xl md:text-2xl font-semibold leading-relaxed">{currentExercise.question}</p>;
     }
 
     return (
       <div
-        className="text-lg md:text-2xl leading-loose md:leading-loose text-slate-800 dark:text-slate-100 font-semibold select-text"
-        style={{ wordBreak: 'break-word' }}
+        className="flex flex-wrap items-center justify-center gap-x-1.5 sm:gap-x-2 gap-y-2.5 text-base sm:text-xl md:text-2xl leading-relaxed text-slate-800 dark:text-slate-100 font-semibold select-text"
       >
         {parts.map((part, index) => {
           let answers = currentExercise.answer.split('|').map((a) => a.trim());
@@ -370,11 +369,11 @@ export default function FillInBlankQuiz({
           const thisBlankWrong = isSubmitted && !thisBlankCorrect;
 
           let capsuleStyle =
-            'inline-block mx-1.5 px-4 py-1.5 text-center rounded-2xl outline-none font-mono font-bold text-base md:text-xl transition-all min-w-[120px] max-w-[240px] shadow-sm';
+            'inline-flex items-center justify-center px-3 py-1 sm:py-1.5 text-center rounded-xl sm:rounded-2xl outline-none font-mono font-bold text-sm sm:text-lg transition-all min-w-[90px] sm:min-w-[120px] max-w-[170px] sm:max-w-[220px] shadow-sm';
 
           if (!isSubmitted) {
             capsuleStyle +=
-              ' border-2 border-dashed border-indigo-300 dark:border-indigo-500/40 bg-white/80 dark:bg-slate-800/80 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 text-indigo-700 dark:text-cyan-300 shadow-indigo-500/5';
+              ' border-2 border-dashed border-indigo-300 dark:border-indigo-500/40 bg-white/90 dark:bg-slate-800/90 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 text-indigo-700 dark:text-cyan-300 shadow-indigo-500/5';
           } else if (thisBlankCorrect) {
             capsuleStyle +=
               ' border-2 border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 ring-4 ring-emerald-500/20';
@@ -414,13 +413,13 @@ export default function FillInBlankQuiz({
   const progressPercent = Math.round(((currentIndex + 1) / totalQuestions) * 100);
 
   return (
-    <div className="rounded-3xl p-6 md:p-8 backdrop-blur-2xl bg-white/50 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] transition-all">
-      {/* 1. Header: Tiến độ & Streak */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between gap-4 mb-2">
+    <div className="rounded-3xl p-4 sm:p-6 md:p-8 backdrop-blur-2xl bg-white/60 dark:bg-slate-900/60 border border-white/50 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] transition-all">
+      {/* 1. Header: Tiến độ & Streak & Action Buttons */}
+      <div className="mb-5 sm:mb-6">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2.5">
           {/* Tag câu hỏi & streak */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-cyan-400 border border-indigo-200/50 dark:border-indigo-800/40">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs font-bold px-2.5 sm:px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-cyan-400 border border-indigo-200/50 dark:border-indigo-800/40">
               Câu {currentIndex + 1} / {totalQuestions}
             </span>
 
@@ -429,7 +428,7 @@ export default function FillInBlankQuiz({
                 initial={{ scale: 0.8 }}
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
-                className="flex items-center gap-1 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-extrabold shadow-sm"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-extrabold shadow-sm"
               >
                 <Flame size={14} className="fill-amber-500 text-amber-500" />
                 <span>Streak x{streak}</span>
@@ -437,19 +436,32 @@ export default function FillInBlankQuiz({
             )}
           </div>
 
-          {/* Nút Nghe câu hỏi */}
-          <button
-            onClick={() => speakQuestion(currentExercise.question, currentExercise.answer)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-white/60 dark:border-white/10 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            title="Nghe giọng đọc AI cả câu"
-          >
-            <Volume2 size={15} className="text-indigo-500" />
-            <span className="hidden sm:inline">Nghe câu</span>
-          </button>
+          {/* Action buttons (Cheat Sheet & Audio) */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {onOpenCheatSheet && (
+              <button
+                onClick={onOpenCheatSheet}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-500/20 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                title="Xem nhanh công thức ngữ pháp"
+              >
+                <Lightbulb size={14} className="text-amber-500" />
+                <span>Công thức</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => speakQuestion(currentExercise.question, currentExercise.answer)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-white/60 dark:border-white/10 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              title="Nghe phát âm cả câu"
+            >
+              <Volume2 size={15} className="text-indigo-500" />
+              <span className="hidden sm:inline">Nghe câu</span>
+            </button>
+          </div>
         </div>
 
         {/* Thanh Energy Progress Bar */}
-        <div className="relative w-full h-2.5 rounded-full bg-slate-200/60 dark:bg-slate-800/60 overflow-hidden">
+        <div className="relative w-full h-2 rounded-full bg-slate-200/60 dark:bg-slate-800/60 overflow-hidden">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 relative"
             initial={{ width: 0 }}
@@ -462,7 +474,7 @@ export default function FillInBlankQuiz({
       </div>
 
       {/* 2. Vùng hiển thị Câu hỏi */}
-      <div className="my-8 p-6 md:p-8 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/5 backdrop-blur-md shadow-inner text-center">
+      <div className="my-5 sm:my-8 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/5 backdrop-blur-md shadow-inner text-center">
         {renderQuestion()}
       </div>
 
@@ -532,27 +544,29 @@ export default function FillInBlankQuiz({
 
       {/* 4. Footer & Nút Hành Động */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-        <div className="text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
-          <kbd className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-mono border border-slate-300 dark:border-slate-700">
-            Enter ↵
-          </kbd>
-          <span>để {isSubmitted ? 'chuyển câu tiếp' : 'kiểm tra đáp án'}</span>
-        </div>
+        {!isNative && !isMobile && (
+          <div className="text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
+            <kbd className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-mono border border-slate-300 dark:border-slate-700">
+              Enter ↵
+            </kbd>
+            <span>để {isSubmitted ? 'chuyển câu tiếp' : 'kiểm tra đáp án'}</span>
+          </div>
+        )}
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div className="w-full sm:w-auto ml-auto">
           {!isSubmitted ? (
             <button
               onClick={handleSubmit}
               disabled={!inputValues.join('').trim()}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-bold px-7 py-3 rounded-2xl hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 text-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-bold px-7 py-3.5 sm:py-3 rounded-2xl hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-indigo-500/25 hover:scale-[1.02] sm:hover:scale-105 active:scale-95 text-sm sm:text-base"
             >
-              <Sparkles size={16} />
+              <Sparkles size={18} />
               <span>Kiểm tra</span>
             </button>
           ) : (
             <button
               onClick={handleNext}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-bold px-7 py-3 rounded-2xl hover:opacity-95 transition-all cursor-pointer shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 text-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-bold px-7 py-3.5 sm:py-3 rounded-2xl hover:opacity-95 transition-all cursor-pointer shadow-lg shadow-indigo-500/25 hover:scale-[1.02] sm:hover:scale-105 active:scale-95 text-sm sm:text-base"
             >
               <span>{currentIndex < totalQuestions - 1 ? 'Câu tiếp theo' : 'Xem tổng kết'}</span>
               <ArrowRight size={18} />
