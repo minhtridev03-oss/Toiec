@@ -32,6 +32,8 @@ import { supabase } from '../lib/supabaseClient';
 import LessonMediaPlayer from './LessonMediaPlayer';
 import { useAudioRecorder } from '../lib/useAudioRecorder';
 import { transcribeAudio } from '../lib/gemini';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio } from '../lib/audioService';
 
 const QUALITY_LABELS = {
   default: 'Auto',
@@ -404,30 +406,18 @@ const playSuccessChime = () => {
 };
 
 /**
- * Web Speech API: Text-to-speech for words
+ * Text-to-speech for words using Shared Audio Service (Google Translate TTS + fallback)
  */
 const speakWord = (wordText) => {
-  if (typeof window === 'undefined' || !window.speechSynthesis || !wordText) return;
-  try {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-    window.speechSynthesis.cancel();
-    const clean = wordText.replace(/[^a-zA-Z0-9']/g, '').trim();
-    if (!clean) return;
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  } catch {
-    // Speech synthesis fallback
-  }
+  if (!wordText) return;
+  playWordAudio(wordText, 'en');
 };
 
 export default function VideoShadowingPlayer({ videoData, segments }) {
   const { user } = useAuth();
   const { locale } = useLocale();
   const navigate = useNavigate();
+  const { isNative, isMobile } = usePlatform();
   const text = COPY[locale] || COPY.vi;
 
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
@@ -942,14 +932,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
     <div 
       className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:h-full lg:overflow-hidden p-2 sm:p-4 lg:p-5 gap-3.5 lg:gap-5 max-w-[1700px] mx-auto pb-24 lg:pb-5 relative"
       style={{
-        paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
         paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
       }}
     >
       {/* LEFT COLUMN: CINEMA VIDEO & STUDIO INTERACTION AREA */}
       <section className="flex min-w-0 flex-1 flex-col gap-3.5 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar pb-4 lg:pb-6">
         {/* 1. TOPBAR DOCK */}
-        <header className="relative z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 p-2.5 sm:p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/70 dark:bg-slate-900/80 border border-white/50 dark:border-white/10 shadow-lg shadow-black/5">
           <Link
             to="/shadowing"
             className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all cursor-pointer"
@@ -1066,47 +1056,22 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
         </div>
 
         {/* 3. CONTROL DOCK + MINI SEGMENT SCRUBBER */}
-        <div className="flex flex-col gap-2 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-2.5 sm:p-3 shadow-lg shadow-black/5">
-          {/* Upper Row: Responsive 2-tier on mobile (< sm), 1-tier on desktop (>= sm) */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-            {/* Mobile Top Bar: Time Display on Left & Auto-Next Toggle on Right */}
-            <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
-              <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
-                {currentTimeDisplay} / {durationDisplay}
-              </div>
-
-              {/* Mobile Auto-Next Switch (Paired with time on mobile to never clip) */}
-              <button
-                type="button"
-                onClick={() => setAutoNext((v) => !v)}
-                title={text.autoNext}
-                className="flex sm:hidden items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none"
-              >
-                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Tự chuyển câu:</span>
-                <span
-                  className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${
-                    autoNext
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-sm shadow-rose-500/30'
-                      : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
-                >
-                  <span
-                    className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                      autoNext ? 'translate-x-3' : 'translate-x-0'
-                    }`}
-                  />
-                </span>
-              </button>
+        <div className="flex flex-col gap-2 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-2.5 sm:p-3 shadow-lg shadow-black/5 overflow-hidden">
+          {/* Upper Row: Flex wrap so time, transport and toggle never clip */}
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-2.5 w-full">
+            {/* Time Display */}
+            <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
+              {currentTimeDisplay} / {durationDisplay}
             </div>
 
-            {/* Central Transport Buttons (Full width centered on mobile with comfortable thumb spacing) */}
-            <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full sm:w-auto py-0.5">
+            {/* Central Transport Buttons */}
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-0.5">
               <button
                 type="button"
                 onClick={() => currentSegmentIndex > 0 && setCurrentSegmentIndex((i) => i - 1)}
                 disabled={currentSegmentIndex === 0}
                 title={text.previousSentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipBack size={19} />
               </button>
@@ -1115,7 +1080,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={replaySegment}
                 title={text.replaySentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all cursor-pointer active:scale-95"
               >
                 <RotateCcw size={19} />
               </button>
@@ -1133,7 +1098,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={() => setIsLooping((looping) => !looping)}
                 title={text.loopSentence}
-                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
                   isLooping
                     ? 'bg-rose-500/20 border border-rose-500/40 text-rose-500 shadow-md shadow-rose-500/10'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500'
@@ -1147,19 +1112,20 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 onClick={() => currentSegmentIndex < segments.length - 1 && setCurrentSegmentIndex((i) => i + 1)}
                 disabled={currentSegmentIndex === segments.length - 1}
                 title={text.nextSentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipForward size={19} />
               </button>
             </div>
 
-            {/* Desktop Auto-Next Switch (Visible only on sm screens and up) */}
+            {/* Auto-Next Switch: Unified, beautifully fitting on both mobile and desktop */}
             <button
               type="button"
               onClick={() => setAutoNext((v) => !v)}
               title={text.autoNext}
-              className="hidden sm:flex shrink-0 items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-500 transition-colors cursor-pointer select-none"
+              className="flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-500 transition-colors cursor-pointer select-none"
             >
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hidden xs:inline">{text.autoNext}:</span>
               <span
                 className={`flex h-4 w-7 sm:h-5 sm:w-8 items-center rounded-full p-0.5 transition-colors ${
                   autoNext
@@ -1173,7 +1139,6 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                   }`}
                 />
               </span>
-              <span className="hidden md:inline">{text.autoNext}</span>
             </button>
           </div>
 
@@ -1316,6 +1281,8 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 ? text.transcribing
                 : isRecording
                 ? text.listening
+                : (isNative || isMobile)
+                ? (locale === 'en' ? 'Tap mic to start speaking' : 'Chạm mic để bắt đầu nói')
                 : text.startRecording}
             </p>
           </div>
@@ -1328,7 +1295,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-rose-500 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-all cursor-pointer shadow-xs"
             >
               <RotateCcw size={14} />
-              <span>{text.listenNative}</span>
+              <span>{(isNative || isMobile) ? (locale === 'en' ? 'Listen native' : 'Nghe câu gốc') : text.listenNative}</span>
             </button>
 
             {userAudioUrl && (
@@ -1342,7 +1309,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 }`}
               >
                 {isUserAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
-                <span>{text.listenYourVoice}</span>
+                <span>{(isNative || isMobile) ? (locale === 'en' ? 'Your voice' : 'Nghe giọng bạn') : text.listenYourVoice}</span>
               </button>
             )}
           </div>
@@ -1444,36 +1411,38 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
             </div>
           </div>
 
-          {/* Ergonomic Shortcut Pill Hint (Desktop keyboard shortcuts, hidden on mobile) */}
-          <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            <span className="flex items-center gap-1 font-medium">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
-                Space
-              </kbd>
-              <span>Bật/Tắt Mic</span>
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="flex items-center gap-1 font-medium">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
-                Tab
-              </kbd>
-              <span>Nghe mẫu</span>
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="flex items-center gap-1 font-medium">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
-                P
-              </kbd>
-              <span>Nghe giọng bạn</span>
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="flex items-center gap-1 font-medium">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
-                Enter
-              </kbd>
-              <span>Câu tiếp</span>
-            </span>
-          </div>
+          {/* Ergonomic Shortcut Pill Hint (Desktop keyboard shortcuts, hidden on mobile / native app) */}
+          {!isNative && !isMobile && (
+            <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
+                  Space
+                </kbd>
+                <span>Bật/Tắt Mic</span>
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
+                  Tab
+                </kbd>
+                <span>Nghe mẫu</span>
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
+                  P
+                </kbd>
+                <span>Nghe giọng bạn</span>
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
+                  Enter
+                </kbd>
+                <span>Câu tiếp</span>
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

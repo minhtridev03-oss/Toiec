@@ -24,11 +24,14 @@ import { praiseLearningBot } from '../lib/learningBot';
 import { useAuth } from '../contexts/AuthContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { writingLessonCache } from '../lib/lessonCache';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio } from '../lib/audioService';
 
 export default function WritingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isNative } = usePlatform();
   const textareaRef = useRef(null);
   const stepperRef = useRef(null);
 
@@ -139,14 +142,10 @@ export default function WritingDetail() {
     return { words, chars };
   }, [userTranslation]);
 
-  // Pronounce English suggested translation using Web Speech API
+  // Pronounce English suggested translation using Shared Audio Service
   const handleSpeakEnglish = (text) => {
-    if (!('speechSynthesis' in window) || !text) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
+    if (!text) return;
+    playWordAudio(text, 'en');
   };
 
   // Copy text to clipboard
@@ -353,8 +352,13 @@ export default function WritingDetail() {
     <div className="flex-1 flex flex-col h-full bg-transparent text-slate-800 dark:text-slate-100 overflow-y-auto min-h-screen">
       
       {/* ================= 1. FLOATING STUDIO IMMERSIVE TOPBAR DOCK ================= */}
-      <div className="sticky top-0 z-30 w-full px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-2 transition-all">
-        <header className="max-w-7xl mx-auto rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/45 dark:bg-slate-900/45 border border-white/60 dark:border-white/10 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.08),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.15)] px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all">
+      <div 
+        className="sticky top-0 z-30 w-full px-3 sm:px-6 lg:px-8 pb-2 transition-all backdrop-blur-xl bg-white/75 dark:bg-slate-900/80 border-b border-white/50 dark:border-white/10 shadow-xs"
+        style={{
+          paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+        }}
+      >
+        <header className="max-w-7xl mx-auto rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/50 dark:bg-slate-900/50 border border-white/60 dark:border-white/10 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.08),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] dark:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5),_inset_0_1px_2px_rgba(255,255,255,0.15)] px-3 sm:px-5 py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 transition-all">
           
           {/* Left: Back button & Lesson Title */}
           <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto min-w-0">

@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { lookupDictionaryWord } from '../lib/gemini';
+import { playWordAudio } from '../lib/audioService';
 import { supabase } from '../lib/supabaseClient';
 
 const TRENDING_TOEIC_WORDS = [
@@ -181,17 +182,8 @@ export default function GlobalDictionary({ showTrigger = true }) {
   };
 
   const playAudio = (text, lang) => {
-    if (!('speechSynthesis' in window)) return;
-    try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
-    } catch {}
+    if (!text) return;
+    playWordAudio(text, lang || 'en');
   };
 
   useEffect(() => {

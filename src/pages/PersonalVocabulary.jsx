@@ -17,6 +17,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { playWordAudio } from '../lib/audioService';
 
 const PAGE_SIZE = 50;
 
@@ -272,11 +273,8 @@ export default function PersonalVocabulary() {
 
   const playAudio = (e, wordText) => {
     e.stopPropagation();
-    if (!('speechSynthesis' in window) || !wordText) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(wordText);
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
+    if (!wordText) return;
+    playWordAudio(wordText, 'en');
   };
 
   return (

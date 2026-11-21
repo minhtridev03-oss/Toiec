@@ -1,16 +1,13 @@
 import { Volume2, X } from 'lucide-react';
 import TFlatMeaning from './TFlatMeaning';
+import { playWordAudio } from '../../lib/audioService';
 
 export default function WordDetailModal({ word, onClose }) {
   if (!word) return null;
 
   const speakWord = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(word.word);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
-    }
+    if (!word.word) return;
+    playWordAudio(word.word, 'en');
   };
 
   return (

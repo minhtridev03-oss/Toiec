@@ -74,8 +74,8 @@ const requestSchema = z.object({
 const getTaskPolicy = (task?: AiTask) => task ? TASK_POLICIES[task] : LEGACY_TASK_POLICY
 
 const getGeminiModels = () => {
-  const primary = Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash'
-  const fallbacks = (Deno.env.get('GEMINI_FALLBACK_MODELS') || 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.1-flash-lite')
+  const primary = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash-lite'
+  const fallbacks = (Deno.env.get('GEMINI_FALLBACK_MODELS') || 'gemini-3.1-flash-lite,gemini-flash-lite-latest')
     .split(',')
     .map((model) => model.trim())
     .filter(Boolean)

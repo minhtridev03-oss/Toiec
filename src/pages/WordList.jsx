@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import WordDetailModal from '../components/vocab/WordDetailModal';
+import { playWordAudio as playSharedAudio } from '../lib/audioService';
 
 // Custom hook for debounce
 function useDebounce(value, delay) {
@@ -186,11 +187,8 @@ export default function WordList() {
   const progressPercent = subCatTotalWords > 0 ? Math.round((totalLearned / subCatTotalWords) * 100) : 0;
 
   const playWordAudio = (wordText) => {
-    if (!('speechSynthesis' in window) || !wordText) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(wordText);
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
+    if (!wordText) return;
+    playSharedAudio(wordText, 'en');
   };
 
   const toggleLearned = async (e, vocabId, currentStatus) => {

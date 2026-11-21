@@ -31,6 +31,8 @@ import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useLocale } from '../contexts/LocaleContext';
 import { supabase } from '../lib/supabaseClient';
 import LessonMediaPlayer from './LessonMediaPlayer';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio } from '../lib/audioService';
 
 const QUALITY_LABELS = {
   default: 'Auto',
@@ -220,24 +222,11 @@ const playSuccessChime = () => {
 };
 
 /**
- * Web Speech API: Phát âm sạch từ vựng
+ * Phát âm sạch từ vựng using Shared Audio Service (Google Translate TTS + fallback)
  */
 const speakWord = (wordText) => {
-  if (typeof window === 'undefined' || !window.speechSynthesis || !wordText) return;
-  try {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-    window.speechSynthesis.cancel();
-    const clean = wordText.replace(/[^a-zA-Z0-9']/g, '').trim();
-    if (!clean) return;
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  } catch {
-    // Speech synthesis fallback
-  }
+  if (!wordText) return;
+  playWordAudio(wordText, 'en');
 };
 
 // Memoized sidebar item: only re-renders when its own active/completed state changes
@@ -315,6 +304,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
   const { user } = useAuth();
   const { locale } = useLocale();
   const navigate = useNavigate();
+  const { isNative, isMobile } = usePlatform();
   const text = COPY[locale] || COPY.vi;
 
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
@@ -1006,14 +996,14 @@ export default function VideoDictationPlayer({ videoData, segments }) {
     <div 
       className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:overflow-hidden p-3 sm:p-5 lg:p-6 gap-5 lg:gap-6 max-w-[1700px] mx-auto pb-24 lg:pb-6 relative"
       style={{
-        paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
         paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
       }}
     >
       {/* LEFT COLUMN: CINEMA VIDEO & DICTATION CONSOLE */}
       <section className="flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar">
         {/* 1. TOPBAR DOCK */}
-        <header className="relative z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/70 dark:bg-slate-900/80 border border-white/50 dark:border-white/10 shadow-lg shadow-black/5">
           <Link
             to="/dictation"
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 hover:bg-white/40 dark:hover:bg-slate-800/40 transition-all cursor-pointer"
@@ -1128,47 +1118,22 @@ export default function VideoDictationPlayer({ videoData, segments }) {
         </div>
 
         {/* 3. ERGONOMIC STUDIO MEDIA DOCK */}
-        <div className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-3">
-          {/* Upper Row: Responsive 2-tier on mobile (< sm), 1-tier on desktop (>= sm) */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-            {/* Mobile Top Bar: Time Display on Left & Auto-Next Toggle on Right */}
-            <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
-              <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
-                {currentTimeDisplay} / {durationDisplay}
-              </div>
-
-              {/* Mobile Auto-Next Switch (Paired with time on mobile to never clip) */}
-              <button
-                type="button"
-                onClick={() => setAutoNext((value) => !value)}
-                title={text.autoNext}
-                className="flex sm:hidden items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none"
-              >
-                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Tự chuyển câu:</span>
-                <span
-                  className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${
-                    autoNext
-                      ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-sm shadow-indigo-500/30'
-                      : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
-                >
-                  <span
-                    className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                      autoNext ? 'translate-x-3' : 'translate-x-0'
-                    }`}
-                  />
-                </span>
-              </button>
+        <div className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-3 overflow-hidden">
+          {/* Upper Row: Flex wrap so time, transport and toggle never clip */}
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-2.5 w-full">
+            {/* Time Display */}
+            <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
+              {currentTimeDisplay} / {durationDisplay}
             </div>
 
-            {/* Center Playback Controls (Full width centered on mobile with comfortable thumb spacing) */}
-            <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full sm:w-auto py-0.5">
+            {/* Center Playback Controls */}
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-0.5">
               <button
                 type="button"
                 onClick={() => changeSegment(currentSegmentIndex - 1)}
                 disabled={currentSegmentIndex === 0}
                 title={text.previousSentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipBack size={19} />
               </button>
@@ -1177,7 +1142,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 type="button"
                 onClick={handleReplaySegment}
                 title={text.replaySentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer active:scale-95"
               >
                 <RotateCcw size={19} />
               </button>
@@ -1196,7 +1161,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 type="button"
                 onClick={() => setIsLooping((looping) => !looping)}
                 title={text.loopSentence}
-                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
                   isLooping
                     ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-600 dark:text-cyan-300 shadow-md shadow-cyan-500/10'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400'
@@ -1210,19 +1175,20 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 onClick={() => changeSegment(currentSegmentIndex + 1)}
                 disabled={currentSegmentIndex === segments.length - 1}
                 title={text.nextSentence}
-                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
                 <SkipForward size={19} />
               </button>
             </div>
 
-            {/* Desktop Auto-Next Toggle (Visible only on sm screens and up) */}
+            {/* Auto-Next Switch: Unified, beautifully fitting on both mobile and desktop */}
             <button
               type="button"
               onClick={() => setAutoNext((value) => !value)}
               title={text.autoNext}
-              className="hidden sm:flex shrink-0 items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
+              className="flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
             >
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hidden xs:inline">{text.autoNext}:</span>
               <span
                 className={`flex h-4 w-7 sm:h-5 sm:w-8 items-center rounded-full p-0.5 transition-colors ${
                   autoNext
@@ -1236,7 +1202,6 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                   }`}
                 />
               </span>
-              <span className="hidden md:inline">{text.autoNext}</span>
             </button>
           </div>
 
