@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import {
   AlertCircle,
-  BookOpen,
   X,
   Sparkles,
   Check,
   ArrowRight,
   Search,
-  Layers,
   FolderOpen,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -449,21 +447,21 @@ export default function Categories() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto space-y-8 select-none transition-colors">
+    <div className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 max-w-7xl w-full mx-auto space-y-5 sm:space-y-8 select-none transition-colors">
       {/* ============================================================ */}
       {/* 1. HERO HEADER BANNER: High Contrast, Translucent Glass */}
       {/* ============================================================ */}
-      <section className="glass-panel rounded-[2.5rem] p-6 sm:p-8 border border-white/60 dark:border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-2xl space-y-6">
+      <section className="glass-panel rounded-[2rem] sm:rounded-[2.5rem] p-4.5 sm:p-8 border border-white/60 dark:border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-2xl space-y-5 sm:space-y-6">
         <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-fuchsia-500/10 dark:bg-purple-500/15 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-indigo-500/10 dark:bg-cyan-500/10 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
           <div className="space-y-2.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-indigo-500/15 text-indigo-700 dark:text-cyan-300 border border-indigo-500/25 dark:border-cyan-500/25 shadow-2xs">
               <Sparkles size={13} />
               <span>Kho Giáo Trình & Chủ Đề Bản Quyền</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-sm">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-sm">
               {text.title}
             </h1>
             <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-semibold max-w-2xl leading-relaxed">
@@ -472,39 +470,39 @@ export default function Categories() {
           </div>
 
           {/* Quick Mastery Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
-            <div className="p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 shrink-0">
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Chủ đề
               </span>
-              <p className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
+              <p className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white">
                 {categories.length}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Tổng từ
               </span>
-              <p className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-cyan-400">
+              <p className="text-lg sm:text-2xl font-black text-indigo-600 dark:text-cyan-400">
                 {overallTotal.toLocaleString('vi-VN')}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Đã thuộc
               </span>
-              <p className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
+              <p className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
                 {overallLearned.toLocaleString('vi-VN')}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 text-center space-y-0.5">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Tiến độ
               </span>
-              <p className="text-xl sm:text-2xl font-black text-amber-500">
+              <p className="text-lg sm:text-2xl font-black text-amber-500">
                 {overallPercent}%
               </p>
             </div>
@@ -517,44 +515,44 @@ export default function Categories() {
       {/* ============================================================ */}
       <div
         onClick={() => navigate('/my-vocabulary')}
-        className="group relative flex flex-col sm:flex-row items-center justify-between gap-5 overflow-hidden rounded-[2.5rem] border border-white/60 dark:border-white/10 bg-white/40 dark:bg-white/5 p-6 sm:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/15 cursor-pointer backdrop-blur-xl"
+        className="group relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-5 overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] border border-white/60 dark:border-white/10 bg-white/40 dark:bg-white/5 p-4 sm:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/15 cursor-pointer backdrop-blur-xl"
       >
-        <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
-          <div className="h-16 w-16 sm:h-18 sm:w-18 shrink-0 rounded-2xl bg-gradient-to-tr from-fuchsia-500/20 to-indigo-500/20 border border-white/50 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
+        <div className="flex items-center gap-3.5 sm:gap-5 w-full sm:w-auto">
+          <div className="h-14 w-14 sm:h-18 sm:w-18 shrink-0 rounded-2xl bg-gradient-to-tr from-fuchsia-500/20 to-indigo-500/20 border border-white/50 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
             <img
               src={bookGif}
               alt=""
-              className="h-12 w-12 sm:h-14 sm:w-14 object-contain pointer-events-none select-none drop-shadow-md"
+              className="h-10 w-10 sm:h-14 sm:w-14 object-contain pointer-events-none select-none drop-shadow-md"
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white tracking-tight">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white tracking-tight">
                 Sổ tay từ vựng của tôi
               </h2>
-              <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-500/30">
+              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-full bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-500/30">
                 Cá nhân
               </span>
             </div>
-            <p className="mt-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium max-w-xl">
+            <p className="mt-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium max-w-xl line-clamp-2">
               Danh sách các từ vựng cá nhân bạn đã lưu từ từ điển TFlat, bài tập và kho bài đọc.
             </p>
           </div>
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-white/40 dark:border-white/10">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/60 dark:bg-black/25 border border-white/50 dark:border-white/10">
-            <span className="text-2xl font-black text-indigo-600 dark:text-cyan-400">
+          <div className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-white/60 dark:bg-black/25 border border-white/50 dark:border-white/10">
+            <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-cyan-400">
               {personalVocabCount}
             </span>
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-tight text-left">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-tight text-left">
               từ<br />đã lưu
             </span>
           </div>
 
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-xs shadow-md shadow-indigo-500/25 group-hover:from-violet-500 group-hover:to-indigo-500 group-hover:shadow-indigo-500/40 transition-all cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-xs shadow-md shadow-indigo-500/25 group-hover:from-violet-500 group-hover:to-indigo-500 group-hover:shadow-indigo-500/40 transition-all cursor-pointer whitespace-nowrap"
           >
             <span>Mở sổ từ & Ôn tập</span>
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -567,7 +565,7 @@ export default function Categories() {
       {/* ============================================================ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto p-1.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth p-1.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 backdrop-blur-md">
           {FILTER_TABS.map((tab) => {
             const isActive = selectedTab === tab.id;
             return (
@@ -575,7 +573,7 @@ export default function Categories() {
                 key={tab.id}
                 type="button"
                 onClick={() => setSelectedTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-102 ring-1 ring-white/30'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10'
@@ -588,7 +586,7 @@ export default function Categories() {
         </div>
 
         {/* Quick Search Input */}
-        <div className="relative min-w-[240px] sm:w-72">
+        <div className="relative min-w-[200px] sm:w-72">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -757,11 +755,11 @@ export default function Categories() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="sub-category-dialog-title"
-            className="relative max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-white/80 dark:border-white/15 bg-white/90 dark:bg-[#070d19]/80 shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1px_2px_rgba(255,255,255,0.9),_inset_0_-1px_1px_rgba(0,0,0,0.04)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.4),_inset_0_-1px_1px_rgba(255,255,255,0.08)] backdrop-blur-3xl flex flex-col animate-in zoom-in-95 duration-200"
+            className="relative max-h-[92vh] sm:max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/80 dark:border-white/15 bg-white/90 dark:bg-[#070d19]/80 shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1px_2px_rgba(255,255,255,0.9),_inset_0_-1px_1px_rgba(0,0,0,0.04)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.4),_inset_0_-1px_1px_rgba(255,255,255,0.08)] backdrop-blur-3xl flex flex-col animate-in zoom-in-95 duration-200"
             onMouseDown={(event) => event.stopPropagation()}
           >
             {/* Fluid Caustics Background Elements */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.5rem] -z-0">
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] -z-0">
               {/* Top-left Indigo/Cyan Liquid Blob */}
               <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-gradient-to-br from-indigo-500/15 dark:from-indigo-500/25 via-cyan-400/10 dark:via-cyan-400/20 to-transparent blur-3xl animate-liquid-blob" />
               {/* Bottom-right Violet/Pink Liquid Blob */}
@@ -774,8 +772,8 @@ export default function Categories() {
             </div>
 
             {/* Modal Header: Liquid Capsule Header */}
-            <div className="relative z-10 flex items-start justify-between border-b border-slate-200/70 dark:border-white/10 p-5 sm:p-7 gap-4 bg-gradient-to-b from-white/70 via-white/50 to-transparent dark:from-white/10 dark:via-white/[0.03] dark:to-transparent backdrop-blur-md">
-              <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+            <div className="relative z-10 flex items-start justify-between border-b border-slate-200/70 dark:border-white/10 p-4 sm:p-7 gap-3 sm:gap-4 bg-gradient-to-b from-white/70 via-white/50 to-transparent dark:from-white/10 dark:via-white/[0.03] dark:to-transparent backdrop-blur-md">
+              <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                 {modalData.imageSrc && (
                   <div className="relative group/thumb shrink-0">
                     <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 opacity-30 dark:opacity-40 blur-md group-hover/thumb:opacity-60 dark:group-hover/thumb:opacity-70 transition-opacity" />
@@ -786,28 +784,28 @@ export default function Categories() {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = modalData.fallbackSrc;
                       }}
-                      className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-xl border border-white/80 dark:border-white/20 select-none pointer-events-none"
+                      className="relative h-13 w-13 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-xl border border-white/80 dark:border-white/20 select-none pointer-events-none"
                     />
                   </div>
                 )}
-                <div className="min-w-0 space-y-1.5">
+                <div className="min-w-0 space-y-1 sm:space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full bg-indigo-500/10 dark:bg-cyan-400/10 text-indigo-700 dark:text-cyan-300 border border-indigo-500/20 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 dark:bg-cyan-400/10 text-indigo-700 dark:text-cyan-300 border border-indigo-500/20 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]">
                       {selectedGroup.subCategories.length} bài học
                     </span>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
                       • {modalData.groupStats.total} {text.words}
                     </span>
                   </div>
                   <h2
                     id="sub-category-dialog-title"
-                    className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-xs truncate"
+                    className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-xs truncate"
                   >
                     {selectedGroup.name}
                   </h2>
-                  <div className="flex items-center gap-3 pt-0.5">
+                  <div className="flex items-center gap-2 sm:gap-3 pt-0.5">
                     {/* Liquid Plasma Stream */}
-                    <div className="relative w-36 sm:w-56 h-2.5 rounded-full overflow-hidden bg-slate-200/80 dark:bg-slate-950/80 p-[1.5px] border border-slate-300/60 dark:border-white/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)]">
+                    <div className="relative w-28 sm:w-56 h-2 sm:h-2.5 rounded-full overflow-hidden bg-slate-200/80 dark:bg-slate-950/80 p-[1.5px] border border-slate-300/60 dark:border-white/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)]">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 transition-all duration-700 relative overflow-hidden shadow-[0_0_12px_rgba(99,102,241,0.3)] dark:shadow-[0_0_12px_rgba(34,211,238,0.5)]"
                         style={{ width: `${modalData.progressPercent}%` }}
@@ -816,7 +814,7 @@ export default function Categories() {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-liquid-shimmer pointer-events-none" />
                       </div>
                     </div>
-                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">
+                    <span className="text-[11px] sm:text-xs font-black text-slate-700 dark:text-slate-200">
                       {modalData.progressPercent}% ({modalData.groupStats.learned}/{modalData.groupStats.total} {text.words})
                     </span>
                   </div>
@@ -833,16 +831,16 @@ export default function Categories() {
                 }}
                 title={text.close}
                 aria-label={text.closeDialog}
-                className="h-10 w-10 rounded-full bg-slate-100/90 dark:bg-white/10 hover:bg-slate-200/90 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all duration-200 cursor-pointer border border-slate-200/80 dark:border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),_0_4px_12px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),_0_4px_12px_rgba(0,0,0,0.15)] active:scale-95 shrink-0"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100/90 dark:bg-white/10 hover:bg-slate-200/90 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all duration-200 cursor-pointer border border-slate-200/80 dark:border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),_0_4px_12px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),_0_4px_12px_rgba(0,0,0,0.15)] active:scale-95 shrink-0"
               >
-                <X size={18} />
+                <X size={17} />
               </button>
             </div>
 
             {/* Filter Pills & Refractive Search Capsule */}
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-7 py-3 border-b border-slate-200/70 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02] backdrop-blur-md">
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 px-4 sm:px-7 py-2.5 sm:py-3 border-b border-slate-200/70 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02] backdrop-blur-md">
               {/* Status Pills in Liquid Tray */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 p-1 rounded-2xl bg-slate-200/60 dark:bg-black/30 border border-slate-200/80 dark:border-white/10">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth pb-0.5 sm:pb-0 p-1 rounded-2xl bg-slate-200/60 dark:bg-black/30 border border-slate-200/80 dark:border-white/10">
                 {[
                   { id: 'all', label: `Tất cả (${selectedGroup.subCategories.length})` },
                   { id: 'learning', label: `Đang học (${modalData.learningCount})` },
@@ -855,7 +853,7 @@ export default function Categories() {
                       key={tab.id}
                       type="button"
                       onClick={() => setModalFilter(tab.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                      className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                         isActive
                           ? 'bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white shadow-[0_4px_15px_-2px_rgba(99,102,241,0.4),_inset_0_1px_1px_rgba(255,255,255,0.4)] scale-[1.02] border border-white/30'
                           : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 border border-transparent'

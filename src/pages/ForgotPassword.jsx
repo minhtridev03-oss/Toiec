@@ -12,6 +12,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { requestPasswordReset } from '../lib/authApi';
+import { parseAuthError } from '../lib/security';
 import { useLocale } from '../contexts/LocaleContext';
 import appLogo from '../assets/log.jpg';
 import TransparentImage from '../components/TransparentImage';
@@ -73,11 +74,7 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const getLocalizedError = (error) => {
-    const message = String(error?.message || '').toLowerCase();
-    const status = error?.status || error?.context?.status;
-    if (status === 429 || message.includes('rate') || message.includes('too many') || message.includes('quá nhanh')) return text.rateLimited;
-    if (message.includes('email')) return text.invalidEmail;
-    return text.requestFailed;
+    return parseAuthError(error, locale).message;
   };
   const handleSubmit = async (event) => {
     event.preventDefault();

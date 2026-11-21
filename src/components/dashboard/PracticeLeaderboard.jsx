@@ -129,22 +129,22 @@ export default function PracticeLeaderboard() {
   const currentUserName = user?.user_metadata?.custom_full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || text.you;
 
   return (
-    <section className="rounded-[2.5rem] glass-panel p-6 sm:p-7 shadow-xl border border-white/60 dark:border-white/10 transition-all select-none">
+    <section className="rounded-[1.75rem] sm:rounded-[2.5rem] glass-panel p-4 sm:p-7 shadow-xl border border-white/60 dark:border-white/10 transition-all select-none">
       {/* Header Bar */}
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center">
           <h2 className="sr-only">{text.title}</h2>
           <img
             src={rankGif}
             alt={text.title}
             title={text.title}
-            className="h-14 w-14 sm:h-16 sm:w-16 object-contain pointer-events-none select-none drop-shadow-md"
+            className="h-11 w-11 sm:h-16 sm:w-16 object-contain pointer-events-none select-none drop-shadow-md"
             loading="eager"
           />
         </div>
 
         {/* Time Period Filter Pills */}
-        <div className="inline-flex w-fit items-center rounded-2xl p-1.5 bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-xs gap-1" role="group" aria-label={text.title}>
+        <div className="inline-flex w-fit items-center rounded-2xl p-1 sm:p-1.5 bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-xs gap-1" role="group" aria-label={text.title}>
           {[
             { id: 'week', label: text.week },
             { id: 'month', label: text.month },
@@ -155,7 +155,7 @@ export default function PracticeLeaderboard() {
                 key={option.id}
                 type="button"
                 onClick={() => setPeriod(option.id)}
-                className={`rounded-xl px-4 py-2 text-xs font-black transition-all cursor-pointer ${
+                className={`rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-102 ring-1 ring-white/30'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10'
@@ -170,7 +170,7 @@ export default function PracticeLeaderboard() {
       </div>
 
       {/* Your Rank Showcase Card */}
-      <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 dark:border-cyan-500/20 backdrop-blur-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+      <div className="mb-4 sm:mb-6 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 dark:border-cyan-500/20 backdrop-blur-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
             {currentUserAvatar ? (

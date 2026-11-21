@@ -73,7 +73,7 @@ export default function WritingDetail() {
           .single(),
         supabase
           .from('writing_sentences')
-          .select('id, lesson_id, text_to_translate, suggested_translation, context_before, context_after, order_num')
+          .select('id, lesson_id, text_to_translate, suggested_translation, order_num')
           .eq('lesson_id', id)
           .order('order_num', { ascending: true }),
       ]);
@@ -256,7 +256,7 @@ export default function WritingDetail() {
       } else {
         navigate('/writing');
       }
-    } catch (err) {
+    } catch {
       navigate('/writing');
     }
   };

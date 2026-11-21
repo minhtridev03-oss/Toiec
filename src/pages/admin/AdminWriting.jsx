@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { 
-  Plus, Pencil, Trash2, Save, X, ChevronDown, ChevronUp,
-  PenTool, GripVertical, AlertCircle, CheckCircle2
+  Plus, Pencil, Trash2, Save, ChevronDown, ChevronUp,
+  PenTool, AlertCircle, CheckCircle2
 } from 'lucide-react';
 
 export default function AdminWriting() {
@@ -22,8 +22,6 @@ export default function AdminWriting() {
   const [sentenceForm, setSentenceForm] = useState({
     text_to_translate: '',
     suggested_translation: '',
-    context_before: '',
-    context_after: '',
     order_num: 1,
   });
 
@@ -142,8 +140,6 @@ export default function AdminWriting() {
         lesson_id: expandedLessonId,
         text_to_translate: sentenceForm.text_to_translate,
         suggested_translation: sentenceForm.suggested_translation,
-        context_before: sentenceForm.context_before || null,
-        context_after: sentenceForm.context_after || null,
         order_num: sentenceForm.order_num,
       };
 
@@ -163,7 +159,7 @@ export default function AdminWriting() {
       }
       setShowSentenceForm(false);
       setEditingSentence(null);
-      setSentenceForm({ text_to_translate: '', suggested_translation: '', context_before: '', context_after: '', order_num: sentences.length + 1 });
+      setSentenceForm({ text_to_translate: '', suggested_translation: '', order_num: sentences.length + 1 });
       fetchSentences(expandedLessonId);
     } catch (err) {
       showToast('Lỗi: ' + err.message, 'error');
@@ -289,26 +285,6 @@ export default function AdminWriting() {
                     placeholder="Hôm nay thời tiết rất đẹp."
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Ngữ cảnh trước</label>
-                    <input
-                      type="text"
-                      value={sentenceForm.context_before}
-                      onChange={(e) => setSentenceForm(f => ({ ...f, context_before: e.target.value }))}
-                      className="w-full bg-slate-50 dark:bg-[#0F1117] border border-slate-200 dark:border-[#3A2F43] rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Ngữ cảnh sau</label>
-                    <input
-                      type="text"
-                      value={sentenceForm.context_after}
-                      onChange={(e) => setSentenceForm(f => ({ ...f, context_after: e.target.value }))}
-                      className="w-full bg-slate-50 dark:bg-[#0F1117] border border-slate-200 dark:border-[#3A2F43] rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
-                    />
-                  </div>
-                </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Thứ tự</label>
                   <input
@@ -402,8 +378,6 @@ export default function AdminWriting() {
                         setSentenceForm({
                           text_to_translate: '',
                           suggested_translation: '',
-                          context_before: '',
-                          context_after: '',
                           order_num: sentences.length + 1,
                         });
                         setShowSentenceForm(true);
@@ -441,8 +415,6 @@ export default function AdminWriting() {
                                 setSentenceForm({
                                   text_to_translate: s.text_to_translate,
                                   suggested_translation: s.suggested_translation,
-                                  context_before: s.context_before || '',
-                                  context_after: s.context_after || '',
                                   order_num: s.order_num || idx + 1,
                                 });
                                 setShowSentenceForm(true);

@@ -22,6 +22,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { signInWithEmail, signUpWithEmail, requestPasswordReset } from '../../lib/authApi';
+import { parseAuthError } from '../../lib/security';
 
 const COPY = {
   vi: {
@@ -159,16 +160,20 @@ export default function AuthModal() {
   const [loading, setLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorState, setErrorState] = useState({ message: '', code: '' });
   const [notice, setNotice] = useState('');
 
   const modalRef = useRef(null);
+
+  const clearError = useCallback(() => {
+    setErrorState((prev) => (prev.message ? { message: '', code: '' } : prev));
+  }, []);
 
   // Sync mode whenever parent triggers opening with a specific mode
   useEffect(() => {
     if (authModalMode) {
       setMode(authModalMode);
-      setErrorMsg('');
+      setErrorState({ message: '', code: '' });
       setNotice('');
     }
   }, [authModalMode, authModalOpen]);
@@ -190,22 +195,6 @@ export default function AuthModal() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [authModalOpen, loading, handleClose]);
-
-  const getLocalizedError = (error) => {
-    const message = String(error?.message || '').toLowerCase();
-    const status = error?.status || error?.context?.status;
-    if (message.includes('invalid login credentials')) return text.invalidCredentials;
-    if (message.includes('already registered')) return text.alreadyRegistered;
-    if (
-      status === 429 ||
-      message.includes('rate') ||
-      message.includes('too many') ||
-      message.includes('quá nhanh')
-    ) {
-      return text.rateLimited;
-    }
-    return text.authFailed;
-  };
 
   // Password strength calculation
   const passwordStrength = useMemo(() => {
@@ -245,7 +234,7 @@ export default function AuthModal() {
 
   const switchMode = (targetMode) => {
     setMode(targetMode);
-    setErrorMsg('');
+    setErrorState({ message: '', code: '' });
     setNotice('');
     setPassword('');
     setConfirmPassword('');
@@ -260,18 +249,26 @@ export default function AuthModal() {
 
   const handleEmailAuth = async (event) => {
     event.preventDefault();
-    setErrorMsg('');
+    setErrorState({ message: '', code: '' });
     setNotice('');
 
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setErrorState({
+        message: locale === 'vi' ? 'Vui lòng nhập địa chỉ email.' : 'Please enter your email address.',
+        code: 'INVALID_EMAIL',
+      });
+      return;
+    }
+
     if (mode === 'forgot') {
-      if (!email.trim()) return;
       setLoading(true);
       try {
-        await requestPasswordReset(email.trim());
+        await requestPasswordReset(cleanEmail);
         setNotice(text.resetLinkSent);
       } catch (error) {
         console.error('Password reset failed:', error);
-        setErrorMsg(getLocalizedError(error));
+        setErrorState(parseAuthError(error, locale));
       } finally {
         setLoading(false);
       }
@@ -280,11 +277,11 @@ export default function AuthModal() {
 
     if (mode === 'signup') {
       if (password !== confirmPassword) {
-        setErrorMsg(text.passwordMismatch);
+        setErrorState({ message: text.passwordMismatch, code: 'PASSWORD_MISMATCH' });
         return;
       }
       if (password.length < 6) {
-        setErrorMsg(text.passwordShort);
+        setErrorState({ message: text.passwordShort, code: 'PASSWORD_TOO_SHORT' });
         return;
       }
     }
@@ -292,7 +289,7 @@ export default function AuthModal() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        await signInWithEmail({ email, password });
+        await signInWithEmail({ email: cleanEmail, password });
         setIsSuccess(true);
         try {
           confetti({
@@ -307,28 +304,46 @@ export default function AuthModal() {
           handleClose();
         }, 950);
       } else {
-        await signUpWithEmail({ email, password });
-        setNotice(text.signUpSuccess);
+        const result = await signUpWithEmail({ email: cleanEmail, password });
+        if (result?.session) {
+          setIsSuccess(true);
+          try {
+            confetti({
+              particleCount: 50,
+              spread: 55,
+              origin: { y: 0.6 },
+              colors: ['#818cf8', '#c084fc', '#f472b6', '#38bdf8'],
+            });
+          } catch {}
+          setTimeout(() => {
+            setIsSuccess(false);
+            handleClose();
+          }, 950);
+        } else {
+          setNotice(text.signUpSuccess);
+        }
       }
     } catch (error) {
       console.error('Authentication failed:', error);
-      setErrorMsg(getLocalizedError(error));
+      setErrorState(parseAuthError(error, locale));
     } finally {
       if (!isSuccess) setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setErrorMsg('');
+    setErrorState({ message: '', code: '' });
     setNotice('');
     setIsGoogleLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+    } catch (error) {
       console.error('Google sign-in failed:', error);
-      setErrorMsg(getLocalizedError(error));
+      setErrorState(parseAuthError(error, locale));
       setIsGoogleLoading(false);
     }
   };
@@ -423,16 +438,44 @@ export default function AuthModal() {
 
           {/* Alerts: Error & Notice */}
           <AnimatePresence mode="wait">
-            {errorMsg && (
+            {errorState.message && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 role="alert"
-                className="mb-4 flex items-start gap-2 rounded-xl border border-rose-300/60 bg-rose-50/80 p-3 text-xs font-bold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 backdrop-blur-md"
+                className="mb-4 flex flex-col gap-1.5 rounded-xl border border-rose-300/60 bg-rose-50/80 p-3 text-xs font-bold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 backdrop-blur-md"
               >
-                <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-500" />
-                <span className="leading-tight">{errorMsg}</span>
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-500" />
+                  <span className="leading-tight flex-1">{errorState.message}</span>
+                </div>
+
+                {/* Quick 1-click action: if email already registered during signup, switch directly to login */}
+                {mode === 'signup' && errorState.code === 'EMAIL_ALREADY_REGISTERED' && (
+                  <div className="ml-5 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('login')}
+                      className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-600 underline hover:text-indigo-700 dark:text-cyan-400 dark:hover:text-cyan-300 cursor-pointer"
+                    >
+                      <span>{locale === 'vi' ? '👉 Đăng nhập ngay với email này' : '👉 Sign in now with this email'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Quick 1-click action: if invalid credentials during login, offer password recovery */}
+                {mode === 'login' && errorState.code === 'INVALID_CREDENTIALS' && (
+                  <div className="ml-5 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-600 underline hover:text-indigo-700 dark:text-cyan-400 dark:hover:text-cyan-300 cursor-pointer"
+                    >
+                      <span>{locale === 'vi' ? '👉 Bạn quên mật khẩu? Bấm để lấy lại' : '👉 Forgot password? Reset here'}</span>
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -490,7 +533,11 @@ export default function AuthModal() {
                   id="modal-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearError();
+                    if (notice) setNotice('');
+                  }}
                   placeholder={text.emailPlaceholder}
                   autoComplete="email"
                   required
@@ -530,7 +577,10 @@ export default function AuthModal() {
                     id="modal-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      clearError();
+                    }}
                     placeholder={text.passwordPlaceholder}
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     required
@@ -583,7 +633,10 @@ export default function AuthModal() {
                     id="modal-confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      clearError();
+                    }}
                     placeholder={text.confirmPasswordPlaceholder}
                     autoComplete="new-password"
                     required

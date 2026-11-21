@@ -1,5 +1,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { useAuth } from './contexts/AuthContext';
 import { useLocale } from './contexts/LocaleContext';
 import { useTheme } from './contexts/ThemeContext';
@@ -92,8 +94,41 @@ const MainLayout = () => {
   const { isDarkMode } = useTheme();
   const videoRef = useRef(null);
   const location = useLocation();
-  const { user, openAuthModal } = useAuth();
+  const navigate = useNavigate();
+  const { user, openAuthModal, authModalOpen, closeAuthModal } = useAuth();
   const isStudioMode = /^\/(dictation|shadowing|speaking)\/[^/]+$/.test(location.pathname);
+
+  // Native Android Capacitor Lifecycle & Hardware Back Button Handling
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const backListenerPromise = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      } else if (authModalOpen) {
+        closeAuthModal?.();
+      } else if (canGoBack && location.pathname !== '/dashboard' && location.pathname !== '/') {
+        navigate(-1);
+      } else {
+        CapApp.exitApp();
+      }
+    });
+
+    const stateListenerPromise = CapApp.addListener('appStateChange', ({ isActive }) => {
+      const video = videoRef.current;
+      if (!video) return;
+      if (!isActive) {
+        video.pause();
+      } else if (videoEnabled && isVideoPlaying) {
+        video.play().catch(() => {});
+      }
+    });
+
+    return () => {
+      backListenerPromise.then((handle) => handle.remove()).catch(() => {});
+      stateListenerPromise.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, [isMobileMenuOpen, authModalOpen, closeAuthModal, location.pathname, navigate, videoEnabled, isVideoPlaying]);
 
   // Auto-open Auth modal when guest visits /login, /register, or /forgot-password
   useEffect(() => {
@@ -180,15 +215,6 @@ const MainLayout = () => {
         </div>
       )}
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-40 lg:hidden transition-opacity animate-in fade-in"
-          onClick={() => setIsMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-      
       <Sidebar 
         isCollapsed={isCollapsed} 
         setIsCollapsed={setIsCollapsed} 

@@ -207,16 +207,16 @@ export default function PracticeActivityChart({ userId }) {
   };
 
   return (
-    <section className="rounded-[2.5rem] glass-panel p-6 sm:p-7 shadow-xl border border-white/60 dark:border-white/10 transition-all select-none">
+    <section className="rounded-[1.75rem] sm:rounded-[2.5rem] glass-panel p-4 sm:p-7 shadow-xl border border-white/60 dark:border-white/10 transition-all select-none">
       {/* Header Bar */}
-      <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-2 sm:gap-2.5">
             <img
               src={bieuDoGif}
               alt=""
-              className="h-8 w-8 sm:h-9 sm:w-9 object-contain pointer-events-none select-none drop-shadow-xs"
+              className="h-7 w-7 sm:h-9 sm:w-9 object-contain pointer-events-none select-none drop-shadow-xs"
               loading="eager"
             />
             <span>{text.title}</span>
@@ -227,7 +227,7 @@ export default function PracticeActivityChart({ userId }) {
         </div>
 
         {/* Skill Filter Pills */}
-        <div className="flex min-w-0 flex-1 overflow-x-auto rounded-2xl p-1.5 bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-xs sm:flex-none gap-1">
+        <div className="flex min-w-0 w-full lg:w-auto overflow-x-auto no-scrollbar scroll-smooth rounded-2xl p-1 sm:p-1.5 bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-xs gap-1">
           {PRACTICE_SKILLS.map((skill) => {
             const isActive = activeSkill === skill.id;
             const theme = SKILL_THEMES[skill.id] || SKILL_THEMES.all;
@@ -237,7 +237,7 @@ export default function PracticeActivityChart({ userId }) {
                 key={skill.id}
                 type="button"
                 onClick={() => setActiveSkill(skill.id)}
-                className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-black transition-all cursor-pointer ${
+                className={`shrink-0 rounded-xl px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? `bg-gradient-to-r ${theme.gradient} text-white shadow-md scale-102 ring-1 ring-white/30`
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10'
@@ -251,30 +251,30 @@ export default function PracticeActivityChart({ userId }) {
       </div>
 
       {/* 3 Metric Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-5">
-        <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5 mb-4 sm:mb-5">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {text.totalWeek}
           </p>
-          <p className="text-lg font-black text-slate-950 dark:text-white mt-0.5">
+          <p className="text-base sm:text-lg font-black text-slate-950 dark:text-white mt-0.5">
             {loading ? '--' : formatPracticeDuration(chart.totalSeconds, locale)}
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {text.dailyAvg}
           </p>
-          <p className="text-lg font-black text-slate-950 dark:text-white mt-0.5">
+          <p className="text-base sm:text-lg font-black text-slate-950 dark:text-white mt-0.5">
             {loading ? '--' : `${chart.avgMinutes} ${text.perDay}`}
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 shadow-2xs">
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {text.bestDay}
           </p>
-          <p className="text-lg font-black text-slate-950 dark:text-white mt-0.5">
+          <p className="text-base sm:text-lg font-black text-slate-950 dark:text-white mt-0.5">
             {loading || !chart.bestDay
               ? '--'
               : `${chart.bestDay.label} (${chart.bestDay.minutes}m)`}
@@ -287,7 +287,7 @@ export default function PracticeActivityChart({ userId }) {
         ref={chartWrapRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative overflow-hidden rounded-2xl bg-white/30 dark:bg-black/20 p-4 border border-white/40 dark:border-white/5 backdrop-blur-xs cursor-crosshair"
+        className="relative overflow-hidden rounded-2xl bg-white/30 dark:bg-black/20 p-2 sm:p-4 border border-white/40 dark:border-white/5 backdrop-blur-xs cursor-crosshair"
       >
         <svg
           viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}

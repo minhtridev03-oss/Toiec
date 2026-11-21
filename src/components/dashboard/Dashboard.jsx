@@ -95,8 +95,9 @@ const COPY = {
     checkedInTodayMsg: 'Tuyệt vời! Bạn đã duy trì chuỗi lửa hôm nay 🔥',
     notCheckedInMsg: 'Nhấn trực tiếp vào số ngày hôm nay để điểm danh 🔥',
     toastCheckInSuccess: (s) => `Điểm danh thành công! Chuỗi học hiện tại: ${s} ngày 🔥`,
-    alreadyCheckedInDay: (num) => `Ngày ${num} đã được điểm danh rồi nhé! 🔥`,
-    futureDayHint: (num) => `Chưa tới ngày ${num}, hãy quay lại điểm danh vào ngày đó nhé! 😊`,
+    alreadyCheckedInDay: (num) => `Ngày ${num} đã được điểm danh rồi nhé!`,
+    futureDayHint: (num) => `Chưa tới ngày ${num}, hãy quay lại điểm danh vào ngày đó nhé!`,
+    pastDayCannotCheckIn: (num) => `Ngày ${num} đã qua rồi, không thể điểm danh bù.`,
     streakLabel: 'Chuỗi học hiện tại',
     days: 'ngày',
     learningLabel: 'Tiến độ học tập',
@@ -140,6 +141,7 @@ const COPY = {
     toastCheckInSuccess: (s) => `Checked in successfully! Current streak: ${s} days 🔥`,
     alreadyCheckedInDay: (num) => `Day ${num} is already checked in! 🔥`,
     futureDayHint: (num) => `Day ${num} has not arrived yet. Please come back then! 😊`,
+    pastDayCannotCheckIn: (num) => `Day ${num} has already passed and cannot be checked in retroactively. Remember to check in daily! ⏰`,
     streakLabel: 'Current streak',
     days: 'days',
     learningLabel: 'Learning progress',
@@ -185,7 +187,7 @@ function SkillCircularCard({ cfg, skillData, text, index = 0 }) {
   return (
     <Link
       to={cfg.path}
-      className="group relative w-full max-w-[270px] sm:max-w-[290px] aspect-square rounded-full glass-panel shadow-xl flex flex-col items-center justify-between p-6 sm:p-7 text-center select-none border border-white/60 dark:border-white/10 hover:scale-[1.04] active:scale-95 transition-all duration-300 cursor-pointer overflow-hidden mx-auto"
+      className="group relative w-full max-w-[260px] sm:max-w-[290px] aspect-square rounded-full glass-panel shadow-xl flex flex-col items-center justify-between p-5 sm:p-7 text-center select-none border border-white/60 dark:border-white/10 hover:scale-[1.04] active:scale-95 transition-all duration-300 cursor-pointer overflow-hidden mx-auto"
     >
       {/* Outer SVG Progress Ring wrapping the perimeter of the circle */}
       <svg
@@ -234,11 +236,10 @@ function SkillCircularCard({ cfg, skillData, text, index = 0 }) {
       {/* Top: Status Badge */}
       <div className="z-10 mt-3 sm:mt-4">
         <span
-          className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs ${
-            hasActive
-              ? cfg.badgeColor
-              : 'border-slate-300/60 dark:border-white/10 text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-white/5'
-          }`}
+          className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs ${hasActive
+            ? cfg.badgeColor
+            : 'border-slate-300/60 dark:border-white/10 text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-white/5'
+            }`}
         >
           {hasActive
             ? text.activeStatus(skillData.activeTopics, skillData.topicUnit || 'chủ đề')
@@ -309,10 +310,19 @@ export default function Dashboard() {
       return;
     }
 
+    if (day.isPast) {
+      setCheckInToast(text.pastDayCannotCheckIn(day.dayNum));
+      setTimeout(() => setCheckInToast(null), 3000);
+      return;
+    }
+
     const res = await checkIn(day.dateStr);
     if (res?.success) {
       setCheckInToast(text.toastCheckInSuccess(res.streak));
       setTimeout(() => setCheckInToast(null), 3500);
+    } else if (res?.message) {
+      setCheckInToast(res.message);
+      setTimeout(() => setCheckInToast(null), 3000);
     }
   };
 
@@ -355,59 +365,55 @@ export default function Dashboard() {
   }, [activeTab, user?.id]);
 
   return (
-    <main className="mx-auto min-w-0 w-[92%] max-w-[1450px] py-6 sm:w-[90%] sm:py-7">
+    <main className="mx-auto min-w-0 w-[95%] sm:w-[90%] max-w-[1450px] py-4 sm:py-7">
       {/* Top Tab Bar Navigation */}
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-4 select-none">
-        <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl glass-panel shadow-xs dark:bg-black/40 dark:border-white/10">
+      <div className="mb-5 sm:mb-6 w-full select-none overflow-x-auto no-scrollbar py-0.5">
+        <div className="inline-flex min-w-max items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-2xl glass-panel shadow-xs dark:bg-black/40 dark:border-white/10">
           <button
             type="button"
             onClick={() => setActiveTab('greeting')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'greeting'
-                ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
-                : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
-            }`}
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'greeting'
+              ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
+              : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
+              }`}
           >
-            <Sparkles size={16} />
+            <Sparkles size={15} />
             <span>{text.tabGreeting}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('progress')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'progress'
-                ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
-                : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
-            }`}
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'progress'
+              ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
+              : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
+              }`}
           >
-            <Compass size={16} />
+            <Compass size={15} />
             <span>{text.tabProgress}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('chart')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'chart'
-                ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
-                : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
-            }`}
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'chart'
+              ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
+              : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
+              }`}
           >
-            <BarChart3 size={16} />
+            <BarChart3 size={15} />
             <span>{text.tabChart}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('leaderboard')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'leaderboard'
-                ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
-                : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
-            }`}
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'leaderboard'
+              ? 'glass-pill-active text-indigo-900 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
+              : 'text-slate-900 hover:text-slate-950 hover:bg-white/60 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/5'
+              }`}
           >
-            <Trophy size={16} />
+            <Trophy size={15} />
             <span>{text.tabLeaderboard}</span>
           </button>
         </div>
@@ -416,95 +422,98 @@ export default function Dashboard() {
       {/* Tab 1: Lời chào Kính lỏng Lơ lửng & Đảo điều khiển Right Control Island */}
       {activeTab === 'greeting' && (
         <div className="animate-in fade-in duration-300">
-          <div className="flex flex-col lg:flex-row items-start justify-between gap-6 py-2">
+          <div className="flex flex-col lg:flex-row items-start justify-between gap-5 sm:gap-6 py-1 sm:py-2">
             {/* Cột trái: Lời chào & Khung Điểm danh Kính lỏng */}
             <div className="flex-1 flex flex-col justify-center min-w-0 w-full">
               {/* Eyebrow badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel mb-3 text-xs sm:text-sm font-black text-indigo-700 dark:text-cyan-300 shadow-xs border border-white/50 dark:border-white/10 w-fit">
-                <Sparkles size={15} />
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full glass-panel mb-2.5 sm:mb-3 text-xs sm:text-sm font-black text-indigo-700 dark:text-cyan-300 shadow-xs border border-white/50 dark:border-white/10 w-fit">
+                <Sparkles size={14} className="sm:w-[15px] sm:h-[15px]" />
                 <span>{text.eyebrow}</span>
               </div>
 
               {/* Tên người dùng & Chuỗi lửa nhỏ đẹp động sáng */}
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4">
-                <h1 className="app-display text-2xl sm:text-3xl xl:text-4xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] tracking-tight">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 mb-3.5 sm:mb-4">
+                <h1 className="app-display text-xl sm:text-3xl xl:text-4xl font-black text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] tracking-tight break-words">
                   {text.greeting(displayName)}
                 </h1>
 
                 {/* Chuỗi lửa nhỏ đẹp động sáng */}
                 <div
-                  className="streak-glow-pill inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-orange-400/60 transition-all duration-300 hover:scale-105 active:scale-95 select-none cursor-default"
+                  className="streak-glow-pill inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-orange-400/60 transition-all duration-300 hover:scale-105 active:scale-95 select-none cursor-default shrink-0"
                   title={text.streakTooltip(streak || 0)}
                 >
                   <span className="streak-fire-wrapper flex items-center justify-center shrink-0">
                     <img
                       src={fireGif}
                       alt="Streak Flame"
-                      className="streak-fire-gif h-6 w-6 sm:h-7 sm:w-7 object-contain pointer-events-none select-none"
+                      className="streak-fire-gif h-5 w-5 sm:h-7 sm:w-7 object-contain pointer-events-none select-none"
                       loading="eager"
                     />
                   </span>
-                  <span className="text-sm sm:text-base font-black text-white tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                  <span className="text-xs sm:text-base font-black text-white tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                     {streak || 0}
                   </span>
                 </div>
               </div>
 
               {/* Box ngày điểm danh kính lỏng siêu mỏng lơ lửng */}
-              <div className="glass-panel rounded-[2rem] p-5 sm:p-6 shadow-xl max-w-xl w-full transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl glass-panel text-indigo-700 dark:text-cyan-400 shadow-xs">
-                    <CalendarCheck2 size={20} />
+              <div className="glass-panel rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-6 shadow-xl max-w-xl w-full transition-all">
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-3.5 sm:mb-4">
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl glass-panel text-indigo-700 dark:text-cyan-400 shadow-xs">
+                    <CalendarCheck2 size={18} className="sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-950 dark:text-white tracking-wide">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base font-black text-slate-950 dark:text-white tracking-wide truncate">
                       {text.checkInTitle}
                     </h3>
-                    <p className="text-xs font-bold text-slate-900 dark:text-slate-300">
+                    <p className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-slate-300 line-clamp-1">
                       {isCheckedInToday ? text.checkedInTodayMsg : text.notCheckedInMsg}
                     </p>
                   </div>
                 </div>
 
-                {/* Dãy 7 ngày trong tuần - Bấm trực tiếp vào ngày để điểm danh */}
-                <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 pt-3 border-t border-slate-300/60 dark:border-white/10">
+                {/* Dãy 7 ngày trong tuần - Chỉ cho phép điểm danh ngày hôm nay */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2.5 pt-3 border-t border-slate-300/60 dark:border-white/10">
                   {weekDays.map((day) => {
-                    const isClickable = !day.isCheckedIn && !day.isFuture;
+                    const isClickable = day.isToday && !day.isCheckedIn;
                     return (
                       <button
                         key={day.dateStr}
                         type="button"
                         onClick={() => handleDayClick(day)}
                         disabled={isCheckingIn}
-                        className={`flex flex-col items-center gap-1.5 transition-all outline-hidden cursor-pointer`}
+                        className={`flex flex-col items-center gap-1 sm:gap-1.5 transition-all outline-hidden ${isClickable
+                          ? 'cursor-pointer hover:scale-105 active:scale-95'
+                          : day.isCheckedIn
+                            ? 'cursor-default'
+                            : 'cursor-not-allowed'
+                          }`}
                         title={
                           day.isCheckedIn
-                            ? `Ngày ${day.dayNum} - Đã điểm danh`
+                            ? `Ngày ${day.dayNum} - Đã điểm danh 🔥`
                             : day.isToday
                               ? `Ngày ${day.dayNum} (Hôm nay) - Nhấn để điểm danh!`
                               : day.isFuture
-                                ? `Ngày ${day.dayNum}`
-                                : `Ngày ${day.dayNum} - Nhấn để điểm danh bù`
+                                ? `Ngày ${day.dayNum} (Chưa tới)`
+                                : `Ngày ${day.dayNum} (Đã qua - Không thể điểm danh lại)`
                         }
                       >
-                        <span className={`text-[11px] font-black ${
-                          day.isToday ? 'text-indigo-900 dark:text-cyan-300' : 'text-slate-950 dark:text-slate-300'
-                        }`}>
+                        <span className={`text-[10px] sm:text-[11px] font-black ${day.isToday ? 'text-indigo-900 dark:text-cyan-300' : 'text-slate-950 dark:text-slate-300'
+                          }`}>
                           {day.label}
                         </span>
                         <div
-                          className={`flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl text-xs sm:text-sm font-black transition-all duration-200 ${
-                            day.isCheckedIn
-                              ? 'bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-md shadow-indigo-600/30 ring-1 ring-white/40 hover:scale-105 active:scale-95'
-                              : day.isToday
-                                ? 'border-2 border-dashed border-indigo-600 dark:border-cyan-400 bg-white/80 dark:bg-cyan-500/15 text-indigo-950 dark:text-cyan-200 shadow-xs animate-pulse hover:border-solid hover:bg-white hover:scale-110 active:scale-95'
-                                : isClickable
-                                  ? 'bg-white/70 dark:bg-white/10 text-slate-950 dark:text-slate-100 hover:text-indigo-700 dark:hover:text-cyan-400 hover:bg-white hover:scale-105 active:scale-95 shadow-xs border border-white/80 dark:border-white/10'
-                                  : 'bg-white/55 dark:bg-white/5 text-slate-950 dark:text-slate-300 shadow-xs border border-white/60 dark:border-white/5'
-                          }`}
+                          className={`flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl text-[11px] sm:text-sm font-black transition-all duration-200 ${day.isCheckedIn
+                            ? 'bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-md shadow-indigo-600/30 ring-1 ring-white/40 hover:scale-105 active:scale-95'
+                            : day.isToday
+                              ? 'border-2 border-dashed border-indigo-600 dark:border-cyan-400 bg-white/80 dark:bg-cyan-500/15 text-indigo-950 dark:text-cyan-200 shadow-xs animate-pulse hover:border-solid hover:bg-white hover:scale-110 active:scale-95 cursor-pointer'
+                              : day.isPast
+                                ? 'bg-slate-200/40 dark:bg-white/5 text-slate-400 dark:text-slate-600 shadow-2xs border border-dashed border-slate-300/40 dark:border-white/5 opacity-60'
+                                : 'bg-white/55 dark:bg-white/5 text-slate-600 dark:text-slate-400 shadow-xs border border-white/60 dark:border-white/5 opacity-80'
+                            }`}
                         >
                           {day.isCheckedIn ? (
-                            <Flame size={16} fill="currentColor" className="text-white drop-shadow" />
+                            <Flame size={14} className="sm:w-4 sm:h-4" fill="currentColor" />
                           ) : (
                             <span>{day.dayNum}</span>
                           )}
@@ -525,7 +534,7 @@ export default function Dashboard() {
             </div>
 
             {/* Cột phải: Khung điều khiển Video nền */}
-            <div className="w-full lg:w-[350px] xl:w-[380px] shrink-0 select-none">
+            <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 select-none">
               <AmbientVideoWidget />
             </div>
           </div>

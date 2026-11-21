@@ -73,6 +73,7 @@ export const getDaysOfCurrentWeek = (baseDate = new Date(), checkInDates = []) =
       dayNum: cur.getDate(),
       dateStr,
       isToday: dateStr === todayStr,
+      isPast: dateStr < todayStr,
       isFuture: dateStr > todayStr,
       isCheckedIn: checkSet.has(dateStr),
     });
@@ -89,7 +90,7 @@ export const getLocalCheckInDates = (userId) => {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
+  } catch {
     return [];
   }
 };
@@ -124,7 +125,7 @@ export const fetchPastActivityDates = async (userId) => {
     return Array.from(new Set(
       combined.map((item) => getLocalDateString(new Date(item.created_at)))
     )).filter(Boolean).sort();
-  } catch (e) {
+  } catch {
     return [];
   }
 };

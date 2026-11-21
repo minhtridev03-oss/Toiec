@@ -11,9 +11,16 @@
     "import:oxford5000:bg": "node scripts/run_oxford5000_background.js",
     "import:listening-audio": "node scripts/import_listening_audio.js",
     "align:listening-timestamps": "node scripts/align_listening_timestamps_local.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:build": "vite build --emptyOutDir false && cap sync",
+    "cap:open": "cap open android",
+    "apk:build": "vite build --emptyOutDir false && cap sync && cd android && gradlew assembleDebug && cd .. && powershell -Command Copy-Item android/app/build/outputs/apk/debug/app-debug.apk T-English.apk -Force"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "@google/generative-ai": "^0.24.1",
     "@iamtraction/google-translate": "^2.0.1",
     "@supabase/supabase-js": "^2.110.7",

@@ -86,7 +86,7 @@ export function StatsProvider({ children }) {
             await supabase.auth.updateUser({
               data: { check_in_dates: merged },
             });
-          } catch (e) {}
+          } catch {}
         }
       }
 
@@ -161,6 +161,16 @@ export function StatsProvider({ children }) {
     const today = getLocalDateString(new Date());
     const dateToCheckIn = targetDate || today;
     const userId = user?.id || null;
+
+    // Strict validation: do not allow checking in for past dates or future dates
+    if (dateToCheckIn < today) {
+      setIsCheckingIn(false);
+      return { success: false, reason: 'PAST_DATE', message: 'Không thể điểm danh lại ngày cũ đã qua.' };
+    }
+    if (dateToCheckIn > today) {
+      setIsCheckingIn(false);
+      return { success: false, reason: 'FUTURE_DATE', message: 'Không thể điểm danh trước ngày tương lai.' };
+    }
 
     try {
       const currentDates = Array.isArray(checkInDates) ? checkInDates : [];

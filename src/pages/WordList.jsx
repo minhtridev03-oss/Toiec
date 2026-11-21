@@ -258,13 +258,13 @@ export default function WordList() {
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto w-full min-h-[85vh]">
+    <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-8 max-w-5xl mx-auto w-full min-h-[85vh]">
       {/* ============================================================ */}
       {/* 1. HERO CAPSULE (Ultra-Clear Liquid Glass Banner) */}
       {/* ============================================================ */}
-      <div className="relative mb-6 overflow-hidden rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl p-6 sm:p-8 animate-in fade-in duration-300">
+      <div className="relative mb-5 sm:mb-6 overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl p-4 sm:p-8 animate-in fade-in duration-300">
         {/* Ambient Fluid Caustics Blobs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.5rem] -z-0">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] -z-0">
           <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-gradient-to-br from-indigo-500/20 dark:from-indigo-500/25 via-cyan-400/15 dark:via-cyan-400/20 to-transparent blur-3xl animate-liquid-blob" />
           <div
             className="absolute -bottom-28 -right-28 w-80 h-80 rounded-full bg-gradient-to-tl from-violet-500/20 dark:from-violet-600/25 via-pink-400/15 dark:via-fuchsia-500/15 to-transparent blur-3xl animate-liquid-blob"
@@ -274,8 +274,8 @@ export default function WordList() {
           <div className="absolute top-0 inset-x-10 h-[1.5px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent" />
         </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+          <div className="space-y-2 sm:space-y-3">
             {/* Back button */}
             <button
               onClick={handleBack}
@@ -287,13 +287,13 @@ export default function WordList() {
 
             {/* Unit Tag + Title */}
             <div>
-              <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap mb-1">
                 {parsed.unitTag ? (
-                  <span className="px-3 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider bg-indigo-500/15 dark:bg-cyan-500/15 text-indigo-700 dark:text-cyan-300 border border-indigo-500/25 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
+                  <span className="px-2.5 py-0.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider bg-indigo-500/15 dark:bg-cyan-500/15 text-indigo-700 dark:text-cyan-300 border border-indigo-500/25 dark:border-cyan-400/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
                     {parsed.unitTag}
                   </span>
                 ) : (
-                  <span className="px-3 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/40 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-white/50 dark:border-white/15">
+                  <span className="px-2.5 py-0.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider bg-white/40 dark:bg-white/10 text-slate-800 dark:text-slate-300 border border-white/50 dark:border-white/15">
                     Chủ đề
                   </span>
                 )}
@@ -301,14 +301,14 @@ export default function WordList() {
                   • {subCatTotalWords} từ vựng
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-xs">
+              <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight drop-shadow-xs">
                 {parsed.title}
               </h1>
             </div>
           </div>
 
           {/* Liquid Plasma Progress Tube */}
-          <div className="flex flex-col sm:items-end justify-center gap-2 min-w-[220px]">
+          <div className="flex flex-col sm:items-end justify-center gap-2 min-w-[200px] sm:min-w-[220px]">
             <div className="flex items-center justify-between sm:justify-end gap-3 text-xs font-black text-slate-900 dark:text-slate-100">
               <span className="text-indigo-700 dark:text-cyan-300 font-black">
                 {progressPercent}% hoàn thành
@@ -317,7 +317,7 @@ export default function WordList() {
                 ({totalLearned}/{subCatTotalWords} từ)
               </span>
             </div>
-            <div className="relative w-full sm:w-60 h-3 rounded-full overflow-hidden bg-slate-300/40 dark:bg-slate-900/70 p-[1.5px] border border-white/50 dark:border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+            <div className="relative w-full sm:w-60 h-2.5 sm:h-3 rounded-full overflow-hidden bg-slate-300/40 dark:bg-slate-900/70 p-[1.5px] border border-white/50 dark:border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 transition-all duration-700 relative overflow-hidden shadow-[0_0_12px_rgba(99,102,241,0.35)] dark:shadow-[0_0_12px_rgba(34,211,238,0.5)]"
                 style={{ width: `${progressPercent}%` }}
@@ -333,7 +333,7 @@ export default function WordList() {
       {/* ============================================================ */}
       {/* 2. FLOATING LIQUID CONTROLS (Ultra-Transparent Search & Filter) */}
       {/* ============================================================ */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mb-5 sm:mb-6">
         {/* Search Capsule */}
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
@@ -355,7 +355,7 @@ export default function WordList() {
         </div>
 
         {/* Filter Pills in Liquid Tray */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/20 dark:bg-slate-950/35 border border-white/50 dark:border-white/10 backdrop-blur-2xl shrink-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth p-1 rounded-2xl bg-white/20 dark:bg-slate-950/35 border border-white/50 dark:border-white/10 backdrop-blur-2xl shrink-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]">
           {[
             { key: 'all', label: `Tất cả (${subCatTotalWords})` },
             { key: 'learned', label: `Đã học (${totalLearned})` },
@@ -363,7 +363,7 @@ export default function WordList() {
             <button
               key={f.key}
               onClick={() => setFilterMode(f.key)}
-              className={`px-4 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 sm:px-4 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 filterMode === f.key
                   ? 'bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white shadow-[0_4px_15px_-2px_rgba(99,102,241,0.4),_inset_0_1px_1px_rgba(255,255,255,0.4)] scale-[1.02] border border-white/30'
                   : 'text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/10 border border-transparent'
@@ -388,7 +388,7 @@ export default function WordList() {
           ))}
         </div>
       ) : words.length === 0 ? (
-        <div className="text-center py-20 bg-white/20 dark:bg-slate-950/35 rounded-[2.5rem] border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-xl">
+        <div className="text-center py-16 sm:py-20 bg-white/20 dark:bg-slate-950/35 rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-xl">
           <Search size={44} className="mx-auto text-slate-400 dark:text-slate-500 mb-3" />
           <p className="text-slate-950 dark:text-white font-black text-base">Không tìm thấy từ vựng nào</p>
           <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 font-bold">
@@ -396,7 +396,7 @@ export default function WordList() {
           </p>
         </div>
       ) : (
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/50 dark:border-white/10 bg-white/20 dark:bg-slate-950/35 shadow-[0_20px_50px_rgba(0,0,0,0.06),_inset_0_1px_2px_rgba(255,255,255,0.7),_inset_0_-1px_1px_rgba(0,0,0,0.03)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.25),_inset_0_-1px_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl">
           {/* Specular Rim Light Top Sheen */}
           <div className="absolute top-0 inset-x-12 h-[1px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent pointer-events-none" />
 
@@ -415,24 +415,24 @@ export default function WordList() {
                 <div
                   key={word.id}
                   onClick={() => navigate(`/vocabularies/${word.id}`)}
-                  className="group/row relative flex items-center justify-between p-4 sm:px-6 sm:py-5 hover:bg-white/30 dark:hover:bg-white/[0.04] transition-all duration-200 cursor-pointer"
+                  className="group/row relative flex items-center justify-between p-3.5 sm:px-6 sm:py-5 hover:bg-white/30 dark:hover:bg-white/[0.04] transition-all duration-200 cursor-pointer"
                 >
                   {/* Row hover specular line */}
                   <div className="absolute top-0 inset-x-8 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/20 dark:via-cyan-400/20 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity pointer-events-none" />
 
                   {/* Left Column: Word + IPA + Short Meaning */}
-                  <div className="flex-1 min-w-0 mr-4 space-y-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="text-base sm:text-lg font-black text-slate-950 dark:text-white group-hover/row:text-indigo-600 dark:group-hover/row:text-cyan-300 transition-colors tracking-tight">
+                  <div className="flex-1 min-w-0 mr-2.5 sm:mr-4 space-y-0.5 sm:space-y-1">
+                    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                      <h3 className="text-sm sm:text-lg font-black text-slate-950 dark:text-white group-hover/row:text-indigo-600 dark:group-hover/row:text-cyan-300 transition-colors tracking-tight">
                         {word.word}
                       </h3>
                       {word.pro && (
-                        <span className="text-[11px] font-mono text-indigo-700 dark:text-cyan-300 bg-indigo-500/10 dark:bg-cyan-400/10 border border-indigo-500/20 dark:border-cyan-400/25 px-2 py-0.5 rounded-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+                        <span className="text-[10px] sm:text-[11px] font-mono text-indigo-700 dark:text-cyan-300 bg-indigo-500/10 dark:bg-cyan-400/10 border border-indigo-500/20 dark:border-cyan-400/25 px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                           {word.pro.split('#')[0]}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 line-clamp-1 leading-relaxed font-semibold">
+                    <p className="text-[11px] sm:text-sm text-slate-800 dark:text-slate-200 line-clamp-1 leading-relaxed font-semibold">
                       {getShortMeaning(word)}
                     </p>
                   </div>
@@ -443,7 +443,7 @@ export default function WordList() {
                       e.stopPropagation();
                       playWordAudio(word.word);
                     }}
-                    className="h-10 w-10 rounded-full bg-white/40 dark:bg-white/10 hover:bg-indigo-50/70 dark:hover:bg-cyan-500/20 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-cyan-300 border border-white/60 dark:border-white/15 hover:border-indigo-400/40 dark:hover:border-cyan-400/40 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 shrink-0 mr-3 hidden sm:flex"
+                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/40 dark:bg-white/10 hover:bg-indigo-50/70 dark:hover:bg-cyan-500/20 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-cyan-300 border border-white/60 dark:border-white/15 hover:border-indigo-400/40 dark:hover:border-cyan-400/40 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 shrink-0 mr-2 sm:mr-3 hidden sm:flex"
                     title="Nghe phát âm"
                   >
                     <Volume2 size={16} />
@@ -452,7 +452,7 @@ export default function WordList() {
                   {/* Status Toggle Button (Liquid Pearl) */}
                   <button
                     onClick={(e) => toggleLearned(e, word.id, isLearned)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 border ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl transition-all cursor-pointer shrink-0 border ${
                       isLearned
                         ? 'bg-emerald-500/25 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-500/40 dark:border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.25),_inset_0_1px_1px_rgba(255,255,255,0.7)] dark:shadow-[0_0_15px_rgba(16,185,129,0.35),_inset_0_1px_1px_rgba(255,255,255,0.4)]'
                         : 'bg-white/30 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-white/40 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-slate-950 dark:hover:text-slate-200'
@@ -460,11 +460,11 @@ export default function WordList() {
                     title={isLearned ? 'Đã thuộc từ này' : 'Chưa thuộc'}
                   >
                     {isLearned ? (
-                      <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                      <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
                     ) : (
-                      <Circle size={16} className="text-slate-400" />
+                      <Circle size={14} className="text-slate-400" />
                     )}
-                    <span className="text-[11px] font-black uppercase tracking-wider">
+                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider">
                       {isLearned ? 'Đã học' : 'Chưa học'}
                     </span>
                   </button>
