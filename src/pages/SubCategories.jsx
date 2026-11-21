@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +10,7 @@ export default function SubCategories() {
   const { user } = useAuth();
 
   const fetchSubCategoriesData = async () => {
-    if (!user || !mainGroupName) throw new Error('Missing dependencies');
+    if (!mainGroupName) throw new Error('Missing mainGroupName');
 
     const { data: catData, error: catError } = await supabase
       .from('categories')
@@ -24,35 +23,49 @@ export default function SubCategories() {
 
     const statsMap = {};
 
-    // 1. Thử dùng RPC get_category_progress lấy toàn bộ tiến độ trong 1 truy vấn
-    const { data: progressRows, error: progressError } = await supabase
-      .rpc('get_category_progress', { p_user_id: user.id });
+    if (user?.id) {
+      // 1. Thử dùng RPC get_category_progress lấy toàn bộ tiến độ trong 1 truy vấn
+      const { data: progressRows, error: progressError } = await supabase
+        .rpc('get_category_progress', { p_user_id: user.id });
 
-    if (!progressError && Array.isArray(progressRows)) {
-      progressRows.forEach((row) => {
-        statsMap[row.category_id] = {
-          total: Number(row.total_count) || 0,
-          learned: Number(row.learned_count) || 0,
-        };
-      });
+      if (!progressError && Array.isArray(progressRows)) {
+        progressRows.forEach((row) => {
+          statsMap[row.category_id] = {
+            total: Number(row.total_count) || 0,
+            learned: Number(row.learned_count) || 0,
+          };
+        });
+      } else {
+        // Dự phòng an toàn nếu RPC chưa có
+        await Promise.all(categories.map(async (cat) => {
+          const { count: totalCount } = await supabase
+            .from('topic_vocabularies')
+            .select('id', { count: 'exact', head: true })
+            .eq('category_id', cat.id);
+
+          const { data: learnedData } = await supabase
+            .from('user_topic_vocabularies')
+            .select('vocabulary_id, topic_vocabularies!inner(category_id)')
+            .eq('user_id', user.id)
+            .eq('is_learned', true)
+            .eq('topic_vocabularies.category_id', cat.id);
+
+          statsMap[cat.id] = {
+            total: totalCount || 0,
+            learned: learnedData ? learnedData.length : 0,
+          };
+        }));
+      }
     } else {
-      // Dự phòng an toàn nếu RPC chưa có
       await Promise.all(categories.map(async (cat) => {
         const { count: totalCount } = await supabase
           .from('topic_vocabularies')
           .select('id', { count: 'exact', head: true })
           .eq('category_id', cat.id);
 
-        const { data: learnedData } = await supabase
-          .from('user_topic_vocabularies')
-          .select('vocabulary_id, topic_vocabularies!inner(category_id)')
-          .eq('user_id', user.id)
-          .eq('is_learned', true)
-          .eq('topic_vocabularies.category_id', cat.id);
-
         statsMap[cat.id] = {
           total: totalCount || 0,
-          learned: learnedData ? learnedData.length : 0,
+          learned: 0,
         };
       }));
     }
@@ -64,7 +77,7 @@ export default function SubCategories() {
   };
 
   const { data, error: swrError, isLoading } = useSWR(
-    user?.id && mainGroupName ? `subcategories_${user.id}_${mainGroupName}` : null,
+    mainGroupName ? `subcategories_${user?.id || 'guest'}_${mainGroupName}` : null,
     fetchSubCategoriesData,
     {
       revalidateOnFocus: false,

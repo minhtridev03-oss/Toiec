@@ -12,6 +12,10 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5177',
   'http://localhost:5178',
   'http://localhost:5180',
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
 ]
 
 const textEncoder = new TextEncoder()

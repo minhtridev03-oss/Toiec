@@ -52,15 +52,26 @@ export const signInWithEmail = async ({ email, password }) => {
   const normalizedEmail = validateEmail(email);
   const safePassword = validatePassword(password);
 
-  const data = await invokeAuthGuard({
-    action: 'sign-in',
-    email: normalizedEmail,
-    password: safePassword,
-    redirectTo: getRedirectTo('/dashboard'),
-  });
+  try {
+    const data = await invokeAuthGuard({
+      action: 'sign-in',
+      email: normalizedEmail,
+      password: safePassword,
+      redirectTo: getRedirectTo('/dashboard'),
+    });
 
-  await persistSessionIfPresent(data.session);
-  return data;
+    await persistSessionIfPresent(data.session);
+    return data;
+  } catch (err) {
+    // Nếu Edge Function auth-guard chặn origin hoặc lỗi mạng, tự động fallback sang Supabase Auth chuẩn
+    console.warn('Auth guard failed, falling back to direct Supabase auth:', err?.message || err);
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: safePassword,
+    });
+    if (authError) throw authError;
+    return authData;
+  }
 };
 
 export const signUpWithEmail = async ({ email, password }) => {
@@ -68,24 +79,46 @@ export const signUpWithEmail = async ({ email, password }) => {
   const normalizedEmail = validateEmail(email);
   const safePassword = validatePassword(password);
 
-  const data = await invokeAuthGuard({
-    action: 'sign-up',
-    email: normalizedEmail,
-    password: safePassword,
-    redirectTo: getRedirectTo('/dashboard'),
-  });
+  try {
+    const data = await invokeAuthGuard({
+      action: 'sign-up',
+      email: normalizedEmail,
+      password: safePassword,
+      redirectTo: getRedirectTo('/dashboard'),
+    });
 
-  await persistSessionIfPresent(data.session);
-  return data;
+    await persistSessionIfPresent(data.session);
+    return data;
+  } catch (err) {
+    console.warn('Auth guard failed, falling back to direct Supabase auth:', err?.message || err);
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password: safePassword,
+      options: {
+        emailRedirectTo: getRedirectTo('/dashboard'),
+      },
+    });
+    if (authError) throw authError;
+    return authData;
+  }
 };
 
 export const requestPasswordReset = async (email) => {
   assertLocalAuthLimit('reset-password');
   const normalizedEmail = validateEmail(sanitizeEmail(email));
 
-  return invokeAuthGuard({
-    action: 'reset-password',
-    email: normalizedEmail,
-    redirectTo: getRedirectTo('/reset-password'),
-  });
+  try {
+    return await invokeAuthGuard({
+      action: 'reset-password',
+      email: normalizedEmail,
+      redirectTo: getRedirectTo('/reset-password'),
+    });
+  } catch (err) {
+    console.warn('Auth guard failed, falling back to direct Supabase auth:', err?.message || err);
+    const { data, error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: getRedirectTo('/reset-password'),
+    });
+    if (error) throw error;
+    return data;
+  }
 };

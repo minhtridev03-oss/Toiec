@@ -217,7 +217,6 @@ export default function Categories() {
   const [modalFilter, setModalFilter] = useState('all');
 
   const fetchCategoriesData = async () => {
-    if (!user?.id) throw new Error('No user');
     const { data: catData, error: catError } = await supabase
       .from('categories')
       .select('id, name, img, created_at, sub_categories(id, name, created_at)')
@@ -235,35 +234,45 @@ export default function Categories() {
       ),
     }));
 
-    const { data: progressRows, error: progressError } = await supabase.rpc(
-      'get_sub_category_progress',
-      { p_user_id: user.id }
-    );
-
-    if (progressError) throw progressError;
-
     const statsMap = {};
-    (progressRows || []).forEach((row) => {
-      statsMap[row.sub_category_id] = {
-        total: Number(row.total_count) || 0,
-        learned: Number(row.learned_count) || 0,
-      };
-    });
+    let personalVocabCount = 0;
 
-    const { count: pCount, error: pError } = await supabase
-      .from('user_vocabulary')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    if (user?.id) {
+      try {
+        const { data: progressRows, error: progressError } = await supabase.rpc(
+          'get_sub_category_progress',
+          { p_user_id: user.id }
+        );
+
+        if (!progressError && Array.isArray(progressRows)) {
+          progressRows.forEach((row) => {
+            statsMap[row.sub_category_id] = {
+              total: Number(row.total_count) || 0,
+              learned: Number(row.learned_count) || 0,
+            };
+          });
+        }
+
+        const { count: pCount, error: pError } = await supabase
+          .from('user_vocabulary')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        personalVocabCount = pError ? 0 : pCount || 0;
+      } catch (err) {
+        console.warn('Could not fetch user progress:', err);
+      }
+    }
 
     return {
       categories: formattedCategories,
       stats: statsMap,
-      personalVocabCount: pError ? 0 : pCount || 0,
+      personalVocabCount,
     };
   };
 
   const { data, error: swrError, isLoading, mutate } = useSWR(
-    user?.id ? `categories_${user.id}` : null,
+    `categories_${user?.id || 'guest'}`,
     fetchCategoriesData,
     {
       revalidateOnFocus: false,

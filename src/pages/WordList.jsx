@@ -95,7 +95,7 @@ export default function WordList() {
 
     // 3. Fetch all learned word IDs for this user in this subcategory
     let learnedVocabIds = new Set();
-    if (allCatWordIds.length > 0) {
+    if (user?.id && allCatWordIds.length > 0) {
       const { data: learnedData, error: learnedErr } = await supabase
         .from('user_topic_vocabularies')
         .select('vocabulary_id')
@@ -163,7 +163,7 @@ export default function WordList() {
   };
 
   const { data, isLoading, mutate } = useSWR(
-    user && categoryId ? `words_${categoryId}_${page}_${debouncedSearchQuery}_${filterMode}_${user.id}` : null,
+    categoryId ? `words_${categoryId}_${page}_${debouncedSearchQuery}_${filterMode}_${user?.id || 'guest'}` : null,
     fetchWordsData,
     {
       revalidateOnFocus: false,
