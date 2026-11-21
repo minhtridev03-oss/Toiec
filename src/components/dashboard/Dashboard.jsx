@@ -535,9 +535,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Cột phải: Khung điều khiển Video nền (Ẩn hoàn toàn trên App APK) */}
+            {/* Cột phải: Khung điều khiển Video nền (Chỉ hiển thị trên Desktop Web màn hình lớn, ẩn hoàn toàn trên Mobile và App APK) */}
             {!isNative && (
-              <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 select-none">
+              <div className="hidden lg:block w-full lg:w-[340px] xl:w-[380px] shrink-0 select-none">
                 <AmbientVideoWidget />
               </div>
             )}
