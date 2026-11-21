@@ -39,12 +39,6 @@ const NAV_ITEMS = [
       pathname.startsWith('/tenses'),
   },
   {
-    to: '/mock-tests',
-    label: { vi: 'Thi thử', en: 'Tests' },
-    icon: GraduationCap,
-    isActive: (pathname) => pathname.startsWith('/mock-tests'),
-  },
-  {
     to: '/profile',
     label: { vi: 'Hồ sơ', en: 'Profile' },
     icon: User,

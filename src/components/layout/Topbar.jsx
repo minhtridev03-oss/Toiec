@@ -221,9 +221,9 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-slate-900 bg-indigo-600 dark:bg-indigo-400" />
         </button>
 
-        {/* User Dropdown or Guest Auth Action Buttons */}
+        {/* User Dropdown or Guest Auth Action Buttons (Hidden on mobile app screen to keep topbar minimal) */}
         {user ? (
-          <div className="relative shrink-0" ref={dropdownRef}>
+          <div className="hidden sm:block relative shrink-0" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setDropdownOpen((open) => !open)}

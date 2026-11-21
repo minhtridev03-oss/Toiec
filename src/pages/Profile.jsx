@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Camera,
@@ -21,6 +22,7 @@ import {
   Check,
   Palette,
   Layers,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useStats } from '../contexts/StatsContext';
@@ -29,6 +31,7 @@ import UserAvatar from '../components/common/UserAvatar';
 import { useAvatarFrames } from '../contexts/AvatarFramesContext';
 
 export default function Profile() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const {
     streak = 0,
@@ -225,6 +228,11 @@ export default function Profile() {
   const displayName = formData.fullName || user?.email?.split('@')[0] || 'Học viên';
   const previewFrame = getFrameById(previewFrameId);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/dashboard');
+  };
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8 max-w-5xl w-full mx-auto space-y-6 select-none transition-colors">
       {/* Toast Notification */}
@@ -243,6 +251,17 @@ export default function Profile() {
 
       {/* Hero Card: Thẻ Căn Cước Người Học (Learner ID Card) */}
       <section className="glass-panel rounded-[2.5rem] p-6 sm:p-8 border border-white/60 dark:border-white/10 shadow-xl relative overflow-hidden backdrop-blur-xl">
+        {/* Quick Logout Button */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-white/10 hover:bg-rose-50 dark:hover:bg-rose-500/20 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/80 dark:border-white/10 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-2xs"
+          title="Đăng xuất tài khoản"
+        >
+          <LogOut size={14} className="text-rose-500" />
+          <span>Đăng xuất</span>
+        </button>
+
         {/* Ambient subtle glow background inside card */}
         <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-indigo-500/15 dark:bg-cyan-500/10 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-fuchsia-500/10 dark:bg-purple-500/10 blur-3xl pointer-events-none" />

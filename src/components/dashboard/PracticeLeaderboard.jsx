@@ -4,6 +4,7 @@ import { useLocale } from '../../contexts/LocaleContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPracticeLeaderboard, formatPracticeDuration } from '../../lib/practiceActivity';
 import rankGif from '../../assets/rank.gif';
+import UserAvatar from '../common/UserAvatar';
 
 const COPY = {
   vi: {
@@ -94,6 +95,21 @@ export default function PracticeLeaderboard() {
   const { user } = useAuth();
   const text = COPY[locale];
 
+  const [currentUserFrameId, setCurrentUserFrameId] = useState(
+    user?.user_metadata?.avatar_frame || localStorage.getItem('toiec_equipped_frame') || 'none'
+  );
+
+  useEffect(() => {
+    if (user?.user_metadata?.avatar_frame) {
+      setCurrentUserFrameId(user.user_metadata.avatar_frame);
+    }
+    const handleFrameChange = (e) => {
+      setCurrentUserFrameId(e.detail || 'none');
+    };
+    window.addEventListener('avatar-frame-changed', handleFrameChange);
+    return () => window.removeEventListener('avatar-frame-changed', handleFrameChange);
+  }, [user]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -172,20 +188,15 @@ export default function PracticeLeaderboard() {
       {/* Your Rank Showcase Card */}
       <div className="mb-4 sm:mb-6 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 dark:border-cyan-500/20 backdrop-blur-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="relative shrink-0">
-            {currentUserAvatar ? (
-              <img
-                src={currentUserAvatar}
-                alt=""
-                className="h-11 w-11 rounded-full object-cover ring-2 ring-indigo-500/30 dark:ring-cyan-500/30 shadow-xs"
-              />
-            ) : (
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-black shadow-xs">
-                {getInitial(currentUserName)}
-              </span>
-            )}
+          <div className="relative shrink-0 flex items-center justify-center">
+            <UserAvatar
+              src={currentUserAvatar}
+              frameId={currentUserFrameId}
+              size="md"
+              fallbackText={currentUserName}
+            />
             {currentUserEntry?.leaderboard_rank === 1 && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-2xs">
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-2xs z-10">
                 <Crown size={12} />
               </span>
             )}
@@ -288,22 +299,14 @@ export default function PracticeLeaderboard() {
                     <RankMark rank={rank} />
                   </span>
 
-                  {/* Avatar */}
-                  <div className="shrink-0">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt=""
-                        loading="lazy"
-                        className={`h-9 w-9 rounded-full object-cover ${avatarRingClass}`}
-                      />
-                    ) : (
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-xs font-black text-indigo-700 dark:text-cyan-300 ${avatarRingClass}`}
-                      >
-                        {getInitial(isCurrent ? currentUserName : label)}
-                      </span>
-                    )}
+                  {/* Avatar with Synchronized Frame */}
+                  <div className="shrink-0 flex items-center justify-center">
+                    <UserAvatar
+                      src={avatarUrl}
+                      frameId={isCurrent ? currentUserFrameId : (entry.avatar_frame || 'none')}
+                      size="sm"
+                      fallbackText={isCurrent ? currentUserName : label}
+                    />
                   </div>
 
                   {/* Name and active days */}
