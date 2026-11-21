@@ -246,9 +246,9 @@ const MainLayout = () => {
           : isCollapsed
             ? 'lg:ml-[6.75rem] lg:w-[calc(100%-6.75rem)] w-full'
             : 'lg:ml-[19.25rem] lg:w-[calc(100%-19.25rem)] w-full'
-      } ${isStudioMode ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      } ${isStudioMode ? 'h-full lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'}`}>
         {!isStudioMode && <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} hideMenuButton={isNative} />}
-        <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-hidden' : 'overflow-x-hidden'}`}>
+        <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-y-auto lg:overflow-hidden' : 'overflow-x-hidden'}`}>
           <Outlet />
         </main>
         {!isStudioMode && !isNative && <Footer />}

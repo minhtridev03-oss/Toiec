@@ -87,7 +87,7 @@ export default function DictationDetail() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-transparent overflow-y-auto lg:overflow-hidden">
       <VideoDictationPlayer 
         videoData={videoData} 
         segments={segments} 

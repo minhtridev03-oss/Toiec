@@ -1003,7 +1003,13 @@ export default function VideoDictationPlayer({ videoData, segments }) {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:overflow-hidden p-3 sm:p-5 lg:p-6 gap-5 lg:gap-6 max-w-[1700px] mx-auto pb-24 lg:pb-6 relative">
+    <div 
+      className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:overflow-hidden p-3 sm:p-5 lg:p-6 gap-5 lg:gap-6 max-w-[1700px] mx-auto pb-24 lg:pb-6 relative"
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
+      }}
+    >
       {/* LEFT COLUMN: CINEMA VIDEO & DICTATION CONSOLE */}
       <section className="flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar">
         {/* 1. TOPBAR DOCK */}

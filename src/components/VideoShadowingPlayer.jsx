@@ -470,10 +470,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   const segment = segments[currentSegmentIndex] || segments[0];
   const segmentId = segment?.id;
 
-  // Auto-scroll active sentence into view inside the sidebar
+  // Auto-scroll active sentence into view inside the desktop sidebar only
   useEffect(() => {
     if (activeSentenceRef.current && sidebarTab === 'transcript') {
-      activeSentenceRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Chỉ cuộn tự động trên màn hình Desktop (khi danh sách câu nằm cố định bên cột phải)
+      // Trên Mobile (danh sách câu nằm ở cuối trang), không gọi scrollIntoView để tránh kéo giật màn hình làm mất khung Video & Mic
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        activeSentenceRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
   }, [currentSegmentIndex, sidebarTab]);
   const segmentStartTime = segment?.start_time;
@@ -935,9 +939,15 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   }, [segment?.answer]);
 
   return (
-    <div className="flex flex-1 min-h-0 w-full flex-col bg-transparent text-slate-800 dark:text-white lg:flex-row lg:h-full lg:overflow-hidden p-2 sm:p-4 lg:p-5 gap-3.5 lg:gap-5 max-w-[1700px] mx-auto relative">
+    <div 
+      className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:h-full lg:overflow-hidden p-2 sm:p-4 lg:p-5 gap-3.5 lg:gap-5 max-w-[1700px] mx-auto pb-24 lg:pb-5 relative"
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
+      }}
+    >
       {/* LEFT COLUMN: CINEMA VIDEO & STUDIO INTERACTION AREA */}
-      <section className="flex min-w-0 flex-1 flex-col gap-3.5 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar pb-6">
+      <section className="flex min-w-0 flex-1 flex-col gap-3.5 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar pb-4 lg:pb-6">
         {/* 1. TOPBAR DOCK */}
         <header className="relative z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5">
           <Link
