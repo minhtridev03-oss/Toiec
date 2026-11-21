@@ -8,13 +8,7 @@
 
 let currentAudio = null;
 
-export function playWordAudio(wordText, lang = 'en') {
-  if (!wordText || typeof window === 'undefined') return;
-
-  const clean = String(wordText).replace(/[^a-zA-Z0-9\s'-]/g, '').trim();
-  if (!clean) return;
-
-  // Dừng âm thanh đang phát trước đó
+export function stopWordAudio() {
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -22,6 +16,21 @@ export function playWordAudio(wordText, lang = 'en') {
       currentAudio = null;
     } catch {}
   }
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
+export function playWordAudio(wordText, lang = 'en', onEnded) {
+  if (!wordText || typeof window === 'undefined') return;
+
+  const clean = String(wordText).replace(/[^a-zA-Z0-9\s'-]/g, ' ').trim();
+  if (!clean) return;
+
+  // Dừng âm thanh đang phát trước đó
+  stopWordAudio();
 
   // 1. Phát qua Google Translate TTS audio stream bằng HTML5 Audio (native media)
   try {
@@ -30,20 +39,31 @@ export function playWordAudio(wordText, lang = 'en') {
     const audio = new Audio(url);
     currentAudio = audio;
 
+    if (onEnded) {
+      audio.onended = () => {
+        currentAudio = null;
+        onEnded();
+      };
+      audio.onerror = () => {
+        currentAudio = null;
+        onEnded();
+      };
+    }
+
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
         console.warn('HTML5 Audio error, falling back to SpeechSynthesis:', err);
-        fallbackSpeechSynthesis(clean, lang);
+        fallbackSpeechSynthesis(clean, lang, onEnded);
       });
     }
   } catch (err) {
     console.warn('Cannot initialize Audio, falling back to SpeechSynthesis:', err);
-    fallbackSpeechSynthesis(clean, lang);
+    fallbackSpeechSynthesis(clean, lang, onEnded);
   }
 }
 
-function fallbackSpeechSynthesis(cleanText, lang = 'en-US') {
+function fallbackSpeechSynthesis(cleanText, lang = 'en-US', onEnded) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
     if (window.speechSynthesis.paused) {
@@ -53,8 +73,13 @@ function fallbackSpeechSynthesis(cleanText, lang = 'en-US') {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = lang.startsWith('en') ? 'en-US' : lang;
     utterance.rate = 0.95;
+    if (onEnded) {
+      utterance.onend = onEnded;
+      utterance.onerror = onEnded;
+    }
     window.speechSynthesis.speak(utterance);
   } catch (e) {
     console.error('SpeechSynthesis fallback error:', e);
+    if (onEnded) onEnded();
   }
 }

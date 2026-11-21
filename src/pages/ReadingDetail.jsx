@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -23,6 +24,7 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +32,8 @@ import { explainReadingMistakes } from '../lib/gemini';
 import { praiseLearningBot } from '../lib/learningBot';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { readingLessonCache } from '../lib/lessonCache';
+import { usePlatform } from '../hooks/usePlatform';
+import { playWordAudio, stopWordAudio } from '../lib/audioService';
 
 // Helper to detect genre & icon
 const detectGenre = (title = '', content = '') => {
@@ -66,6 +70,7 @@ export default function ReadingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isNative, isMobile } = usePlatform();
   const cachedData = readingLessonCache.get(id);
 
   const [lesson, setLesson] = useState(() => cachedData?.lesson || null);
@@ -75,6 +80,7 @@ export default function ReadingDetail() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [allCorrect, setAllCorrect] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState({});
+  const [showPassagePeek, setShowPassagePeek] = useState(false);
 
   // Question Tab Carousel State: 0-indexed, default to 0 (Question 1)
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
@@ -199,31 +205,15 @@ export default function ReadingDetail() {
     }
   };
 
-  // Text-To-Speech
+  // Text-To-Speech with audioService
   const toggleSpeech = () => {
-    if (!('speechSynthesis' in window)) {
-      alert('Trình duyệt của bạn không hỗ trợ tính năng đọc phát âm tự động.');
-      return;
-    }
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      stopWordAudio();
       setIsSpeaking(false);
     } else {
-      window.speechSynthesis.cancel();
-      const cleanText = lesson?.content?.replace(/\\n/g, ' ') || '';
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.95;
-
-      const voices = window.speechSynthesis.getVoices();
-      const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'))) || voices.find(v => v.lang.startsWith('en'));
-      if (englishVoice) utterance.voice = englishVoice;
-
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-
-      window.speechSynthesis.speak(utterance);
+      const cleanText = lesson?.content?.replace(/\n/g, ' ') || '';
       setIsSpeaking(true);
+      playWordAudio(cleanText, 'en', () => setIsSpeaking(false));
     }
   };
 
@@ -278,8 +268,8 @@ export default function ReadingDetail() {
       return;
     }
 
-    if (isSpeaking && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (isSpeaking) {
+      stopWordAudio();
       setIsSpeaking(false);
     }
 
@@ -438,45 +428,48 @@ export default function ReadingDetail() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-transparent text-slate-800 dark:text-white h-full lg:overflow-hidden overflow-auto p-2 sm:p-4 lg:p-5 max-w-7xl mx-auto w-full gap-3 sm:gap-4">
-      {/* 1. TOP STUDIO NAVIGATION DOCK (Floating Rounded Bar) */}
-      <header className="relative z-30 flex items-center justify-between gap-2 sm:gap-4 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/90 dark:bg-slate-900/90 border border-white/50 dark:border-slate-800 shadow-xl shadow-black/5 shrink-0 transition-colors w-full">
+    <div
+      className="flex-1 flex flex-col bg-transparent text-slate-800 dark:text-white h-full lg:overflow-hidden overflow-auto p-2 sm:p-4 lg:p-5 max-w-7xl mx-auto w-full gap-2.5 sm:gap-4"
+      style={{
+        paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 10px)',
+      }}
+    >
+      {/* 1. TOP STUDIO NAVIGATION DOCK (Compact Glass Bar) */}
+      <header className="relative z-30 flex items-center justify-between gap-2 sm:gap-3 p-2 sm:px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/90 dark:bg-slate-900/90 border border-white/50 dark:border-slate-800 shadow-xl shadow-black/5 shrink-0 transition-colors w-full">
         {/* Left: Back + Genre + Title */}
-        <div className="flex items-center min-w-0 pr-2 gap-2.5 sm:gap-3.5">
+        <div className="flex items-center min-w-0 pr-1 gap-2 sm:gap-3">
           <button
             onClick={() => navigate('/reading')}
-            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer shadow-xs active:scale-95"
+            className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl sm:rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer shadow-xs active:scale-95"
             title="Quay lại danh sách bài đọc"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold border ${genreInfo.color}`}>
-                <GenreIcon size={12} />
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border whitespace-nowrap shrink-0 ${genreInfo.color}`}>
+                <GenreIcon size={11} />
                 <span>{genreInfo.name}</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                {lesson.level || 'TOEIC'}
+                <span className="opacity-30">•</span>
+                <span className="uppercase">{lesson.level || 'TOEIC'}</span>
               </span>
             </div>
-            <h1 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 dark:text-white leading-tight truncate">
+            <h1 className="text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">
               {lesson.title}
             </h1>
           </div>
         </div>
 
-        {/* Center: Live Timer & Question Quick Tabs (Desktop) */}
-        <div className="hidden md:flex items-center gap-4 shrink-0">
-          {/* Live Stopwatch */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-extrabold text-slate-700 dark:text-slate-200 shadow-2xs">
-            <Clock size={14} className={isSubmitted ? "text-slate-400" : "text-indigo-600 dark:text-cyan-400 animate-pulse"} />
-            <span className="font-mono tracking-wider">{formatTimer(elapsedSeconds)}</span>
+        {/* Center / Timer: Live Stopwatch visible on mobile & desktop */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-extrabold text-slate-700 dark:text-slate-200 shadow-2xs">
+            <Clock size={13} className={isSubmitted ? "text-slate-400" : "text-indigo-600 dark:text-cyan-400 animate-pulse"} />
+            <span className="font-mono text-[11px] sm:text-xs tracking-wider">{formatTimer(elapsedSeconds)}</span>
           </div>
 
-          {/* Question Quick Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-100/60 dark:bg-slate-800/60 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
+          {/* Desktop Question Quick Tabs */}
+          <div className="hidden lg:flex items-center gap-1 bg-slate-100/60 dark:bg-slate-800/60 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
             {questions.map((q, idx) => {
               const isActive = activeQuestionIndex === idx;
               const isAnswered = Boolean(answers[q.id]);
@@ -523,59 +516,47 @@ export default function ReadingDetail() {
               );
             })}
           </div>
-        </div>
 
-        {/* Right: Submit or Next actions */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Right: Submit or Next actions */}
           {!isSubmitted ? (
             <button
               onClick={handleSubmit}
-              className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-extrabold px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl hover:shadow-lg shadow-md shadow-indigo-500/25 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 flex items-center gap-2"
+              className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white font-extrabold px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl hover:shadow-lg shadow-md shadow-indigo-500/25 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 flex items-center gap-1.5"
             >
-              <span>Nộp bài & Kiểm tra</span>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-white/20 text-[11px] font-mono">
+              <span>Nộp bài</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] sm:text-[11px] font-mono">
                 {answeredCount}/{questions.length}
               </span>
             </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleRetry}
-                disabled={isEvaluatingAI}
-                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all flex items-center gap-1.5 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 cursor-pointer disabled:opacity-50 text-xs sm:text-sm font-bold shadow-xs active:scale-95"
-              >
-                <RotateCcw size={14} />
-                <span>Làm lại</span>
-              </button>
-              <button
-                onClick={handleNextLesson}
-                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white hover:shadow-lg cursor-pointer shadow-md shadow-indigo-500/25 text-xs sm:text-sm font-black active:scale-95"
-              >
-                <span>Bài tiếp theo</span>
-                <ArrowRight size={15} />
-              </button>
-            </div>
+            <button
+              onClick={handleNextLesson}
+              className="px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl transition-all flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white hover:shadow-lg cursor-pointer shadow-md shadow-indigo-500/25 text-xs sm:text-sm font-black active:scale-95"
+            >
+              <span>Tiếp theo</span>
+              <ArrowRight size={14} />
+            </button>
           )}
         </div>
       </header>
 
       {/* 2. MOBILE RESPONSIVE TABS (Visible only on < lg screens) */}
-      <div className="lg:hidden p-1.5 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-white/40 dark:border-slate-800 shadow-md shrink-0">
-        <div className="flex items-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl w-full">
+      <div className="lg:hidden p-1 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-white/40 dark:border-slate-800 shadow-md shrink-0">
+        <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl w-full">
           <button
             onClick={() => setMobileTab('passage')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               mobileTab === 'passage'
                 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-cyan-300 shadow-xs'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <BookOpen size={14} />
-            <span>Văn bản ({wordCount} từ)</span>
+            <span>Bài đọc ({wordCount} từ)</span>
           </button>
           <button
             onClick={() => setMobileTab('questions')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               mobileTab === 'questions'
                 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-cyan-300 shadow-xs'
                 : 'text-slate-500 dark:text-slate-400'
@@ -745,44 +726,44 @@ export default function ReadingDetail() {
         >
           {/* Post-submission Result Banner (if submitted) */}
           {isSubmitted && (
-            <div className={`p-4 rounded-3xl border shadow-xl flex items-center justify-between gap-3 ${
+            <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-lg flex items-center justify-between gap-3 ${
               allCorrect
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
                 : 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200'
             }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 ${allCorrect ? 'bg-emerald-600 shadow-emerald-500/30' : 'bg-amber-600 shadow-amber-500/30'}`}>
-                  {allCorrect ? <Trophy size={20} /> : <Award size={20} />}
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${allCorrect ? 'bg-emerald-600 shadow-emerald-500/30' : 'bg-amber-600 shadow-amber-500/30'}`}>
+                  {allCorrect ? <Trophy size={16} /> : <Award size={16} />}
                 </div>
-                <div>
-                  <h4 className="text-sm font-black">
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-extrabold truncate">
                     {allCorrect ? '🎉 Xuất sắc! Bạn đúng 100%' : `Kết quả: Đúng ${correctCount}/${questions.length} câu`}
                   </h4>
-                  <p className="text-xs opacity-90">
-                    Thời gian: <strong>{formatTimer(elapsedSeconds)}</strong> • Bạn có thể bấm chọn từng câu bên dưới để xem lại chi tiết
+                  <p className="text-[11px] sm:text-xs opacity-80 truncate">
+                    Thời gian: <strong className="font-mono">{formatTimer(elapsedSeconds)}</strong> • Bấm chọn từng câu để xem lại
                   </p>
                 </div>
               </div>
 
-              {!allCorrect && (
-                <button
-                  onClick={handleRetry}
-                  className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-2xs hover:bg-slate-50 cursor-pointer shrink-0"
-                >
-                  Làm lại
-                </button>
-              )}
+              <button
+                onClick={handleRetry}
+                disabled={isEvaluatingAI}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer shrink-0 active:scale-95 flex items-center gap-1 text-slate-800 dark:text-slate-200"
+              >
+                <RotateCcw size={12} />
+                <span>Làm lại</span>
+              </button>
             </div>
           )}
 
           {/* SINGLE QUESTION FRAME (HỘP DUY NHẤT CHỨA CÂU HỎI ĐƯỢC CHỌN) */}
           {activeQuestion && (
-            <div className="flex-1 flex flex-col justify-between rounded-3xl p-5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-2xl transition-all duration-300">
+            <div className="flex-1 flex flex-col justify-between rounded-3xl p-4 sm:p-6 md:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-2xl transition-all duration-300">
               
               <div>
                 {/* 1. MINI QUESTION SELECTOR TABS ON TOP (Câu 1, Câu 2, Câu 3...) */}
-                <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-200/80 dark:border-slate-800 gap-2">
-                  <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex items-center justify-between pb-3 sm:pb-4 mb-4 sm:mb-5 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 min-w-0">
                     {questions.map((q, idx) => {
                       const isCurrent = activeQuestionIndex === idx;
                       const isAnswered = Boolean(answers[q.id]);
@@ -790,7 +771,7 @@ export default function ReadingDetail() {
                       const isCorrect = isSubmitted && answers[q.id] === q.correct_answer;
                       const isWrong = isSubmitted && isAnswered && !isCorrect;
 
-                      let tabClass = "relative px-3 py-1.5 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ";
+                      let tabClass = "relative px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-1 shrink-0 active:scale-95 ";
 
                       if (isCurrent) {
                         tabClass += "bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/30 scale-105 ";
@@ -839,21 +820,29 @@ export default function ReadingDetail() {
                     })}
                   </div>
 
-                  {/* Flag button for current question */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Actions on question header: Quick Peek Passage + Flag */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Quick Peek Button on Mobile */}
+                    <button
+                      onClick={() => setShowPassagePeek(true)}
+                      className="lg:hidden flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-cyan-400 border border-indigo-500/20 text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                      title="Xem bài đọc tra cứu"
+                    >
+                      <BookOpen size={13} />
+                      <span className="text-[11px] sm:text-xs">Bài đọc</span>
+                    </button>
+
+                    {/* Flag button */}
                     <button
                       onClick={(e) => toggleFlag(activeQuestion.id, e)}
-                      className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold border ${
+                      className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-bold border ${
                         flaggedQuestions[activeQuestion.id]
                           ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 shadow-xs'
                           : 'bg-white/60 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                       }`}
                       title={flaggedQuestions[activeQuestion.id] ? 'Bỏ gắn cờ xem lại' : 'Gắn cờ để xem lại sau'}
                     >
-                      <Flag size={14} fill={flaggedQuestions[activeQuestion.id] ? 'currentColor' : 'none'} />
-                      <span className="hidden sm:inline">
-                        {flaggedQuestions[activeQuestion.id] ? 'Đã ghim' : 'Ghim'}
-                      </span>
+                      <Flag size={13} fill={flaggedQuestions[activeQuestion.id] ? 'currentColor' : 'none'} />
                     </button>
                   </div>
                 </div>
@@ -1010,6 +999,85 @@ export default function ReadingDetail() {
           )}
         </section>
       </div>
+
+      {/* 4. QUICK PEEK PASSAGE DRAWER (BOTTOM SHEET FOR MOBILE) */}
+      <AnimatePresence>
+        {showPassagePeek && (
+          <div
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 backdrop-blur-xs lg:hidden p-0"
+            onClick={() => setShowPassagePeek(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-h-[82vh] h-[80vh] rounded-t-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-white/60 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Top Drag Indicator */}
+              <div className="pt-3 pb-1 flex justify-center">
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+              </div>
+
+              {/* Sheet Header */}
+              <div className="px-5 py-3 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-500/25">
+                    <BookOpen size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                      Đoạn Văn Bài Đọc
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {lesson.title} • {wordCount} từ
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleSpeech}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      isSpeaking
+                        ? 'bg-indigo-600 text-white border-indigo-500'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    <span>{isSpeaking ? 'Dừng' : 'Nghe'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowPassagePeek(false)}
+                    className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Sheet Passage Content */}
+              <div className="flex-1 overflow-y-auto p-5 select-text">
+                <div className={`prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 whitespace-pre-wrap ${fontClass}`}>
+                  {lesson.content}
+                </div>
+              </div>
+
+              {/* Sheet Footer */}
+              <div className="p-3.5 border-t border-slate-200/60 dark:border-slate-800 text-center">
+                <button
+                  onClick={() => setShowPassagePeek(false)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs sm:text-sm hover:opacity-95 shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+                >
+                  Đã hiểu, quay lại chọn đáp án
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
