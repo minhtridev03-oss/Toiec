@@ -15,9 +15,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/layout/Footer';
 import { usePlatform } from './hooks/usePlatform';
 import { dismissAppBootSplash } from './utils/bootSplash';
+import { fetchLatestUpdateInfo, isUpdateDismissed, CURRENT_APP_VERSION } from './lib/appUpdateService';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
+const AppUpdateModal = React.lazy(() => import('./components/layout/AppUpdateModal'));
 const Categories = React.lazy(() => import('./pages/Categories'));
 const SubCategories = React.lazy(() => import('./pages/SubCategories'));
 const PersonalVocabulary = React.lazy(() => import('./pages/PersonalVocabulary'));
@@ -190,6 +192,43 @@ const MainLayout = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [videoEnabled, isVideoPlaying]);
 
+  // Quản lý kiểm tra bản cập nhật ứng dụng
+  const [updateInfo, setUpdateInfo] = useState(null);
+
+  useEffect(() => {
+    let timer = null;
+
+    const performCheck = async (forcePrompt = false) => {
+      try {
+        const info = await fetchLatestUpdateInfo();
+        if (info && info.hasUpdate) {
+          if (forcePrompt || !isUpdateDismissed(info.version)) {
+            setUpdateInfo(info);
+          }
+        } else if (forcePrompt) {
+          alert(`Bạn đang sử dụng phiên bản T-English mới nhất (v${CURRENT_APP_VERSION}) 🎉`);
+        }
+      } catch (err) {
+        console.warn('Lỗi kiểm tra cập nhật:', err);
+      }
+    };
+
+    // Tự động kiểm tra sau khi app load 2.5s
+    timer = setTimeout(() => {
+      performCheck(false);
+    }, 2500);
+
+    const handleManualCheck = () => {
+      performCheck(true);
+    };
+
+    window.addEventListener('tenglish:check-update', handleManualCheck);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('tenglish:check-update', handleManualCheck);
+    };
+  }, []);
+
   return (
     <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 ${
       showVideo ? 'bg-transparent' : 'bg-slate-50/70 dark:bg-[#090a0f]'
@@ -272,6 +311,12 @@ const MainLayout = () => {
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />
         <AuthModal />
+        {updateInfo && (
+          <AppUpdateModal
+            updateInfo={updateInfo}
+            onClose={() => setUpdateInfo(null)}
+          />
+        )}
       </Suspense>
     </div>
   );
