@@ -1,9 +1,17 @@
+import { Capacitor } from '@capacitor/core';
 import { supabase } from './supabaseClient';
 
 export const CURRENT_APP_VERSION = '1.0.0';
 export const CURRENT_VERSION_CODE = 1;
 
 const DISMISSED_KEY = 'tenglish_dismissed_update_version';
+
+/**
+ * Kiểm tra xem môi trường hiện tại có phải là Native App (Android/iOS) hay không
+ */
+export function isNativeApp() {
+  return typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+}
 
 /**
  * So sánh 2 chuỗi phiên bản dạng '1.0.1' và '1.0.0'
@@ -28,8 +36,21 @@ export function compareSemver(v1, v2) {
 
 /**
  * Lấy thông tin bản cập nhật mới nhất từ Supabase (có fallback sang GitHub Releases)
+ * Chỉ áp dụng cho Native Mobile App, trên Web sẽ bỏ qua
  */
 export async function fetchLatestUpdateInfo() {
+  if (!isNativeApp()) {
+    return {
+      hasUpdate: false,
+      version: CURRENT_APP_VERSION,
+      versionCode: CURRENT_VERSION_CODE,
+      apkUrl: '',
+      releaseNotes: '',
+      isForce: false,
+      source: 'web_ignored',
+    };
+  }
+
   // 1. Nguồn ưu tiên số 1: Supabase bảng app_versions
   try {
     const { data, error } = await supabase

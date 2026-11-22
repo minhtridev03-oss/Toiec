@@ -192,10 +192,13 @@ const MainLayout = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [videoEnabled, isVideoPlaying]);
 
-  // Quản lý kiểm tra bản cập nhật ứng dụng
+  // Quản lý kiểm tra bản cập nhật ứng dụng (Chỉ kích hoạt trên Native Mobile App)
   const [updateInfo, setUpdateInfo] = useState(null);
 
   useEffect(() => {
+    // Chỉ kiểm tra và hiển thị popup cập nhật khi đang chạy trên Native App (Android/Capacitor), tuyệt đối bỏ qua trên Web
+    if (!isNative) return;
+
     let timer = null;
 
     const performCheck = async (forcePrompt = false) => {
@@ -227,7 +230,7 @@ const MainLayout = () => {
       if (timer) clearTimeout(timer);
       window.removeEventListener('tenglish:check-update', handleManualCheck);
     };
-  }, []);
+  }, [isNative]);
 
   return (
     <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 ${
@@ -311,7 +314,7 @@ const MainLayout = () => {
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />
         <AuthModal />
-        {updateInfo && (
+        {isNative && updateInfo && (
           <AppUpdateModal
             updateInfo={updateInfo}
             onClose={() => setUpdateInfo(null)}

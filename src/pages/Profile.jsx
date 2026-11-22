@@ -31,10 +31,12 @@ import { supabase } from '../lib/supabaseClient';
 import UserAvatar from '../components/common/UserAvatar';
 import { useAvatarFrames } from '../contexts/AvatarFramesContext';
 import { CURRENT_APP_VERSION } from '../lib/appUpdateService';
+import { usePlatform } from '../hooks/usePlatform';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isNative } = usePlatform();
   const {
     streak = 0,
     learnedWords = 0,
@@ -683,35 +685,37 @@ export default function Profile() {
             </div>
           </form>
 
-          {/* Card Thông tin phiên bản & Kiểm tra cập nhật ứng dụng */}
-          <div className="pt-4 border-t border-white/40 dark:border-white/10">
-            <div className="p-5 sm:p-6 rounded-3xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="h-11 w-11 rounded-2xl bg-indigo-500/10 dark:bg-cyan-500/10 border border-indigo-500/20 dark:border-cyan-500/20 flex items-center justify-center text-indigo-600 dark:text-cyan-400 shrink-0">
-                  <Rocket size={20} />
+          {/* Card Thông tin phiên bản & Kiểm tra cập nhật ứng dụng (Chỉ hiển thị trên App, ẩn hoàn toàn trên Web) */}
+          {isNative && (
+            <div className="pt-4 border-t border-white/40 dark:border-white/10">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white/40 dark:bg-white/5 border border-white/50 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="h-11 w-11 rounded-2xl bg-indigo-500/10 dark:bg-cyan-500/10 border border-indigo-500/20 dark:border-cyan-500/20 flex items-center justify-center text-indigo-600 dark:text-cyan-400 shrink-0">
+                    <Rocket size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-950 dark:text-white">
+                      T-English App (Phiên bản v{CURRENT_APP_VERSION})
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                      Tự động kiểm tra tính năng mới & bản vá lỗi từ hệ thống
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-950 dark:text-white">
-                    T-English App (Phiên bản v{CURRENT_APP_VERSION})
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    Tự động kiểm tra tính năng mới & bản vá lỗi từ hệ thống
-                  </p>
-                </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('tenglish:check-update'));
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-500/20 transition-all cursor-pointer active:scale-95"
-              >
-                <Sparkles size={14} />
-                <span>Kiểm tra cập nhật</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('tenglish:check-update'));
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-500/20 transition-all cursor-pointer active:scale-95"
+                >
+                  <Sparkles size={14} />
+                  <span>Kiểm tra cập nhật</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </section>
       )}
 
