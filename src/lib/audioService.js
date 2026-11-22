@@ -1,9 +1,10 @@
 /**
  * Shared Audio Service:
- * Phát âm thanh từ vựng tiếng Anh chuẩn bản ngữ:
- * 1. Ưu tiên phát qua HTML5 Audio stream từ Google Translate TTS (hoạt động 100% mượt trên Capacitor Android APK & mọi trình duyệt)
- * 2. Tự động dự phòng (fallback) sang SpeechSynthesis nếu thiết bị offline
- * 3. Tự động dừng âm thanh cũ khi người dùng nhấn từ mới hoặc bấm liên tục
+ * Phát âm thanh từ vựng và câu tiếng Anh chuẩn bản ngữ đa nền tảng (Web + Capacitor Android APK):
+ * 1. Với từ đơn và cụm từ ngắn (<= 5 từ): Ưu tiên phát qua Youdao Audio Stream CDN (chuẩn giọng Mỹ, hoạt động 100% trên Android APK không bị chặn localhost).
+ * 2. Với câu văn dài: Phát qua Google Translate TTS với header no-referrer.
+ * 3. Tự động dự phòng sang Web SpeechSynthesis chuẩn hóa voice.
+ * 4. Tự động dừng âm thanh cũ khi người dùng nhấn từ mới hoặc bấm liên tục.
  */
 
 let currentAudio = null;
@@ -32,19 +33,55 @@ export function playWordAudio(wordText, lang = 'en', onEnded) {
   // Dừng âm thanh đang phát trước đó
   stopWordAudio();
 
-  // 1. Phát qua Google Translate TTS audio stream bằng HTML5 Audio (native media)
+  const words = clean.split(/\s+/).filter(Boolean);
+  const ttsLang = lang.startsWith('en') ? 'en' : lang;
+
+  // 1. Nếu là từ đơn hoặc cụm từ ngắn (<= 5 từ): ưu tiên Youdao Voice CDN
+  // Youdao hoạt động 100% trên Capacitor Android (không bị chặn bởi Referer: localhost)
+  if (words.length <= 5 && ttsLang === 'en') {
+    try {
+      const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(clean)}&type=2`;
+      const audio = document.createElement('audio');
+      audio.preload = 'auto';
+      audio.referrerPolicy = 'no-referrer';
+      audio.src = youdaoUrl;
+      currentAudio = audio;
+
+      if (onEnded) {
+        audio.onended = () => {
+          currentAudio = null;
+          onEnded();
+        };
+      }
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Youdao audio failed, trying Google TTS fallback:', err);
+          playViaGoogleTTS(clean, ttsLang, onEnded);
+        });
+      }
+      return;
+    } catch (err) {
+      console.warn('Youdao audio init error, trying Google TTS:', err);
+    }
+  }
+
+  // 2. Với câu dài hoặc ngoại ngữ khác: Dùng Google TTS với no-referrer
+  playViaGoogleTTS(clean, ttsLang, onEnded);
+}
+
+function playViaGoogleTTS(cleanText, ttsLang, onEnded) {
   try {
-    const ttsLang = lang.startsWith('en') ? 'en' : lang;
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(clean)}`;
-    const audio = new Audio(url);
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+    const audio = document.createElement('audio');
+    audio.preload = 'auto';
+    audio.referrerPolicy = 'no-referrer';
+    audio.src = url;
     currentAudio = audio;
 
     if (onEnded) {
       audio.onended = () => {
-        currentAudio = null;
-        onEnded();
-      };
-      audio.onerror = () => {
         currentAudio = null;
         onEnded();
       };
@@ -53,18 +90,21 @@ export function playWordAudio(wordText, lang = 'en', onEnded) {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
-        console.warn('HTML5 Audio error, falling back to SpeechSynthesis:', err);
-        fallbackSpeechSynthesis(clean, lang, onEnded);
+        console.warn('Google TTS failed, falling back to SpeechSynthesis:', err);
+        fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
       });
     }
   } catch (err) {
-    console.warn('Cannot initialize Audio, falling back to SpeechSynthesis:', err);
-    fallbackSpeechSynthesis(clean, lang, onEnded);
+    console.warn('Google TTS init error, falling back to SpeechSynthesis:', err);
+    fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
   }
 }
 
 function fallbackSpeechSynthesis(cleanText, lang = 'en-US', onEnded) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (onEnded) onEnded();
+    return;
+  }
   try {
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
@@ -73,6 +113,14 @@ function fallbackSpeechSynthesis(cleanText, lang = 'en-US', onEnded) {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = lang.startsWith('en') ? 'en-US' : lang;
     utterance.rate = 0.95;
+
+    // Chọn voice tiếng Anh tốt nhất nếu có
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      const enVoice = voices.find((v) => v.lang === 'en-US' || v.lang.startsWith('en'));
+      if (enVoice) utterance.voice = enVoice;
+    }
+
     if (onEnded) {
       utterance.onend = onEnded;
       utterance.onerror = onEnded;

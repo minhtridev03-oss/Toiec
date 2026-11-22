@@ -14,6 +14,7 @@ import GlobalSkeletonLoader from './components/layout/GlobalSkeletonLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/layout/Footer';
 import { usePlatform } from './hooks/usePlatform';
+import { dismissAppBootSplash } from './utils/bootSplash';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
@@ -271,6 +272,10 @@ const MainLayout = () => {
 };
 
 export default function App() {
+  useEffect(() => {
+    dismissAppBootSplash();
+  }, []);
+
   return (
     <ErrorBoundary>
     <Suspense fallback={<GlobalSkeletonLoader />}>
