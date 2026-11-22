@@ -84,21 +84,18 @@ body {
   transition-delay: 0s !important;
 }
 
-/* ===== Micro Page Transition (Ultra-smooth 160ms GPU Slide & Fade) ===== */
+/* ===== Micro Page Transition ===== */
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translate3d(0, 4px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
   }
 }
 
 .animate-page-enter {
-  animation: pageFadeIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform;
+  animation: pageFadeIn 140ms ease-out both;
 }
 
 /* Native App Polish: Prevent accidental UI selection while keeping text inputs selectable */

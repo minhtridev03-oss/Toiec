@@ -255,9 +255,7 @@ const MainLayout = () => {
               <div className="w-6 h-6 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
             </div>
           }>
-            <div key={location.pathname.split('/')[1] || 'root'} className="flex-1 flex flex-col min-w-0 animate-page-enter">
-              <Outlet />
-            </div>
+            <Outlet />
           </Suspense>
         </main>
         {!isStudioMode && !isNative && <Footer />}

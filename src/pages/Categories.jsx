@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import {
@@ -748,24 +749,26 @@ export default function Categories() {
       )}
 
       {/* ============================================================ */}
-{/* 5. SUB-CATEGORIES MODAL DIALOG (Liquid Glass Studio - Light & Dark) */}
+      {/* 5. SUB-CATEGORIES MODAL DIALOG (Liquid Glass Studio - Light & Dark) */}
       {/* ============================================================ */}
-      {selectedGroup && (
+      {selectedGroup && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-3 sm:p-5 backdrop-blur-md"
           role="presentation"
-          onMouseDown={() => {
-            setSelectedGroup(null);
-            setModalSearch('');
-            setModalFilter('all');
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedGroup(null);
+              setModalSearch('');
+              setModalFilter('all');
+            }
           }}
         >
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="sub-category-dialog-title"
-            className="relative max-h-[92vh] sm:max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/80 dark:border-white/15 bg-white/90 dark:bg-[#070d19]/80 shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1px_2px_rgba(255,255,255,0.9),_inset_0_-1px_1px_rgba(0,0,0,0.04)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_2px_rgba(255,255,255,0.4),_inset_0_-1px_1px_rgba(255,255,255,0.08)] backdrop-blur-3xl flex flex-col animate-in zoom-in-95 duration-200"
-            onMouseDown={(event) => event.stopPropagation()}
+            className="relative max-h-[92vh] sm:max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/80 dark:border-white/15 bg-white/95 dark:bg-[#070d19]/95 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] flex flex-col"
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Fluid Caustics Background Elements */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[1.75rem] sm:rounded-[2.5rem] -z-0">
@@ -1004,7 +1007,8 @@ export default function Categories() {
               )}
             </div>
           </section>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
