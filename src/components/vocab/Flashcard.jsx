@@ -27,6 +27,15 @@ export default function Flashcard({ word, isLearned, onToggleLearned }) {
 
   const [isFlipped, setIsFlipped] = useState(false);
   const backContentRef = useRef(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioTimeoutRef = useRef(null);
+
+  // Clear audio timer on unmount
+  useEffect(() => {
+    return () => {
+      if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
+    };
+  }, []);
 
   // Reset flip when word changes
   useEffect(() => {
@@ -47,9 +56,24 @@ export default function Flashcard({ word, isLearned, onToggleLearned }) {
 
   const speakWord = (e) => {
     e?.stopPropagation();
-    if (cleanedData?.word) {
-      playWordAudio(cleanedData.word, 'en');
-    }
+    if (!cleanedData?.word) return;
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(25);
+      }
+    } catch {}
+
+    if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
+    setIsPlayingAudio(true);
+
+    playWordAudio(cleanedData.word, 'en', () => {
+      setIsPlayingAudio(false);
+    });
+
+    audioTimeoutRef.current = setTimeout(() => {
+      setIsPlayingAudio(false);
+    }, 1500);
   };
 
   const handleToggleLearned = (e) => {
@@ -116,13 +140,28 @@ export default function Flashcard({ word, isLearned, onToggleLearned }) {
               )}
             </div>
 
-            {/* Audio Button (Liquid Sound Drop) */}
+            {/* Audio Button (Liquid Sound Drop with Active Feedback) */}
             <button
               onClick={speakWord}
-              className="h-13 w-13 sm:h-16 sm:w-16 rounded-2xl bg-white/45 hover:bg-white/80 dark:bg-white/10 dark:hover:bg-cyan-500/20 text-indigo-600 dark:text-cyan-300 border border-white/70 dark:border-white/20 hover:border-indigo-400/50 dark:hover:border-cyan-400/50 flex items-center justify-center transition-all duration-300 shadow-[0_8px_20px_rgba(99,102,241,0.15),_inset_0_1px_2px_rgba(255,255,255,0.9)] dark:shadow-[0_8px_25px_rgba(34,211,238,0.2),_inset_0_1px_2px_rgba(255,255,255,0.3)] hover:scale-110 active:scale-95 cursor-pointer"
+              className={`relative h-13 w-13 sm:h-16 sm:w-16 rounded-2xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                isPlayingAudio
+                  ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-600 text-white scale-110 shadow-[0_0_25px_rgba(99,102,241,0.6)] ring-4 ring-indigo-400/40 animate-pulse'
+                  : 'bg-white/45 hover:bg-white/80 dark:bg-white/10 dark:hover:bg-cyan-500/20 text-indigo-600 dark:text-cyan-300 border border-white/70 dark:border-white/20 hover:border-indigo-400/50 dark:hover:border-cyan-400/50 shadow-[0_8px_20px_rgba(99,102,241,0.15),_inset_0_1px_2px_rgba(255,255,255,0.9)] dark:shadow-[0_8px_25px_rgba(34,211,238,0.2),_inset_0_1px_2px_rgba(255,255,255,0.3)] hover:scale-110 active:scale-95'
+              }`}
               title={text.hear}
             >
-              <Volume2 size={24} className="sm:w-[30px] sm:h-[30px] transition-transform group-hover:scale-110" />
+              <Volume2
+                size={24}
+                className={`sm:w-[30px] sm:h-[30px] transition-transform ${
+                  isPlayingAudio ? 'scale-125' : 'group-hover:scale-110'
+                }`}
+              />
+              {isPlayingAudio && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-indigo-500 border-2 border-white"></span>
+                </span>
+              )}
             </button>
           </div>
 
