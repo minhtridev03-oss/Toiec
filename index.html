@@ -252,7 +252,7 @@
 
     <div class="splash-mascot-box">
       <div class="splash-mascot-halo"></div>
-      <img src="/mascot.png" alt="T-English Mascot" class="splash-mascot-img" />
+      <img src="./mascot.png" alt="T-English Mascot" class="splash-mascot-img" onerror="this.onerror=null; this.src='/mascot.png';" />
     </div>
 
     <h1 class="splash-brand">T-English</h1>
@@ -283,7 +283,7 @@
         if (quoteEl) quoteEl.textContent = chosen;
       } catch (e) {}
 
-      // Fallback tự động gỡ splash sau 3.5s nếu xảy ra sự cố mạng ngoại cảnh
+      // Fallback tự động gỡ splash sau 5s nếu xảy ra sự cố ngoại cảnh
       setTimeout(function () {
         var splash = document.getElementById('app-boot-splash');
         if (splash && !splash.classList.contains('splash-fade-out')) {
@@ -292,7 +292,7 @@
             try { splash.remove(); } catch (err) {}
           }, 550);
         }
-      }, 3500);
+      }, 5000);
     })();
   </script>
 
