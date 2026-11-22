@@ -1001,7 +1001,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
       }}
     >
       {/* LEFT COLUMN: CINEMA VIDEO & DICTATION CONSOLE */}
-      <section className="flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar">
+      <section className="w-full shrink-0 lg:shrink flex min-w-0 flex-col lg:flex-1 gap-3.5 lg:gap-4 lg:overflow-y-auto pr-0 lg:pr-1 hide-scrollbar pb-4 lg:pb-6">
         {/* 1. TOPBAR DOCK */}
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/70 dark:bg-slate-900/80 border border-white/50 dark:border-white/10 shadow-lg shadow-black/5">
           <Link
@@ -1118,16 +1118,16 @@ export default function VideoDictationPlayer({ videoData, segments }) {
         </div>
 
         {/* 3. ERGONOMIC STUDIO MEDIA DOCK */}
-        <div className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-3 overflow-hidden">
-          {/* Upper Row: Flex wrap so time, transport and toggle never clip */}
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-2.5 w-full">
+        <div className="shrink-0 p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-2.5 sm:gap-3">
+          {/* Upper Row: Time, transport buttons, and auto-next toggle */}
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2.5 w-full">
             {/* Time Display */}
-            <div className="shrink-0 whitespace-nowrap text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 shadow-inner">
+            <div className="shrink-0 whitespace-nowrap text-[11px] sm:text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 shadow-inner">
               {currentTimeDisplay} / {durationDisplay}
             </div>
 
             {/* Center Playback Controls */}
-            <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-0.5">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 py-0.5">
               <button
                 type="button"
                 onClick={() => changeSegment(currentSegmentIndex - 1)}
@@ -1152,7 +1152,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 type="button"
                 onClick={handlePlayPause}
                 title={isPlaying ? text.pause : text.play}
-                className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-xl shadow-indigo-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-1 sm:mx-1.5"
+                className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-xl shadow-indigo-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-0.5 sm:mx-1.5 shrink-0"
               >
                 {isPlaying ? <Pause size={20} className="fill-current" /> : <Play size={20} className="ml-0.5 fill-current" />}
               </button>
@@ -1181,14 +1181,14 @@ export default function VideoDictationPlayer({ videoData, segments }) {
               </button>
             </div>
 
-            {/* Auto-Next Switch: Unified, beautifully fitting on both mobile and desktop */}
+            {/* Auto-Next Switch */}
             <button
               type="button"
               onClick={() => setAutoNext((value) => !value)}
               title={text.autoNext}
-              className="flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:py-1.5 rounded-xl bg-white/20 dark:bg-slate-800/30 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
+              className="flex shrink-0 items-center gap-1 sm:gap-2 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
             >
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hidden xs:inline">{text.autoNext}:</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hidden sm:inline">{text.autoNext}:</span>
               <span
                 className={`flex h-4 w-7 sm:h-5 sm:w-8 items-center rounded-full p-0.5 transition-colors ${
                   autoNext
@@ -1236,13 +1236,13 @@ export default function VideoDictationPlayer({ videoData, segments }) {
           </div>
 
           {/* Lower Sub-strip: Sentence Tracker + Speed Pills */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pt-2.5 border-t border-white/20 dark:border-white/10 text-xs">
+          <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-white/20 dark:border-white/10 text-xs">
             {/* Sentence Tracker */}
             <div className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300">
               <span className="px-2.5 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-cyan-300 font-black">
                 {text.sentence} {currentSegmentIndex + 1}/{segments.length}
               </span>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden xs:inline">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline">
                 ({progressPercent}% hoàn thành)
               </span>
             </div>
@@ -1269,7 +1269,7 @@ export default function VideoDictationPlayer({ videoData, segments }) {
         </div>
 
         {/* 4. TYPING CANVAS & WORD MATRIX */}
-        <div className="p-4 sm:p-6 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-4">
+        <div className="shrink-0 p-4 sm:p-6 rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-4">
           <div className="relative">
             <textarea
               ref={textareaRef}

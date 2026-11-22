@@ -87,7 +87,7 @@ export default function ShadowingDetail() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 bg-transparent overflow-y-auto lg:overflow-hidden">
+    <div className="flex-1 flex flex-col w-full min-h-0 bg-transparent">
       <VideoShadowingPlayer 
         videoData={videoData} 
         segments={segments} 
