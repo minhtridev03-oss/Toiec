@@ -216,17 +216,18 @@ export default function GlobalDictionary({ showTrigger = true }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-slate-950/65 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px] transition-colors"
             />
 
             {/* Modal Content */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.965, y: 10 }}
+              initial={{ opacity: 0, scale: 0.98, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.975, y: 8 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-              className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 transition-colors"
+              exit={{ opacity: 0, scale: 0.98, y: 4 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl dark:border-white/10 dark:bg-slate-900/95 transition-colors transform-gpu"
             >
               {/* Search Header Bar (Responsive & Overflow-Safe) */}
               <div className="border-b border-slate-200/80 bg-slate-50/70 p-2.5 sm:p-4 dark:border-white/10 dark:bg-slate-800/50">

@@ -250,7 +250,15 @@ const MainLayout = () => {
       } ${isStudioMode ? 'h-full lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'}`}>
         {!isStudioMode && <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} hideMenuButton={isNative} />}
         <main className={`flex-1 flex flex-col relative min-w-0 ${isStudioMode ? 'overflow-y-auto lg:overflow-hidden' : 'overflow-x-hidden'}`}>
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex-1 w-full min-h-[40vh] flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+            </div>
+          }>
+            <div key={location.pathname.split('/')[1] || 'root'} className="flex-1 flex flex-col min-w-0 animate-page-enter">
+              <Outlet />
+            </div>
+          </Suspense>
         </main>
         {!isStudioMode && !isNative && <Footer />}
       </div>
@@ -274,6 +282,25 @@ const MainLayout = () => {
 export default function App() {
   useEffect(() => {
     dismissAppBootSplash();
+
+    // Idle Route Prefetching: Tải ngầm các trang cốt lõi để chuyển tab tức thì 0ms
+    const prefetchRoutes = () => {
+      try {
+        import('./pages/Categories');
+        import('./pages/Practice');
+        import('./pages/Profile');
+        import('./pages/WordList');
+        import('./pages/VocabularyDetail');
+      } catch {}
+    };
+
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(prefetchRoutes);
+      } else {
+        setTimeout(prefetchRoutes, 1000);
+      }
+    }
   }, []);
 
   return (

@@ -143,17 +143,18 @@ export default function GlobalFeedback({ showTrigger = true }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-slate-950/65 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-950/50 backdrop-blur-[2px]"
             />
 
             {/* Modal Dialog Box */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.98, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="relative w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95"
+              exit={{ opacity: 0, scale: 0.98, y: 4 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl dark:border-white/10 dark:bg-slate-900/95 transform-gpu"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-slate-800/50">

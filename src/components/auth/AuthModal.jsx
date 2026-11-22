@@ -352,26 +352,26 @@ export default function AuthModal() {
     <AnimatePresence>
       {authModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-          {/* Backdrop: Liquid glass dimming overlay synchronized with web ambient */}
+          {/* Backdrop: Lightweight subtle blur & ambient dimming */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             onClick={() => {
               if (!loading && !isSuccess) handleClose();
             }}
-            className="fixed inset-0 bg-slate-950/45 dark:bg-black/70 backdrop-blur-[8px] transition-colors"
+            className="fixed inset-0 bg-slate-950/50 dark:bg-black/75 backdrop-blur-[2px] transition-colors"
           />
 
-          {/* Modal Window: 100% Synchronized Glass Panel */}
+          {/* Modal Window: High-performance GPU accelerated panel */}
           <motion.div
             ref={modalRef}
-            initial={{ opacity: 0, scale: 0.965, y: 10 }}
+            initial={{ opacity: 0, scale: 0.98, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.975, y: 6 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full max-w-[460px] overflow-hidden rounded-[2.2rem] glass-panel bg-white/85 dark:bg-[#0f172a]/92 p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.55)] border border-white/60 dark:border-white/10 backdrop-blur-2xl my-auto"
+            exit={{ opacity: 0, scale: 0.98, y: 4 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full max-w-[460px] overflow-hidden rounded-[2.2rem] bg-white/95 dark:bg-[#0f172a]/95 p-5 sm:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-white/60 dark:border-white/10 my-auto transform-gpu"
           >
           {/* Subtle top edge liquid glow */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/50 dark:via-cyan-400/50 to-transparent" />

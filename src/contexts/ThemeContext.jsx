@@ -27,14 +27,24 @@ export function ThemeProvider({ children }) {
   }, [isDarkMode]);
 
   const toggleTheme = () => {
-    // Kích hoạt class chuyển màu mượt mà trong 380ms
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.add('theme-in-transition');
-      setTimeout(() => {
-        document.documentElement.classList.remove('theme-in-transition');
-      }, 380);
+    const applyToggle = () => {
+      setIsDarkMode((prev) => !prev);
+    };
+
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      document.startViewTransition(() => {
+        applyToggle();
+      });
+    } else {
+      // Fallback cho trình duyệt cũ: chỉ kích hoạt trên các container lớn
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.add('theme-in-transition');
+        setTimeout(() => {
+          document.documentElement.classList.remove('theme-in-transition');
+        }, 220);
+      }
+      applyToggle();
     }
-    setIsDarkMode((prev) => !prev);
   };
 
   return (

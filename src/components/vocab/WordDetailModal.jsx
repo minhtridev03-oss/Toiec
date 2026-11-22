@@ -18,18 +18,18 @@ export default function WordDetailModal({ word, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        transition={{ duration: 0.18 }}
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
       {/* Modal */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.965, y: 10 }}
+        initial={{ opacity: 0, scale: 0.98, y: 6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.975, y: 8 }}
-        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#1E1226] rounded-3xl shadow-2xl overflow-hidden transition-colors"
+        exit={{ opacity: 0, scale: 0.98, y: 4 }}
+        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#1E1226] rounded-3xl shadow-2xl overflow-hidden transition-colors transform-gpu"
       >
         <button
           onClick={onClose}
