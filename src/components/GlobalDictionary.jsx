@@ -222,10 +222,10 @@ export default function GlobalDictionary({ showTrigger = true }) {
 
             {/* Modal Content */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.965, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              exit={{ opacity: 0, scale: 0.975, y: 8 }}
+              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
               className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 transition-colors"
             >
               {/* Search Header Bar (Responsive & Overflow-Safe) */}

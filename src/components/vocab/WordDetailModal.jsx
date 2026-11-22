@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Volume2, X } from 'lucide-react';
 import TFlatMeaning from './TFlatMeaning';
 import { playWordAudio } from '../../lib/audioService';
@@ -13,13 +14,23 @@ export default function WordDetailModal({ word, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}
-      ></div>
+      />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#1E1226] rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 transition-colors">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.965, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.975, y: 8 }}
+        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#1E1226] rounded-3xl shadow-2xl overflow-hidden transition-colors"
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-[#2A1F33] hover:bg-slate-200 dark:hover:bg-[#32263C] rounded-full text-slate-500 dark:text-slate-400 transition-colors cursor-pointer z-10"
@@ -53,7 +64,7 @@ export default function WordDetailModal({ word, onClose }) {
         <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-[#1E1226] transition-colors">
           <TFlatMeaning word={word} />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

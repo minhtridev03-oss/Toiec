@@ -348,31 +348,31 @@ export default function AuthModal() {
     }
   };
 
-  if (!authModalOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-        {/* Backdrop: Liquid glass dimming overlay synchronized with web ambient */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => {
-            if (!loading && !isSuccess) handleClose();
-          }}
-          className="fixed inset-0 bg-slate-950/45 dark:bg-black/70 backdrop-blur-[8px] transition-colors"
-        />
+      {authModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          {/* Backdrop: Liquid glass dimming overlay synchronized with web ambient */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => {
+              if (!loading && !isSuccess) handleClose();
+            }}
+            className="fixed inset-0 bg-slate-950/45 dark:bg-black/70 backdrop-blur-[8px] transition-colors"
+          />
 
-        {/* Modal Window: 100% Synchronized Glass Panel */}
-        <motion.div
-          ref={modalRef}
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 w-full max-w-[460px] overflow-hidden rounded-[2.2rem] glass-panel bg-white/85 dark:bg-[#0f172a]/92 p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.55)] border border-white/60 dark:border-white/10 backdrop-blur-2xl my-auto"
-        >
+          {/* Modal Window: 100% Synchronized Glass Panel */}
+          <motion.div
+            ref={modalRef}
+            initial={{ opacity: 0, scale: 0.965, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.975, y: 6 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 w-full max-w-[460px] overflow-hidden rounded-[2.2rem] glass-panel bg-white/85 dark:bg-[#0f172a]/92 p-5 sm:p-7 shadow-[0_25px_80px_rgba(0,0,0,0.55)] border border-white/60 dark:border-white/10 backdrop-blur-2xl my-auto"
+          >
           {/* Subtle top edge liquid glow */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/50 dark:via-cyan-400/50 to-transparent" />
 
@@ -731,6 +731,7 @@ export default function AuthModal() {
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }

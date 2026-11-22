@@ -201,7 +201,7 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
           title={text.theme}
           aria-label={text.theme}
         >
-          <span className={`inline-flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-amber-400' : 'text-slate-800 dark:text-slate-200'}`}>
+          <span className={`inline-flex items-center justify-center transition-all duration-500 ease-out ${isDarkMode ? 'rotate-[360deg] text-amber-400 scale-105' : 'rotate-0 text-slate-800 dark:text-slate-200 scale-100'}`}>
             <MorphIcon
               icon={isDarkMode ? SunIcon : MoonIcon}
               size={17}

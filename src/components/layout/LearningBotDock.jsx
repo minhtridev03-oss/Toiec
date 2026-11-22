@@ -122,9 +122,11 @@ export default function LearningBotDock() {
       <AnimatePresence>
         {isHovered && !isMenuOpen && !currentCheer && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.92 }}
+            initial={{ opacity: 0, y: 6, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.94 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformOrigin: 'bottom right' }}
             className="pointer-events-none absolute bottom-[5.8rem] right-0 w-64 rounded-2xl border border-pink-200/80 bg-white/95 p-3.5 text-xs font-bold leading-relaxed text-slate-700 shadow-xl backdrop-blur-xl dark:border-pink-500/20 dark:bg-slate-900/95 dark:text-slate-200 sm:bottom-[6.5rem] sm:w-72"
             role="status"
           >
@@ -140,10 +142,11 @@ export default function LearningBotDock() {
       <AnimatePresence>
         {currentCheer && (
           <motion.div
-            initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -2 }}
-            animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, y: 10, scale: 0.92 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 280 }}
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.97 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformOrigin: 'bottom right' }}
             className="absolute bottom-[5.8rem] right-0 w-72 rounded-3xl border border-pink-400/30 bg-gradient-to-b from-white via-pink-50/70 to-purple-50/80 p-4 shadow-2xl backdrop-blur-2xl dark:border-pink-500/30 dark:from-slate-900 dark:via-slate-900/95 dark:to-purple-950/40 sm:bottom-[6.5rem] sm:w-80"
             role="status"
           >
@@ -208,10 +211,11 @@ export default function LearningBotDock() {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.9 }}
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.92 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 320 }}
+            exit={{ opacity: 0, y: 6, scale: 0.97 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformOrigin: 'bottom right' }}
             className="absolute bottom-[5.8rem] right-0 flex w-60 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/85 p-2 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/90 sm:bottom-[6.5rem] sm:w-64"
           >
             {/* Header dock */}

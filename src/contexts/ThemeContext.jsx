@@ -27,7 +27,14 @@ export function ThemeProvider({ children }) {
   }, [isDarkMode]);
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
+    // Kích hoạt class chuyển màu mượt mà trong 380ms
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('theme-in-transition');
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-in-transition');
+      }, 380);
+    }
+    setIsDarkMode((prev) => !prev);
   };
 
   return (
