@@ -12,6 +12,7 @@ import {
   Target,
   Play,
   Volume2,
+  VolumeX,
   RotateCcw,
   Languages,
   Loader2,
@@ -31,22 +32,21 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePracticeSessionTimer } from '../lib/practiceActivity';
 import { useAudioRecorder } from '../lib/useAudioRecorder';
+import { playSpeakingAudio, stopWordAudio } from '../lib/audioService';
+import { usePlatform } from '../hooks/usePlatform';
+import { hapticsService } from '../lib/hapticsService';
 
 const VOICES = [
-  { id: 'us-female-1', name: 'Hannah', accent: 'US', gender: 'Female' },
-  { id: 'us-female-2', name: 'Lauren', accent: 'US', gender: 'Female' },
-  { id: 'us-male-1', name: 'Daniel', accent: 'US', gender: 'Male' },
-  { id: 'us-male-2', name: 'Noah', accent: 'US', gender: 'Male' },
-  { id: 'gb-female-1', name: 'Amelia', accent: 'GB', gender: 'Female' },
-  { id: 'gb-female-2', name: 'Chloe', accent: 'GB', gender: 'Female' },
-  { id: 'gb-male-1', name: 'Edward', accent: 'GB', gender: 'Male' },
-  { id: 'gb-male-2', name: 'Oliver', accent: 'GB', gender: 'Male' },
+  { id: 'us-female-1', name: 'Hannah', accent: 'US', gender: 'Female', label: '🇺🇸 US Nữ' },
+  { id: 'us-male-1', name: 'Daniel', accent: 'US', gender: 'Male', label: '🇺🇸 US Nam' },
+  { id: 'gb-female-1', name: 'Amelia', accent: 'GB', gender: 'Female', label: '🇬🇧 UK Nữ' },
+  { id: 'gb-male-1', name: 'Edward', accent: 'GB', gender: 'Male', label: '🇬🇧 UK Nam' },
 ];
 
 const SPEEDS = [
-  { id: 'slow', label: 'Chậm (0.7x)', rate: 0.7 },
-  { id: 'normal', label: 'Chuẩn (1.0x)', rate: 1.0 },
-  { id: 'fast', label: 'Nhanh (1.3x)', rate: 1.3 },
+  { id: 'slow', label: '0.8x', rate: 0.8 },
+  { id: 'normal', label: '1.0x', rate: 1.0 },
+  { id: 'fast', label: '1.2x', rate: 1.2 },
 ];
 
 const LEVEL_THEMES = {
@@ -61,6 +61,7 @@ export default function SpeakingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isNative } = usePlatform();
 
   const [scenario, setScenario] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,7 @@ export default function SpeakingDetail() {
   const [selectedVoice, setSelectedVoice] = useState(VOICES[0]);
   const [selectedSpeed, setSelectedSpeed] = useState(SPEEDS[1]);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [playingMessageIdx, setPlayingMessageIdx] = useState(null);
 
   usePracticeSessionTimer('speaking', user, Boolean(scenario && phase !== 'intro' && phase !== 'result'));
 
@@ -89,6 +91,13 @@ export default function SpeakingDetail() {
   useEffect(() => {
     fetchScenario();
   }, [id]);
+
+  // Clean up any ongoing audio when unmounting
+  useEffect(() => {
+    return () => {
+      stopWordAudio();
+    };
+  }, []);
 
   const fetchScenario = async () => {
     try {
@@ -167,13 +176,7 @@ export default function SpeakingDetail() {
     scrollToBottom();
   }, [messages, isAIThinking]);
 
-  useEffect(() => () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  }, []);
-
-  // Pro Spacebar shortcut to speak during chat
+  // Pro Spacebar shortcut to speak during chat (desktop)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (phase !== 'chat') return;
@@ -186,13 +189,39 @@ export default function SpeakingDetail() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [phase, isRecording]);
 
-  const handleStart = async () => {
-    if (window.speechSynthesis) {
-      const unlockUtterance = new SpeechSynthesisUtterance('');
-      unlockUtterance.volume = 0;
-      window.speechSynthesis.speak(unlockUtterance);
-    }
+  const playAudio = useCallback((textToSpeak, customVoice = null, customSpeed = null, msgIdx = null) => {
+    if (!textToSpeak) return;
 
+    const voiceToUse = customVoice || selectedVoiceRef.current;
+    const speedToUse = customSpeed || selectedSpeedRef.current;
+
+    setIsAISpeaking(true);
+    if (msgIdx !== null) setPlayingMessageIdx(msgIdx);
+
+    playSpeakingAudio(textToSpeak, {
+      lang: voiceToUse.accent === 'GB' ? 'en-GB' : 'en-US',
+      accent: voiceToUse.accent,
+      rate: speedToUse.rate,
+      onStart: () => {
+        setIsAISpeaking(true);
+        if (msgIdx !== null) setPlayingMessageIdx(msgIdx);
+      },
+      onEnded: () => {
+        setIsAISpeaking(false);
+        setPlayingMessageIdx(null);
+      },
+    });
+  }, []);
+
+  const stopAudio = useCallback(() => {
+    stopWordAudio();
+    setIsAISpeaking(false);
+    setPlayingMessageIdx(null);
+  }, []);
+
+  const handleStart = async () => {
+    hapticsService.selection();
+    stopAudio();
     setPhase('chat');
     setIsAIThinking(true);
     try {
@@ -213,25 +242,29 @@ export default function SpeakingDetail() {
       const initialMessages = [{ role: 'ai', content: aiText }];
       setMessages(initialMessages);
       setSuggestions(initialSuggestions);
-      playAudio(aiText);
+      playAudio(aiText, selectedVoice, selectedSpeed, 0);
     } catch {
       const fallbackMsg = [{ role: 'ai', content: `Hi there! I'm ${scenario.partner.name}. Nice to meet you!` }];
       setMessages(fallbackMsg);
       setSuggestions(Array.isArray(scenario.suggestions) ? scenario.suggestions : []);
+      playAudio(fallbackMsg[0].content, selectedVoice, selectedSpeed, 0);
     } finally {
       setIsAIThinking(false);
     }
   };
 
   const toggleRecording = () => {
+    hapticsService.selection();
     if (isRecording) {
       stopRecording();
     } else {
+      stopAudio(); // Tắt âm thanh AI ngay lập tức khi người dùng bắt đầu nói
       startRecording();
     }
   };
 
   const handleUserMessage = async (textInput, inlineData = null) => {
+    stopAudio();
     setIsAIThinking(true);
     setSuggestions([]);
 
@@ -244,7 +277,6 @@ export default function SpeakingDetail() {
     ]);
 
     let finalReply = '';
-    let finalTranscript = textInput || '';
     let finalSuggestions = [];
 
     try {
@@ -274,7 +306,6 @@ export default function SpeakingDetail() {
             finalSuggestions = newSuggestions;
           }
           if (inlineData && userTranscript) {
-            finalTranscript = userTranscript;
             setMessages((prev) => {
               if (prev.length < 2) return prev;
               const updated = [...prev];
@@ -293,9 +324,16 @@ export default function SpeakingDetail() {
       });
 
       setSuggestions(finalSuggestions);
-      if (finalReply) playAudio(finalReply);
+      if (finalReply) {
+        setMessages((current) => {
+          const aiIdx = current.length - 1;
+          playAudio(finalReply, selectedVoice, selectedSpeed, aiIdx);
+          return current;
+        });
+      }
     } catch (error) {
       console.error(error);
+      const fallbackReply = "Sorry, I couldn't catch that clearly. Could you say it again?";
       setMessages((prev) => {
         if (prev.length === 0) return prev;
         const updated = [...prev];
@@ -303,11 +341,12 @@ export default function SpeakingDetail() {
         if (updated[lastIdx]?.role === 'ai') {
           updated[lastIdx] = {
             role: 'ai',
-            content: "Sorry, I couldn't catch that clearly. Could you say it again?",
+            content: fallbackReply,
           };
         }
         return updated;
       });
+      playAudio(fallbackReply, selectedVoice, selectedSpeed, messages.length);
     } finally {
       setIsAIThinking(false);
     }
@@ -318,39 +357,20 @@ export default function SpeakingDetail() {
   }, [scenario, messages, handleUserMessage]);
 
   const handleSuggestionClick = (word) => {
+    hapticsService.selection();
+    stopAudio();
     handleUserMessage(word);
   };
 
-  const playAudio = (textToSpeak, customVoice = null, customSpeed = null) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-
-    const voiceToUse = customVoice || selectedVoiceRef.current;
-    const speedToUse = customSpeed || selectedSpeedRef.current;
-
-    utterance.lang = voiceToUse.accent === 'GB' ? 'en-GB' : 'en-US';
-    utterance.rate = speedToUse.rate;
-
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = voiceToUse.accent === 'GB' ? 'en-GB' : 'en-US';
-    const match = voices.find((v) => v.lang.startsWith(langPrefix)) || voices.find((v) => v.lang.startsWith('en'));
-    if (match) utterance.voice = match;
-
-    utterance.onstart = () => setIsAISpeaking(true);
-    utterance.onend = () => setIsAISpeaking(false);
-    utterance.onerror = () => setIsAISpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
-  };
-
   const previewVoice = (voice) => {
+    hapticsService.selection();
     setSelectedVoice(voice);
     selectedVoiceRef.current = voice;
     playAudio(`Hi, I'm ${voice.name}. Let's practice English together!`, voice, selectedSpeedRef.current);
   };
 
   const handleTranslateMessage = async (idx, textToTranslate) => {
+    hapticsService.selection();
     setMessages((prev) => {
       const newMsgs = [...prev];
       newMsgs[idx] = { ...newMsgs[idx], isTranslating: true };
@@ -367,6 +387,7 @@ export default function SpeakingDetail() {
   };
 
   const handleTranslateDesc = async () => {
+    hapticsService.selection();
     if (descTranslation) {
       setDescTranslation('');
       return;
@@ -378,7 +399,8 @@ export default function SpeakingDetail() {
   };
 
   const handleEndSession = async () => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    hapticsService.selection();
+    stopAudio();
     setPhase('evaluating');
 
     try {
@@ -390,6 +412,7 @@ export default function SpeakingDetail() {
       );
       setEvaluation(result);
       setPhase('result');
+      hapticsService.success();
     } catch (error) {
       console.error(error);
       alert('Không thể tạo đánh giá lúc này. Vui lòng thử lại sau.');
@@ -397,9 +420,16 @@ export default function SpeakingDetail() {
     }
   };
 
+  // Safe area padding styles for mobile status bar & gesture navigation
+  const safeAreaStyle = {
+    paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 54px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
+    paddingBottom: isNative ? 'max(env(safe-area-inset-bottom, 0px), 24px)' : 'max(env(safe-area-inset-bottom, 0px), 16px)',
+  };
+
+  // ==================== 0. LOADING & ERROR STATES ====================
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+      <div className="flex-1 flex items-center justify-center min-h-[500px]" style={safeAreaStyle}>
         <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white/30 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/35 dark:border-white/10 shadow-xl text-center">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -412,7 +442,7 @@ export default function SpeakingDetail() {
 
   if (!scenario) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+      <div className="flex-1 flex items-center justify-center min-h-[500px]" style={safeAreaStyle}>
         <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white/30 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/35 dark:border-white/10 shadow-xl text-center max-w-md">
           <p className="text-base font-bold text-slate-800 dark:text-slate-100">
             Không tìm thấy tình huống hội thoại
@@ -434,9 +464,12 @@ export default function SpeakingDetail() {
     const levelStyle = LEVEL_THEMES[scenario.level] || LEVEL_THEMES.A1;
 
     return (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 flex flex-col justify-start lg:justify-center items-center hide-scrollbar">
+      <div
+        className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 flex flex-col justify-start lg:justify-center items-center hide-scrollbar"
+        style={safeAreaStyle}
+      >
         <motion.div
-          initial={{ opacity: 0, scale: 0.97, y: 12 }}
+          initial={{ opacity: 0, scale: 0.98, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.25 }}
           className="w-full max-w-5xl my-auto rounded-3xl backdrop-blur-2xl bg-white/45 dark:bg-slate-900/60 border border-white/50 dark:border-white/10 shadow-2xl relative overflow-hidden p-4 sm:p-6 lg:p-7"
@@ -445,14 +478,14 @@ export default function SpeakingDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
             {/* LEFT COLUMN (Artwork & Partner Persona Card) */}
             <div className="lg:col-span-5 flex flex-col justify-between gap-3.5">
-              {/* Scenario Artwork - Generous aspect ratio with object-top to prevent head cropping */}
+              {/* Scenario Artwork */}
               <div className="relative rounded-2xl overflow-hidden border border-white/30 dark:border-white/10 shadow-lg bg-slate-950/60 aspect-[16/10] sm:aspect-[16/11] shrink-0 group">
                 <img
                   src={scenario.image}
                   alt={scenario.title}
                   className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-black/20 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20 pointer-events-none" />
 
                 {/* Level Badge */}
                 <div className="absolute top-3 left-3 pointer-events-none">
@@ -463,7 +496,7 @@ export default function SpeakingDetail() {
               </div>
 
               {/* Partner Persona Card */}
-              <div className="rounded-2xl p-3.5 backdrop-blur-xl bg-white/30 dark:bg-slate-800/35 border border-white/30 dark:border-white/5 flex items-center gap-3.5">
+              <div className="rounded-2xl p-3.5 backdrop-blur-xl bg-white/35 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 flex items-center gap-3.5 shadow-xs">
                 <div className="relative shrink-0">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-600/30">
                     {scenario.partner.initial}
@@ -503,7 +536,7 @@ export default function SpeakingDetail() {
                 <button
                   type="button"
                   onClick={() => navigate('/speaking')}
-                  className="p-2 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/30 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/80 transition-all cursor-pointer shrink-0 shadow-xs"
+                  className="p-2 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/30 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/80 transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
                   title="Đóng và quay lại"
                 >
                   <X size={18} />
@@ -543,9 +576,9 @@ export default function SpeakingDetail() {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <Volume2 size={13} className="text-indigo-500 dark:text-cyan-400" />
-                    <span>Giọng đọc ({selectedVoice.accent})</span>
+                    <span>Giọng đối tác</span>
                   </label>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {VOICES.map((v) => {
                       const isSelected = selectedVoice.id === v.id;
                       return (
@@ -553,15 +586,17 @@ export default function SpeakingDetail() {
                           key={v.id}
                           type="button"
                           onClick={() => previewVoice(v)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25'
-                              : 'bg-white/30 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
+                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25 ring-2 ring-indigo-500/30'
+                              : 'bg-white/35 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
                           }`}
                         >
-                          <span className="text-[10px] opacity-80">{v.accent}</span>
-                          <span>{v.name}</span>
-                          <Play size={9} className="opacity-80" />
+                          <div className="flex flex-col text-left">
+                            <span className="text-[11px] font-black">{v.name}</span>
+                            <span className="text-[9px] opacity-75">{v.accent} • {v.gender}</span>
+                          </div>
+                          <Play size={11} className="opacity-75 shrink-0 ml-1" />
                         </button>
                       );
                     })}
@@ -572,7 +607,7 @@ export default function SpeakingDetail() {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <Clock size={13} className="text-indigo-500 dark:text-cyan-400" />
-                    <span>Tốc độ</span>
+                    <span>Tốc độ đọc</span>
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {SPEEDS.map((s) => {
@@ -582,13 +617,14 @@ export default function SpeakingDetail() {
                           key={s.id}
                           type="button"
                           onClick={() => {
+                            hapticsService.selection();
                             setSelectedSpeed(s);
                             selectedSpeedRef.current = s;
                           }}
-                          className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer text-center ${
+                          className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                             isSelected
-                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25'
-                              : 'bg-white/30 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
+                              ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm shadow-indigo-500/25 ring-2 ring-indigo-500/30'
+                              : 'bg-white/35 dark:bg-slate-800/40 border border-white/25 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/50'
                           }`}
                         >
                           {s.label}
@@ -619,13 +655,16 @@ export default function SpeakingDetail() {
   // ==================== 2. EVALUATING PHASE ====================
   if (phase === 'evaluating') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent text-slate-800 dark:text-white">
+      <div
+        className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent text-slate-800 dark:text-white"
+        style={safeAreaStyle}
+      >
         <motion.div
-          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-6"
+          animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }}
+          transition={{ repeat: Infinity, duration: 2.2 }}
+          className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 mb-6"
         >
-          <Sparkles size={38} className="text-white animate-spin" style={{ animationDuration: '4s' }} />
+          <Sparkles size={40} className="text-white animate-spin" style={{ animationDuration: '4s' }} />
         </motion.div>
         <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 text-center">
           AI Đang phân tích cuộc hội thoại...
@@ -637,35 +676,63 @@ export default function SpeakingDetail() {
     );
   }
 
-  // ==================== 3. RESULT PHASE ====================
+  // ==================== 3. RESULT PHASE (Tối ưu giao diện theo ảnh đính kèm) ====================
   if (phase === 'result' && evaluation) {
     const score = evaluation.score || 85;
 
     return (
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-transparent text-slate-800 dark:text-white hide-scrollbar">
-        <div className="max-w-3xl mx-auto space-y-6 pb-12">
-          {/* Top Bar */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Award className="text-indigo-500" />
-              <span>Đánh giá kết quả phản xạ</span>
-            </h1>
+      <div
+        className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 bg-transparent text-slate-800 dark:text-white hide-scrollbar"
+        style={{
+          paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 54px)' : 'max(env(safe-area-inset-top, 0px), 18px)',
+          paddingBottom: isNative ? 'max(env(safe-area-inset-bottom, 0px), 32px)' : 'max(env(safe-area-inset-bottom, 0px), 24px)',
+        }}
+      >
+        <div className="max-w-3xl mx-auto space-y-5 pb-8">
+          {/* Top Bar Navigation (Tuyệt đối không bị cấn status bar trên di động) */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-cyan-400 flex items-center justify-center shrink-0 shadow-xs">
+                <Award size={22} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+                  Đánh giá kết quả phản xạ
+                </h1>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold truncate">
+                  Tình huống: {scenario.title}
+                </p>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => navigate('/speaking')}
-              className="px-4 py-2 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/35 dark:border-white/10 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white/50 cursor-pointer"
+              onClick={() => {
+                hapticsService.selection();
+                navigate('/speaking');
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs sm:text-sm font-black shadow-md shadow-indigo-500/25 hover:shadow-lg active:scale-95 transition-all cursor-pointer shrink-0"
             >
-              Hoàn thành
+              <span>Hoàn thành</span>
+              <CheckCircle2 size={16} />
             </button>
           </div>
 
           {/* Hero Result Glass Card */}
-          <div className="rounded-3xl p-6 sm:p-8 backdrop-blur-2xl bg-white/35 dark:bg-slate-900/45 border border-white/40 dark:border-white/10 shadow-2xl relative overflow-hidden space-y-6">
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 border-b border-white/20 dark:border-white/10 pb-6">
+          <div className="rounded-3xl p-5 sm:p-7 backdrop-blur-2xl bg-white/45 dark:bg-slate-900/55 border border-white/50 dark:border-white/10 shadow-2xl relative overflow-hidden space-y-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 border-b border-white/25 dark:border-white/10 pb-6">
               {/* Score Dial */}
               <div className="relative w-36 h-36 shrink-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" className="text-slate-200 dark:text-slate-800" strokeWidth="8" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="44"
+                    fill="none"
+                    stroke="currentColor"
+                    className="text-slate-200/80 dark:text-slate-800"
+                    strokeWidth="8"
+                  />
                   <motion.circle
                     initial={{ strokeDasharray: '0 1000' }}
                     animate={{ strokeDasharray: `${(score / 100) * 276} 1000` }}
@@ -674,27 +741,37 @@ export default function SpeakingDetail() {
                     cy="50"
                     r="44"
                     fill="none"
-                    stroke="#4f46e5"
+                    stroke="url(#speaking-score-grad)"
                     strokeWidth="8"
                     strokeLinecap="round"
                   />
+                  <defs>
+                    <linearGradient id="speaking-score-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#4f46e5" />
+                      <stop offset="100%" stopColor="#2563eb" />
+                    </linearGradient>
+                  </defs>
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums">{score}</span>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 dark:text-cyan-400">Điểm tổng</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+                  <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                    {score}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-cyan-400">
+                    Điểm tổng
+                  </span>
                 </div>
               </div>
 
               {/* Feedback Summary */}
-              <div className="space-y-2 text-center sm:text-left">
+              <div className="space-y-2 text-center sm:text-left flex-1 min-w-0">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-black">
                   <CheckCircle2 size={14} />
                   <span>{score >= 80 ? 'Phản xạ giao tiếp rất tốt!' : 'Hoàn thành buổi luyện tập!'}</span>
                 </div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
                   Nhận xét từ đối tác {scenario.partner.name}
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
                   {evaluation.feedback}
                 </p>
               </div>
@@ -708,7 +785,7 @@ export default function SpeakingDetail() {
                   <CheckCircle2 size={16} />
                   <span>Điểm mạnh ghi nhận</span>
                 </h4>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {(evaluation.strengths || ['Phát âm rõ ràng', 'Duy trì hội thoại tốt']).map((s, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
@@ -724,7 +801,7 @@ export default function SpeakingDetail() {
                   <TrendingUp size={16} />
                   <span>Điểm cần cải thiện</span>
                 </h4>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {(evaluation.improvements || ['Thử nối âm tự nhiên hơn']).map((item, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
@@ -736,26 +813,31 @@ export default function SpeakingDetail() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-white/20 dark:border-white/10">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-white/20 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => {
+                  hapticsService.selection();
                   setPhase('intro');
                   setMessages([]);
                   setEvaluation(null);
                   setIsEnded(false);
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs font-black text-slate-800 dark:text-white hover:bg-white/60 cursor-pointer shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs sm:text-sm font-black text-slate-800 dark:text-white hover:bg-white/60 cursor-pointer shadow-sm active:scale-95 transition-all"
               >
-                <RotateCcw size={15} />
+                <RotateCcw size={16} />
                 <span>Luyện lại tình huống này</span>
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/speaking')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black hover:shadow-lg transition-all cursor-pointer shadow-md shadow-indigo-500/25"
+                onClick={() => {
+                  hapticsService.selection();
+                  navigate('/speaking');
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs sm:text-sm font-black hover:shadow-lg transition-all cursor-pointer shadow-md shadow-indigo-500/25 active:scale-95"
               >
                 <span>Khám phá tình huống khác</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -766,23 +848,27 @@ export default function SpeakingDetail() {
 
   // ==================== 4. CHAT PHASE (ACTIVE STUDIO) ====================
   return (
-    <div className="flex flex-1 min-h-0 w-full flex-col bg-transparent text-slate-800 dark:text-white h-full overflow-hidden p-2 sm:p-4 lg:p-5 max-w-5xl mx-auto gap-3 relative">
+    <div
+      className="flex flex-1 min-h-0 w-full flex-col bg-transparent text-slate-800 dark:text-white h-full overflow-hidden px-2 sm:px-4 lg:px-5 max-w-5xl mx-auto gap-2.5 sm:gap-3 relative"
+      style={safeAreaStyle}
+    >
       {/* 1. TOPBAR STUDIO DOCK */}
-      <header className="relative z-30 flex items-center justify-between gap-3 p-3 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 shadow-lg shadow-black/5 shrink-0">
+      <header className="relative z-30 flex items-center justify-between gap-2.5 p-2.5 sm:px-5 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={() => {
-              if (window.speechSynthesis) window.speechSynthesis.cancel();
+              hapticsService.selection();
+              stopAudio();
               navigate('/speaking');
             }}
-            className="flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/60 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer"
           >
             <ChevronLeft size={18} />
             <span className="hidden sm:inline">Thoát</span>
           </button>
 
-          <div className="h-5 w-px bg-white/20 dark:bg-white/10 shrink-0" />
+          <div className="h-5 w-px bg-slate-300/60 dark:bg-white/10 shrink-0" />
 
           {/* Partner Avatar & Status */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -790,7 +876,11 @@ export default function SpeakingDetail() {
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-black text-sm shadow-md">
                 {scenario.partner.initial}
               </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${isAISpeaking ? 'bg-indigo-500 animate-ping' : 'bg-emerald-500'}`} />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                  isAISpeaking ? 'bg-indigo-500 animate-ping' : 'bg-emerald-500'
+                }`}
+              />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -813,9 +903,9 @@ export default function SpeakingDetail() {
           <button
             type="button"
             onClick={handleEndSession}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 hover:shadow-lg transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 hover:shadow-lg active:scale-95 transition-all cursor-pointer"
           >
-            <CheckCircle2 size={14} />
+            <CheckCircle2 size={15} />
             <span className="hidden sm:inline">Kết thúc & Chấm điểm</span>
             <span className="sm:hidden">Kết thúc</span>
           </button>
@@ -823,83 +913,112 @@ export default function SpeakingDetail() {
       </header>
 
       {/* 2. CHAT STREAM CONTAINER */}
-      <section className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-4 hide-scrollbar min-h-0">
+      <section className="flex-1 overflow-y-auto px-1 sm:px-3 space-y-4 hide-scrollbar min-h-0">
         {/* Scenario Context Banner */}
-        <div className="rounded-2xl p-3 sm:p-4 backdrop-blur-xl bg-white/20 dark:bg-slate-800/25 border border-white/25 dark:border-white/5 text-center">
+        <div className="rounded-2xl p-3 sm:p-4 backdrop-blur-xl bg-white/25 dark:bg-slate-800/25 border border-white/30 dark:border-white/5 text-center shadow-xs">
           <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-cyan-400">
             Tình huống: {scenario.title}
           </span>
-          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2">
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2 font-medium">
             {scenario.description}
           </p>
         </div>
 
         {/* Message Bubbles */}
-        {messages.map((msg, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            {msg.role === 'ai' ? (
-              <div className="space-y-1.5 max-w-[90%] sm:max-w-[80%]">
-                {/* AI Bubble */}
-                <div className="rounded-2xl rounded-tl-sm p-3.5 sm:p-4 backdrop-blur-xl bg-white/40 dark:bg-slate-800/50 border border-white/35 dark:border-white/10 text-slate-800 dark:text-slate-100 shadow-xs leading-relaxed font-medium text-sm sm:text-base">
-                  {msg.content === '' ? (
-                    <div className="flex gap-1.5 items-center h-5 py-1">
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
-                    </div>
-                  ) : (
-                    <>
-                      <div>{msg.content}</div>
-                      {msg.translation && (
-                        <div className="mt-2.5 pt-2.5 border-t border-white/25 dark:border-white/10 text-xs sm:text-sm text-indigo-700 dark:text-cyan-300 font-semibold italic">
-                          {msg.translation}
+        {messages.map((msg, idx) => {
+          const isThisMessagePlaying = isAISpeaking && playingMessageIdx === idx;
+
+          return (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {msg.role === 'ai' ? (
+                <div className="space-y-1.5 max-w-[92%] sm:max-w-[80%]">
+                  {/* AI Bubble */}
+                  <div className={`rounded-2xl rounded-tl-sm p-3.5 sm:p-4 backdrop-blur-xl border text-slate-800 dark:text-slate-100 shadow-xs leading-relaxed font-medium text-sm sm:text-base transition-all ${
+                    isThisMessagePlaying
+                      ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500/40 shadow-indigo-500/10'
+                      : 'bg-white/45 dark:bg-slate-800/50 border-white/40 dark:border-white/10'
+                  }`}>
+                    {msg.content === '' ? (
+                      <div className="flex gap-1.5 items-center h-5 py-1">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          {msg.content}
+                          {isThisMessagePlaying && (
+                            <span className="inline-flex items-center gap-0.5 ml-2 text-indigo-600 dark:text-cyan-400">
+                              <span className="w-1 h-3 bg-indigo-500 rounded-full animate-pulse" />
+                              <span className="w-1 h-4 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0.15s' }} />
+                              <span className="w-1 h-2 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }} />
+                            </span>
+                          )}
                         </div>
+                        {msg.translation && (
+                          <div className="mt-2.5 pt-2.5 border-t border-white/25 dark:border-white/10 text-xs sm:text-sm text-indigo-800 dark:text-cyan-300 font-semibold italic">
+                            {msg.translation}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* AI Bubble Actions */}
+                  {msg.content && (
+                    <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 pl-1">
+                      {isThisMessagePlaying ? (
+                        <button
+                          type="button"
+                          onClick={stopAudio}
+                          className="flex items-center gap-1 text-indigo-600 dark:text-cyan-400 font-black cursor-pointer"
+                        >
+                          <Square size={12} className="fill-current" />
+                          <span>Dừng phát</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => playAudio(msg.content, null, null, idx)}
+                          className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer"
+                        >
+                          <Volume2 size={13} />
+                          <span>Nghe lại</span>
+                        </button>
                       )}
-                    </>
+
+                      <button
+                        type="button"
+                        onClick={() => handleTranslateMessage(idx, msg.content)}
+                        disabled={msg.isTranslating}
+                        className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {msg.isTranslating ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />}
+                        <span>Dịch nghĩa</span>
+                      </button>
+                    </div>
                   )}
                 </div>
-
-                {/* AI Bubble Actions */}
-                {msg.content && (
-                  <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 pl-1">
-                    <button
-                      type="button"
-                      onClick={() => playAudio(msg.content)}
-                      className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={12} />
-                      <span>Nghe lại</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTranslateMessage(idx, msg.content)}
-                      disabled={msg.isTranslating}
-                      className="flex items-center gap-1 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {msg.isTranslating ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />}
-                      <span>Dịch nghĩa</span>
-                    </button>
+              ) : (
+                /* User Bubble */
+                <div className="flex justify-end">
+                  <div className="max-w-[92%] sm:max-w-[80%] rounded-2xl rounded-br-sm p-3.5 sm:p-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium text-sm sm:text-base shadow-lg shadow-indigo-500/20 leading-relaxed">
+                    {msg.content}
                   </div>
-                )}
-              </div>
-            ) : (
-              /* User Bubble */
-              <div className="flex justify-end">
-                <div className="max-w-[90%] sm:max-w-[80%] rounded-2xl rounded-br-sm p-3.5 sm:p-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium text-sm sm:text-base shadow-lg shadow-indigo-500/20 leading-relaxed">
-                  {msg.content}
                 </div>
-              </div>
-            )}
-          </motion.div>
-        ))}
+              )}
+            </motion.div>
+          );
+        })}
 
         {isAIThinking && messages[messages.length - 1]?.role === 'user' && (
-          <div className="flex items-center gap-2 p-3 rounded-2xl bg-white/20 dark:bg-slate-800/20 border border-white/20 text-xs font-bold text-slate-500 dark:text-slate-400 w-fit">
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-white/25 dark:bg-slate-800/30 border border-white/20 text-xs font-bold text-slate-600 dark:text-slate-300 w-fit shadow-xs">
             <Loader2 size={14} className="animate-spin text-indigo-500" />
             <span>{scenario.partner.name} đang suy nghĩ câu trả lời...</span>
           </div>
@@ -909,7 +1028,7 @@ export default function SpeakingDetail() {
       </section>
 
       {/* 3. STUDIO INTERACTION DOCK */}
-      <footer className="rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/30 dark:bg-slate-900/40 border border-white/35 dark:border-white/10 p-3 sm:p-4 shadow-lg shadow-black/5 shrink-0 space-y-3">
+      <footer className="rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 p-3 sm:p-4 shadow-lg shadow-black/5 shrink-0 space-y-3">
         {/* Suggestion Chips */}
         {suggestions.length > 0 && !isEnded && (
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-0.5">
@@ -923,11 +1042,28 @@ export default function SpeakingDetail() {
                 type="button"
                 onClick={() => handleSuggestionClick(word)}
                 disabled={isAIThinking}
-                className="shrink-0 px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/40 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-cyan-300 transition-all cursor-pointer shadow-xs disabled:opacity-40"
+                className="shrink-0 px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/50 dark:bg-slate-800/50 border border-white/45 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-cyan-300 transition-all cursor-pointer shadow-xs disabled:opacity-40"
               >
                 {word}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* AI Speaking Live Indicator */}
+        {isAISpeaking && (
+          <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-cyan-300 text-xs font-bold">
+            <div className="flex items-center gap-2">
+              <Volume2 size={14} className="animate-pulse text-indigo-600 dark:text-cyan-400" />
+              <span>{scenario.partner.name} đang nói...</span>
+            </div>
+            <button
+              type="button"
+              onClick={stopAudio}
+              className="text-[11px] font-black underline cursor-pointer hover:text-indigo-900 dark:hover:text-white"
+            >
+              Dừng nghe
+            </button>
           </div>
         )}
 
@@ -939,8 +1075,8 @@ export default function SpeakingDetail() {
             </p>
             <button
               type="button"
-              onClick={() => setPhase('evaluating')}
-              className="px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 cursor-pointer"
+              onClick={handleEndSession}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white text-xs font-black shadow-md shadow-indigo-500/25 cursor-pointer active:scale-95 transition-all"
             >
               Xem báo cáo đánh giá
             </button>
@@ -996,14 +1132,16 @@ export default function SpeakingDetail() {
               </div>
             )}
 
-            {/* Status text & Spacebar ergonomic pill */}
+            {/* Status text & Spacebar hint */}
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
               <span>
                 {isRecording
                   ? 'Đang lắng nghe giọng bạn...'
                   : isAIThinking
                   ? 'AI đang suy nghĩ...'
-                  : 'Bấm Mic hoặc nhấn Space để bắt đầu nói'}
+                  : isAISpeaking
+                  ? 'Đang phát âm thanh...'
+                  : 'Bấm Mic hoặc nhấn Space để nói'}
               </span>
               <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-white/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[10px]">
                 Space
