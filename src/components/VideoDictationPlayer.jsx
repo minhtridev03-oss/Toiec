@@ -1119,32 +1119,60 @@ export default function VideoDictationPlayer({ videoData, segments }) {
 
         {/* 3. ERGONOMIC STUDIO MEDIA DOCK */}
         <div className="shrink-0 p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl bg-white/40 dark:bg-slate-900/50 border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 flex flex-col gap-2.5 sm:gap-3">
-          {/* Upper Row: Time, transport buttons, and auto-next toggle */}
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2.5 w-full">
-            {/* Time Display */}
-            <div className="shrink-0 whitespace-nowrap text-[11px] sm:text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 shadow-inner">
-              {currentTimeDisplay} / {durationDisplay}
+          {/* Upper Row on Mobile (Time + Auto-Next) / Unified on Desktop */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 w-full">
+            {/* Top row on mobile: Time on left, Auto-Next switch on right */}
+            <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+              {/* Time Display */}
+              <div className="shrink-0 whitespace-nowrap text-[11px] sm:text-xs font-black font-mono tabular-nums text-slate-800 dark:text-slate-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 shadow-inner">
+                {currentTimeDisplay} / {durationDisplay}
+              </div>
+
+              {/* Auto-Next Switch on Mobile (Never overflows!) */}
+              <div className="sm:hidden">
+                <button
+                  type="button"
+                  onClick={() => setAutoNext((value) => !value)}
+                  title={text.autoNext}
+                  className="flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
+                >
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{text.autoNext}:</span>
+                  <span
+                    className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${
+                      autoNext
+                        ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-sm shadow-indigo-500/30'
+                        : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                        autoNext ? 'translate-x-3' : 'translate-x-0'
+                      }`}
+                    />
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {/* Center Playback Controls */}
-            <div className="flex items-center justify-center gap-1 sm:gap-2 py-0.5">
+            {/* Center Playback Controls (Always spacious, centered, touch-friendly) */}
+            <div className="flex items-center justify-center gap-2 sm:gap-2.5 py-0.5 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => changeSegment(currentSegmentIndex - 1)}
                 disabled={currentSegmentIndex === 0}
                 title={text.previousSentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
-                <SkipBack size={19} />
+                <SkipBack size={20} />
               </button>
 
               <button
                 type="button"
                 onClick={handleReplaySegment}
                 title={text.replaySentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer active:scale-95"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all cursor-pointer active:scale-95"
               >
-                <RotateCcw size={19} />
+                <RotateCcw size={20} />
               </button>
 
               {/* Central Glowing Play/Pause */}
@@ -1152,22 +1180,22 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 type="button"
                 onClick={handlePlayPause}
                 title={isPlaying ? text.pause : text.play}
-                className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-xl shadow-indigo-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-0.5 sm:mx-1.5 shrink-0"
+                className="flex h-12 w-12 sm:h-13 sm:w-13 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-xl shadow-indigo-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer mx-1 sm:mx-2 shrink-0"
               >
-                {isPlaying ? <Pause size={20} className="fill-current" /> : <Play size={20} className="ml-0.5 fill-current" />}
+                {isPlaying ? <Pause size={22} className="fill-current" /> : <Play size={22} className="ml-0.5 fill-current" />}
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsLooping((looping) => !looping)}
                 title={text.loopSentence}
-                className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
                   isLooping
                     ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-600 dark:text-cyan-300 shadow-md shadow-cyan-500/10'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400'
                 }`}
               >
-                <Repeat size={19} />
+                <Repeat size={20} />
               </button>
 
               <button
@@ -1175,34 +1203,36 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                 onClick={() => changeSegment(currentSegmentIndex + 1)}
                 disabled={currentSegmentIndex === segments.length - 1}
                 title={text.nextSentence}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-cyan-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95"
               >
-                <SkipForward size={19} />
+                <SkipForward size={20} />
               </button>
             </div>
 
-            {/* Auto-Next Switch */}
-            <button
-              type="button"
-              onClick={() => setAutoNext((value) => !value)}
-              title={text.autoNext}
-              className="flex shrink-0 items-center gap-1 sm:gap-2 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
-            >
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hidden sm:inline">{text.autoNext}:</span>
-              <span
-                className={`flex h-4 w-7 sm:h-5 sm:w-8 items-center rounded-full p-0.5 transition-colors ${
-                  autoNext
-                    ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-sm shadow-indigo-500/30'
-                    : 'bg-slate-300 dark:bg-slate-700'
-                }`}
+            {/* Auto-Next Switch on Desktop */}
+            <div className="hidden sm:flex shrink-0">
+              <button
+                type="button"
+                onClick={() => setAutoNext((value) => !value)}
+                title={text.autoNext}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/30 dark:bg-slate-800/40 border border-white/30 dark:border-white/5 font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-cyan-400 transition-colors cursor-pointer select-none"
               >
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{text.autoNext}:</span>
                 <span
-                  className={`h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-white shadow-sm transition-transform ${
-                    autoNext ? 'translate-x-3 sm:translate-x-3.5' : 'translate-x-0'
+                  className={`flex h-5 w-8 items-center rounded-full p-0.5 transition-colors ${
+                    autoNext
+                      ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-sm shadow-indigo-500/30'
+                      : 'bg-slate-300 dark:bg-slate-700'
                   }`}
-                />
-              </span>
-            </button>
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      autoNext ? 'translate-x-3.5' : 'translate-x-0'
+                    }`}
+                  />
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Mini Segment Progress Scrubber: Trực quan tiến độ riêng của câu */}
