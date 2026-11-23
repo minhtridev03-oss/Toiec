@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
-import { signInWithEmail, signUpWithEmail, requestPasswordReset } from '../../lib/authApi';
+import { signInWithEmail, signUpWithEmail, requestPasswordReset, signInWithGoogle } from '../../lib/authApi';
 import { supabase } from '../../lib/supabaseClient';
 import { parseAuthError } from '../../lib/security';
 import { removeAppBootSplashImmediate } from '../../utils/bootSplash';
@@ -220,11 +220,8 @@ export default function MobileSplashAuth({ onComplete }) {
     setNotice('');
     setIsGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard` },
-      });
-      if (error) throw error;
+      await signInWithGoogle();
+      setTimeout(() => setIsGoogleLoading(false), 2500);
     } catch (err) {
       console.error('Google sign-in failed:', err);
       setErrorState(parseAuthError(err, locale));

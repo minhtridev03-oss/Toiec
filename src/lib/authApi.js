@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import {
   AppError,
   assertPayloadSize,
@@ -122,3 +124,86 @@ export const requestPasswordReset = async (email) => {
     return data;
   }
 };
+
+/**
+ * Đăng nhập bằng tài khoản Google (tương thích tối ưu cho cả Web và Android APK)
+ * - Trên Android Native: Dùng Chrome Custom Tabs + Deep Link com.tenglish.app://google-auth
+ *   để Google không chặn disallowed_useragent và tự động quay lại app sau khi chọn tài khoản.
+ * - Trên Web: Dùng luồng OAuth tiêu chuẩn của Supabase.
+ */
+export const signInWithGoogle = async () => {
+  if (Capacitor.isNativePlatform()) {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'com.tenglish.app://google-auth',
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) throw error;
+    if (data?.url) {
+      await Browser.open({ url: data.url, windowName: '_system' });
+    }
+    return data;
+  } else {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) throw error;
+    return data;
+  }
+};
+
+/**
+ * Xử lý Deep Link trả về từ Google OAuth trên Mobile App
+ * Nhận chuỗi URL (dạng com.tenglish.app://google-auth#access_token=... hoặc ?code=...)
+ * Thiết lập phiên đăng nhập vào Supabase và đóng Chrome Custom Tab.
+ */
+export const handleOAuthDeepLink = async (rawUrl) => {
+  if (!rawUrl || !rawUrl.includes('google-auth')) return false;
+
+  // Đóng Chrome Custom Tab nếu đang mở
+  try {
+    await Browser.close().catch(() => {});
+  } catch {}
+
+  try {
+    // 1. Trường hợp Implicit flow (trả về hash #access_token=...&refresh_token=...)
+    if (rawUrl.includes('access_token=')) {
+      const hashPart = rawUrl.includes('#') ? rawUrl.substring(rawUrl.indexOf('#') + 1) : rawUrl;
+      const params = new URLSearchParams(hashPart);
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+
+      if (access_token && refresh_token) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+        if (error) throw error;
+        return true;
+      }
+    }
+
+    // 2. Trường hợp PKCE Code flow (trả về ?code=...)
+    if (rawUrl.includes('code=')) {
+      const queryPart = rawUrl.includes('?') ? rawUrl.substring(rawUrl.indexOf('?') + 1) : rawUrl;
+      const params = new URLSearchParams(queryPart.split('#')[0]);
+      const code = params.get('code');
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi thiết lập phiên đăng nhập từ Deep Link:', err);
+    throw err;
+  }
+  return false;
+};
+

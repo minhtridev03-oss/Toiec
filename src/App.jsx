@@ -17,6 +17,7 @@ import { usePlatform } from './hooks/usePlatform';
 import { dismissAppBootSplash } from './utils/bootSplash';
 import { fetchLatestUpdateInfo, isUpdateDismissed, CURRENT_APP_VERSION } from './lib/appUpdateService';
 import MobileSplashAuth from './components/auth/MobileSplashAuth';
+import { handleOAuthDeepLink } from './lib/authApi';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
@@ -352,6 +353,23 @@ export default function App() {
       setMobileSplashDone(false);
     }
   }, [isMobileApp, authLoading, user]);
+
+  // Lắng nghe sự kiện Deep Link OAuth trả về từ Google trên Native App (com.tenglish.app://google-auth)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const urlListenerPromise = CapApp.addListener('appUrlOpen', async ({ url }) => {
+      try {
+        await handleOAuthDeepLink(url);
+      } catch (err) {
+        console.error('Lỗi tiếp nhận Deep Link OAuth:', err);
+      }
+    });
+
+    return () => {
+      urlListenerPromise.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     // Idle Route Prefetching: Tải ngầm các trang cốt lõi để chuyển tab tức thì 0ms
