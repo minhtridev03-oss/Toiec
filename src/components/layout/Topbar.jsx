@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Sun as SunIcon, Moon as MoonIcon } from 'lucide';
 import { MorphIcon } from 'morphicons/react';
+import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,6 +21,7 @@ import { useAvatarFrames } from '../../contexts/AvatarFramesContext';
 import { useStats } from '../../contexts/StatsContext';
 import { getAvatarFrameById } from '../../lib/avatarFrames';
 import { usePlatform } from '../../hooks/usePlatform';
+import { hapticsService } from '../../lib/hapticsService';
 import UserAvatar from '../common/UserAvatar';
 
 const COPY = {
@@ -171,7 +173,7 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 pointer-events-auto shrink-0">
         {/* Language Switcher */}
         <div
-          className="glass-panel rounded-xl sm:rounded-2xl p-0.5 sm:p-1 inline-flex items-center gap-0.5 shadow-xs shrink-0"
+          className="glass-panel rounded-xl sm:rounded-2xl p-0.5 sm:p-1 inline-flex items-center gap-0.5 shadow-xs shrink-0 relative"
           role="group"
           aria-label={text.language}
         >
@@ -180,15 +182,25 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
             <button
               key={option}
               type="button"
-              onClick={() => setLocale(option)}
-              className={`rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-1 text-xs font-extrabold transition-all cursor-pointer ${
+              onClick={() => {
+                setLocale(option);
+                hapticsService.selection();
+              }}
+              className={`relative rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1 text-xs font-black cursor-pointer transition-colors duration-150 ${
                 locale === option
-                  ? 'glass-pill-active text-indigo-800 font-black shadow-xs dark:bg-black dark:text-cyan-400 dark:border dark:border-cyan-500/30'
-                  : 'text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
+                  ? 'text-indigo-950 dark:text-cyan-300'
+                  : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
               }`}
               aria-pressed={locale === option}
             >
-              {option.toUpperCase()}
+              {locale === option && (
+                <motion.div
+                  layoutId="active-language-pill"
+                  className="absolute inset-0 rounded-lg sm:rounded-xl glass-pill-active dark:bg-black/90 dark:border dark:border-cyan-500/35 shadow-xs"
+                  transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">{option.toUpperCase()}</span>
             </button>
           ))}
         </div>
@@ -201,7 +213,7 @@ export default function Topbar({ onMenuClick, hideMenuButton = false }) {
           title={text.theme}
           aria-label={text.theme}
         >
-          <span className={`inline-flex items-center justify-center transition-all duration-500 ease-out ${isDarkMode ? 'rotate-[360deg] text-amber-400 scale-105' : 'rotate-0 text-slate-800 dark:text-slate-200 scale-100'}`}>
+          <span className={`inline-flex items-center justify-center transition-transform duration-300 ${isDarkMode ? 'rotate-[360deg] text-amber-400 scale-105' : 'rotate-0 text-slate-800 dark:text-slate-200 scale-100'}`}>
             <MorphIcon
               icon={isDarkMode ? SunIcon : MoonIcon}
               size={17}

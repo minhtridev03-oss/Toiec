@@ -233,7 +233,7 @@ const MainLayout = () => {
   }, [isNative]);
 
   return (
-    <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 ${
+    <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans ${
       showVideo ? 'bg-transparent' : 'bg-slate-50/70 dark:bg-[#090a0f]'
     }`}>
       {/* Global Background Video with Liquid Glass Layering */}

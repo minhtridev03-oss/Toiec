@@ -26,17 +26,12 @@
 }
 
 :root {
-  --font-app: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-app: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
-}
-
-:root.locale-vi {
-  --font-app: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
 /* Base typography size */
@@ -63,26 +58,7 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* ===== View Transitions API (Hardware GPU Cross-fade for Dark/Light Mode) ===== */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 220ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
-/* Fallback: Chỉ transition các khối layout lớn, tuyệt đối KHÔNG dùng '*' hay transition 'box-shadow' */
-.theme-in-transition,
-.theme-in-transition body,
-.theme-in-transition main,
-.theme-in-transition header,
-.theme-in-transition nav,
-.theme-in-transition aside,
-.theme-in-transition .glass-panel {
-  transition: background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              color 180ms cubic-bezier(0.16, 1, 0.3, 1) !important;
-  transition-delay: 0s !important;
-}
 
 /* ===== Micro Page Transition ===== */
 @keyframes pageFadeIn {

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { hapticsService } from '../lib/hapticsService';
 
 const ThemeContext = createContext();
 
@@ -26,25 +27,17 @@ export function ThemeProvider({ children }) {
     }
   }, [isDarkMode]);
 
+  // Đổi giao diện tức thì 0ms (Zalo/Facebook style) - không khựng, không delay
   const toggleTheme = () => {
-    const applyToggle = () => {
-      setIsDarkMode((prev) => !prev);
-    };
-
-    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
-      document.startViewTransition(() => {
-        applyToggle();
-      });
-    } else {
-      // Fallback cho trình duyệt cũ: chỉ kích hoạt trên các container lớn
+    setIsDarkMode((prev) => {
+      const next = !prev;
       if (typeof document !== 'undefined') {
-        document.documentElement.classList.add('theme-in-transition');
-        setTimeout(() => {
-          document.documentElement.classList.remove('theme-in-transition');
-        }, 220);
+        document.documentElement.classList.toggle('dark', next);
+        localStorage.setItem('theme', next ? 'dark' : 'light');
       }
-      applyToggle();
-    }
+      return next;
+    });
+    hapticsService.selection();
   };
 
   return (
