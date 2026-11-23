@@ -21,3 +21,17 @@ export function dismissAppBootSplash(displayDuration = 1800) {
     }, 550);
   }, displayDuration);
 }
+
+/**
+ * Xóa ngay lập tức DOM splash tĩnh khi React Boot Screen tiếp quản để không bị nhấp nháy 0ms
+ */
+export function removeAppBootSplashImmediate() {
+  if (typeof window === 'undefined') return;
+  const splash = document.getElementById('app-boot-splash');
+  if (splash) {
+    try {
+      splash.remove();
+    } catch {}
+  }
+}
+

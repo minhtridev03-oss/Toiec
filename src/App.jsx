@@ -16,6 +16,7 @@ import Footer from './components/layout/Footer';
 import { usePlatform } from './hooks/usePlatform';
 import { dismissAppBootSplash } from './utils/bootSplash';
 import { fetchLatestUpdateInfo, isUpdateDismissed, CURRENT_APP_VERSION } from './lib/appUpdateService';
+import MobileSplashAuth from './components/auth/MobileSplashAuth';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
@@ -326,9 +327,33 @@ const MainLayout = () => {
 };
 
 export default function App() {
-  useEffect(() => {
-    dismissAppBootSplash();
+  const { isNative } = usePlatform();
+  const { user, loading: authLoading } = useAuth();
+  const isMobileApp = isNative || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile_splash'));
+  const [mobileSplashDone, setMobileSplashDone] = useState(false);
 
+  useEffect(() => {
+    // Trên Web (Laptop/Desktop hoặc Mobile Web): Giữ nguyên 100% trải nghiệm cũ
+    if (!isMobileApp) {
+      dismissAppBootSplash();
+      return;
+    }
+
+    // Trên Native Mobile App (Android APK): Nếu người dùng đã có phiên đăng nhập, cho phép splash mờ dần vào Dashboard
+    if (!authLoading && user) {
+      dismissAppBootSplash(1500);
+      setMobileSplashDone(true);
+    }
+  }, [isMobileApp, authLoading, user]);
+
+  // Reset trạng thái splash khi đăng xuất trên Mobile App
+  useEffect(() => {
+    if (isMobileApp && !authLoading && !user) {
+      setMobileSplashDone(false);
+    }
+  }, [isMobileApp, authLoading, user]);
+
+  useEffect(() => {
     // Idle Route Prefetching: Tải ngầm các trang cốt lõi để chuyển tab tức thì 0ms
     const prefetchRoutes = () => {
       try {
@@ -351,7 +376,11 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-    <Suspense fallback={<GlobalSkeletonLoader />}>
+      {/* Màn hình khởi động tương tác chuyển hóa Đăng nhập/Đăng ký dành riêng cho Mobile App */}
+      {isMobileApp && !user && !mobileSplashDone && (
+        <MobileSplashAuth onComplete={() => setMobileSplashDone(true)} />
+      )}
+      <Suspense fallback={<GlobalSkeletonLoader />}>
       <Routes>
         <Route 
           path="/reset-password" 

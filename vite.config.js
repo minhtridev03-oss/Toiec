@@ -30,6 +30,7 @@ export default defineConfig({
     headers: securityHeaders,
   },
   build: {
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
