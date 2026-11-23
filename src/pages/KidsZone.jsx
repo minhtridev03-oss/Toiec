@@ -20,6 +20,7 @@ import {
   playCorrectSound,
   playPopSound,
 } from '../features/games/gameAudio';
+import { playSpeakingAudio } from '../lib/audioService';
 
 // =========================================================================
 // CURRICULUM DATA: 5 HÒN ĐẢO TRI THỨC (LỚP 1 - LỚP 5)
@@ -299,20 +300,14 @@ const ISLANDS = [
   },
 ];
 
-// Speech Synthesis with rate adjustment
+// Speech with multi-engine audio
 function speakVoice(text, rate = 0.85) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
-  try {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = rate;
-    utterance.pitch = 1.1; // Friendly higher pitch for kids
-    window.speechSynthesis.speak(utterance);
-  } catch {}
+  if (!text) return;
+  playSpeakingAudio(text, {
+    rate,
+    accent: 'US',
+    lang: 'en-US'
+  });
 }
 
 export default function KidsZone() {

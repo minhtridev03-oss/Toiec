@@ -1,17 +1,22 @@
 package com.tenglish.app;
 
 import android.content.Context;
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import com.getcapacitor.BridgeActivity;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "TEnglishAudio";
@@ -30,7 +35,14 @@ public class MainActivity extends BridgeActivity {
 
     private void initNativeTTS() {
         try {
-            tts = new TextToSpeech(this, status -> {
+            boolean hasGoogleTts = false;
+            try {
+                Intent checkGoogle = new Intent("android.intent.action.TTS_SERVICE");
+                checkGoogle.setPackage("com.google.android.tts");
+                hasGoogleTts = getPackageManager().resolveService(checkGoogle, 0) != null;
+            } catch (Exception ignored) {}
+
+            TextToSpeech.OnInitListener onInit = status -> {
                 if (status == TextToSpeech.SUCCESS) {
                     Locale[] candidates = new Locale[]{
                         Locale.US,
@@ -47,7 +59,7 @@ public class MainActivity extends BridgeActivity {
                                 tts.setSpeechRate(0.95f);
                                 tts.setPitch(1.0f);
                                 ttsInitialized = true;
-                                Log.i(TAG, "TTS initialized successfully with locale: " + loc.toString());
+                                Log.i(TAG, "Native TTS initialized successfully with locale: " + loc.toString());
                                 break;
                             }
                         } catch (Exception ex) {
@@ -60,16 +72,28 @@ public class MainActivity extends BridgeActivity {
                 } else {
                     Log.e(TAG, "TextToSpeech init failed with status: " + status);
                 }
-            });
+            };
+
+            // Ưu tiên sử dụng Google TTS nếu có sẵn trên máy
+            if (hasGoogleTts) {
+                tts = new TextToSpeech(this, onInit, "com.google.android.tts");
+            } else {
+                tts = new TextToSpeech(this, onInit);
+            }
         } catch (Exception e) {
             Log.e(TAG, "TextToSpeech creation error", e);
         }
     }
 
-    private void initMediaPlayer() {
+    private synchronized void initMediaPlayer() {
         try {
             if (mediaPlayer != null) {
-                try { mediaPlayer.release(); } catch (Exception ignored) {}
+                try {
+                    if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+                    mediaPlayer.reset();
+                    mediaPlayer.release();
+                } catch (Exception ignored) {}
+                mediaPlayer = null;
             }
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setAudioAttributes(
@@ -102,9 +126,11 @@ public class MainActivity extends BridgeActivity {
 
     private void setupWebViewBridge() {
         if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+            WebSettings settings = bridge.getWebView().getSettings();
+            settings.setMediaPlaybackRequiresUserGesture(false);
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
             bridge.getWebView().addJavascriptInterface(new NativeAudioInterface(), "AndroidTTS");
-            Log.i(TAG, "AndroidTTS bridge registered");
+            Log.i(TAG, "AndroidTTS bridge registered with full audio permissions");
         }
     }
 
@@ -116,17 +142,35 @@ public class MainActivity extends BridgeActivity {
 
     public class NativeAudioInterface {
         @JavascriptInterface
+        public void unmuteMedia() {
+            mainHandler.post(() -> ensureVolumeAudible());
+        }
+
+        @JavascriptInterface
+        public void speak(final String text) {
+            mainHandler.post(() -> {
+                ensureVolumeAudible();
+                speakViaTTS(text);
+            });
+        }
+
+        @JavascriptInterface
         public void playAudio(final String text, final String audioUrl) {
             mainHandler.post(() -> {
                 ensureVolumeAudible();
 
-                // 1. Thử phát trước qua Native MediaPlayer nếu có URL (chất lượng âm thanh chuẩn bản ngữ)
+                // 1. Thử phát qua Native MediaPlayer với Custom Headers đầy đủ (tránh 403 Forbidden)
                 if (audioUrl != null && !audioUrl.trim().isEmpty()) {
                     try {
                         if (mediaPlayer == null) {
                             initMediaPlayer();
                         } else {
-                            mediaPlayer.reset();
+                            try {
+                                if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+                                mediaPlayer.reset();
+                            } catch (Exception ignored) {
+                                initMediaPlayer();
+                            }
                         }
 
                         mediaPlayer.setAudioAttributes(
@@ -135,7 +179,13 @@ public class MainActivity extends BridgeActivity {
                                 .setUsage(AudioAttributes.USAGE_MEDIA)
                                 .build()
                         );
-                        mediaPlayer.setDataSource(audioUrl.trim());
+
+                        Map<String, String> headers = new HashMap<>();
+                        headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+                        headers.put("Referer", "https://dict.youdao.com/");
+                        headers.put("Accept", "*/*");
+
+                        mediaPlayer.setDataSource(getApplicationContext(), Uri.parse(audioUrl.trim()), headers);
                         mediaPlayer.setOnPreparedListener(mp -> {
                             try {
                                 mp.start();
@@ -147,7 +197,7 @@ public class MainActivity extends BridgeActivity {
                         });
                         mediaPlayer.setOnErrorListener((mp, what, extra) -> {
                             Log.w(TAG, "MediaPlayer error (" + what + ", " + extra + "), falling back to TTS");
-                            mp.reset();
+                            try { mp.reset(); } catch (Exception ignored) {}
                             speakViaTTS(text);
                             return true;
                         });
@@ -158,15 +208,7 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
 
-                // 2. Dự phòng: Phát qua TextToSpeech
-                speakViaTTS(text);
-            });
-        }
-
-        @JavascriptInterface
-        public void speak(final String text) {
-            mainHandler.post(() -> {
-                ensureVolumeAudible();
+                // 2. Dự phòng: Phát qua TextToSpeech phần cứng
                 speakViaTTS(text);
             });
         }
@@ -217,11 +259,6 @@ public class MainActivity extends BridgeActivity {
                 }
             } catch (Exception ignored) {}
             return -1;
-        }
-
-        @JavascriptInterface
-        public void unmuteMedia() {
-            ensureVolumeAudible();
         }
     }
 

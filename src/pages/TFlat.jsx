@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import TFlatMeaning from '../components/vocab/TFlatMeaning';
 import bookGif from '../assets/book.gif';
+import { playSpeakingAudio, stopWordAudio } from '../lib/audioService';
 
 const WORD_FIELDS = 'id, word, pro, mean, av';
 
@@ -197,28 +198,23 @@ export default function TFlat() {
     };
   }, [user?.id, selectedWord?.word]);
 
-  // Audio pronunciation via SpeechSynthesis
+  // Audio pronunciation via Shared Audio Service (US/UK accent)
   const playPronunciation = (accent = 'us') => {
-    if (!('speechSynthesis' in window) || !selectedWord?.word) return;
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(selectedWord.word);
-    utterance.lang = accent === 'uk' ? 'en-GB' : 'en-US';
-    utterance.rate = 0.88;
-
-    const voices = window.speechSynthesis.getVoices();
-    const targetVoice = voices.find((v) =>
-      accent === 'uk'
-        ? v.lang === 'en-GB' || v.name.includes('UK') || v.name.includes('British')
-        : v.lang === 'en-US' || v.name.includes('US') || v.name.includes('American')
-    );
-    if (targetVoice) utterance.voice = targetVoice;
-
+    if (!selectedWord?.word) return;
     setIsSpeaking(accent);
-    utterance.onend = () => setIsSpeaking(null);
-    utterance.onerror = () => setIsSpeaking(null);
-    window.speechSynthesis.speak(utterance);
+    playSpeakingAudio(selectedWord.word, {
+      lang: accent === 'uk' ? 'en-GB' : 'en-US',
+      accent: accent.toUpperCase(),
+      rate: 0.9,
+      onEnded: () => setIsSpeaking(null),
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      stopWordAudio();
+    };
+  }, []);
 
   // Save or unsave from user_vocabulary
   const handleToggleSave = async () => {

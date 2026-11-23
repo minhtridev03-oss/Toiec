@@ -33,6 +33,7 @@ import {
   FileText,
 } from 'lucide-react';
 import SkillSwitchTabs from '../components/navigation/SkillSwitchTabs';
+import { playWordAudio } from '../lib/audioService';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { fetchLearnedPracticeWords } from '../lib/api';
@@ -503,11 +504,10 @@ export default function Practice() {
   };
 
   const speakWord = (word) => {
-    if (!word || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(word.word);
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
+    if (!word) return;
+    const text = typeof word === 'string' ? word : word.word;
+    if (!text) return;
+    playWordAudio(text, 'en');
   };
 
   const handleItemClick = (type, id) => {

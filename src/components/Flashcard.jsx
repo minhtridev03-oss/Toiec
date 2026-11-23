@@ -1,17 +1,13 @@
 import { useState } from 'react'
+import { playWordAudio } from '../lib/audioService'
 
 export default function Flashcard({ wordData }) {
   const [isFlipped, setIsFlipped] = useState(false)
 
   const handleSpeak = (e) => {
     e.stopPropagation()
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(wordData.word)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.85
-      utterance.pitch = 1
-      window.speechSynthesis.speak(utterance)
+    if (wordData?.word) {
+      playWordAudio(wordData.word, 'en')
     }
   }
 

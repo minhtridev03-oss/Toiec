@@ -113,18 +113,14 @@ export default function ReadingDetail() {
     setElapsedSeconds(0);
     setActiveQuestionIndex(0);
     setIsSpeaking(false);
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopWordAudio();
     fetchLesson();
   }, [id]);
 
-  // Clean up speech synthesis on unmount
+  // Clean up audio on unmount
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopWordAudio();
     };
   }, []);
 

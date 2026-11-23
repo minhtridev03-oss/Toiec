@@ -173,6 +173,12 @@ export default function SpeakingDetail() {
   };
 
   useEffect(() => {
+    return () => {
+      stopWordAudio();
+    };
+  }, []);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages, isAIThinking]);
 
