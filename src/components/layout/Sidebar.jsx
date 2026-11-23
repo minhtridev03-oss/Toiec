@@ -21,7 +21,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import appLogo from '../../assets/log.jpg';
+import appLogo from '../../assets/logo.png';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useStats } from '../../contexts/StatsContext';
@@ -243,8 +243,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileMenuOpen,
             }`}
             aria-label="Trang chủ T-English"
           >
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-pill p-1.5 shadow-xs overflow-hidden">
-              <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-pill p-1 shadow-xs overflow-hidden">
+              <img src={appLogo} alt="Logo" className="h-full w-full object-contain rounded-xl" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">

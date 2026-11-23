@@ -27,7 +27,7 @@ import { useLocale } from '../contexts/LocaleContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { signInWithEmail, signUpWithEmail, requestPasswordReset } from '../lib/authApi';
 import { parseAuthError } from '../lib/security';
-import appLogo from '../assets/log.jpg';
+import appLogo from '../assets/logo.png';
 import chatbotImage from '../assets/chatbot-transparent.png';
 import TransparentImage from '../components/TransparentImage';
 
@@ -397,8 +397,8 @@ export default function Auth({ initialMode }) {
           to="/login"
           className="group flex items-center gap-3 rounded-2xl border border-white/40 bg-white/50 px-3.5 py-1.5 backdrop-blur-xl transition hover:border-white/70 hover:bg-white/70 dark:border-white/10 dark:bg-slate-900/50 dark:hover:border-white/20 dark:hover:bg-slate-900/70 shadow-sm"
         >
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md shadow-indigo-500/30">
-            <TransparentImage src={appLogo} alt="T-English" className="h-8 w-8 object-contain scale-110" tolerance={245} />
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-slate-900/40 p-0.5 shadow-md shadow-indigo-500/30">
+            <img src={appLogo} alt="T-English" className="h-full w-full object-contain rounded-lg" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-black tracking-tight text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, X, Sparkles, Smartphone } from 'lucide-react';
 import { usePlatform } from '../../hooks/usePlatform';
-import appLogo from '../../assets/log.jpg';
+import appLogo from '../../assets/logo.png';
 
 const STORAGE_KEY = 'tenglish_hide_app_banner_until';
 const HIDE_DURATION_DAYS = 7;

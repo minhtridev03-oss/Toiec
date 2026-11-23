@@ -14,7 +14,7 @@ import {
 import { requestPasswordReset } from '../lib/authApi';
 import { parseAuthError } from '../lib/security';
 import { useLocale } from '../contexts/LocaleContext';
-import appLogo from '../assets/log.jpg';
+import appLogo from '../assets/logo.png';
 import TransparentImage from '../components/TransparentImage';
 import { useTheme } from '../contexts/ThemeContext';
 const COPY = {
@@ -98,8 +98,8 @@ export default function ForgotPassword() {
     <main className="min-h-screen bg-[#fff5fa] px-4 py-2 text-slate-900 transition-colors dark:bg-[#100813] dark:text-white sm:px-6 sm:py-3 lg:py-4 flex flex-col items-center justify-center">
       <div className="relative z-10 mx-auto mb-3 flex w-full max-w-5xl items-center justify-between lg:mb-4">
         <Link to="/login" aria-label="Trang đăng nhập" className="hidden items-center justify-center lg:flex">
-          <div className="flex h-16 w-28 items-center justify-center sm:h-20 sm:w-32">
-            <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
+          <div className="flex h-16 w-16 items-center justify-center sm:h-20 sm:w-20">
+            <img src={appLogo} alt="Logo" className="h-full w-full object-contain rounded-2xl" />
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2">
@@ -141,8 +141,8 @@ export default function ForgotPassword() {
               <>
                 <div className="mb-8">
                   <div className="mb-6 flex justify-center lg:hidden">
-                    <div className="flex h-20 w-32 items-center justify-center">
-                      <TransparentImage src={appLogo} alt="Logo" className="h-full w-full object-contain" tolerance={245} />
+                    <div className="flex h-16 w-16 items-center justify-center">
+                      <img src={appLogo} alt="Logo" className="h-full w-full object-contain rounded-2xl" />
                     </div>
                   </div>
                   <div className="mb-6 hidden h-12 w-12 items-center justify-center rounded-2xl bg-pink-100 text-pink-600 dark:bg-pink-500/15 dark:text-pink-200 lg:flex"><KeyRound size={24} /></div>
