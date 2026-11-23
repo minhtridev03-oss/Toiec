@@ -331,11 +331,7 @@ export default function SpeakingDetail() {
 
       setSuggestions(finalSuggestions);
       if (finalReply) {
-        setMessages((current) => {
-          const aiIdx = current.length - 1;
-          playAudio(finalReply, selectedVoice, selectedSpeed, aiIdx);
-          return current;
-        });
+        playAudio(finalReply, selectedVoice, selectedSpeed, messages.length);
       }
     } catch (error) {
       console.error(error);

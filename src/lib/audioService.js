@@ -2,14 +2,17 @@
  * Shared Audio Service:
  * Phát âm thanh tiếng Anh chuẩn bản ngữ đa nền tảng (Android Native APK & Web/Desktop)
  * 
- * Kiến trúc 4 tầng bảo vệ (Quad-Shield Audio Architecture):
- * 1. Mở âm lượng tự động: Kiểm tra và tăng âm lượng Media nếu điện thoại Android đang tắt tiếng
- * 2. Tầng 1 (Primary CDN): Phát âm thanh chuẩn phòng thu chất lượng cao:
- *    - Từ vựng & cụm từ: Youdao CDN (Type 2: US / Type 1: UK)
- *    - Câu đàm thoại & Luyện nói: Google TTS CDN (Hỗ trợ chuẩn accent en-US, en-GB và playbackRate)
- * 3. Tầng 2 (Secondary CDN Fallback): Tự động chuyển đổi mượt mà giữa Google TTS & Youdao nếu 1 trong 2 nguồn gặp sự cố mạng
- * 4. Tầng 3 (Native Android TTS Bridge): Nếu thiết bị offline/mất mạng trên Android APK, tự động phát qua Android TextToSpeech phần cứng
- * 5. Tầng 4 (Web SpeechSynthesis): Dự phòng trên trình duyệt web nếu không có mạng
+ * Kiến trúc âm thanh đồng bộ cao cấp:
+ * 1. Trên Android Native APK:
+ *    - Sử dụng Android Native MediaPlayer phát MP3 chất lượng cao trực tiếp từ Google TTS / Youdao CDN.
+ *    - Native MediaPlayer chạy ngoài WebView nên không bị chặn bởi header Origin: localhost (tránh triệt để mã lỗi 404 / 500).
+ *    - Đồng bộ 2 chiều (Bi-directional Bridge): Android Native gửi tín hiệu callback chính xác về React (window.__onNativeAudioStarted, window.__onNativeAudioEnded) khi âm thanh thực sự bắt đầu và kết thúc tự nhiên.
+ *    - Tự động điều chỉnh tốc độ đọc (PlaybackParams) và un-mute âm lượng.
+ *    - Dự phòng tức thời qua Android Hardware TextToSpeech nếu rớt mạng.
+ * 
+ * 2. Trên Web/Desktop Browser:
+ *    - Luyện nói (Speaking Studio): Sử dụng Web SpeechSynthesis API đa giọng bản ngữ (Google US/UK, Samantha, Jenny) mượt mà không độ trễ.
+ *    - Từ vựng (Vocabulary): Ưu tiên Youdao Audio CDN MP3 chuẩn phòng thu -> dự phòng Google TTS -> dự phòng Web SpeechSynthesis.
  */
 
 let currentAudio = null;
@@ -21,24 +24,28 @@ export function stopWordAudio() {
     audioCleanupTimer = null;
   }
 
-  // 1. Dừng Native Android Audio (MediaPlayer + TTS) nếu đang chạy trên APK
+  // Xóa các bridge callbacks để tránh kích hoạt onEnded muộn
+  if (typeof window !== 'undefined') {
+    window.__onNativeAudioStarted = null;
+    window.__onNativeAudioEnded = null;
+    window.__currentAudioElement = null;
+    window.__currentSpeakingUtterance = null;
+  }
+
+  // 1. Dừng Native Android Audio (MediaPlayer + Hardware TTS) nếu đang chạy trên APK
   if (typeof window !== 'undefined' && window.AndroidTTS && typeof window.AndroidTTS.stop === 'function') {
     try {
       window.AndroidTTS.stop();
     } catch {}
   }
 
-  // 2. Dừng HTML5 Audio
+  // 2. Dừng HTML5 Audio nếu đang phát trên Web
   if (currentAudio) {
     try {
       currentAudio.pause();
       currentAudio.currentTime = 0;
       currentAudio = null;
     } catch {}
-  }
-  if (typeof window !== 'undefined') {
-    window.__currentAudioElement = null;
-    window.__currentSpeakingUtterance = null;
   }
 
   // 3. Dừng Web SpeechSynthesis
@@ -50,7 +57,7 @@ export function stopWordAudio() {
 }
 
 /**
- * Phát âm từ vựng (Vocabulary, Flashcards, WordList, Personal Vocab, TFlat)
+ * Phát âm từ vựng (WordList, Flashcard, WordDetailModal, PersonalVocabulary, TFlat)
  */
 export function playWordAudio(wordText, lang = 'en', onEnded) {
   if (!wordText || typeof window === 'undefined') {
@@ -64,38 +71,66 @@ export function playWordAudio(wordText, lang = 'en', onEnded) {
     return;
   }
 
-  // Dừng âm thanh đang phát trước đó
   stopWordAudio();
-
-  // Đảm bảo âm lượng Android Media được bật (tránh trường hợp người dùng vô tình gạt âm lượng media về 0)
-  if (window.AndroidTTS && typeof window.AndroidTTS.unmuteMedia === 'function') {
-    try {
-      window.AndroidTTS.unmuteMedia();
-    } catch {}
-  }
 
   const words = clean.split(/\s+/).filter(Boolean);
   const ttsLang = lang.startsWith('en') ? 'en' : lang;
 
-  // Xây dựng URL audio chất lượng cao:
-  // - Từ vựng hoặc cụm từ ngắn (<= 6 từ): Youdao CDN (phát âm bản ngữ phòng thu MP3)
-  // - Cụm từ dài hơn: Google TTS CDN
   const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(clean)}&type=2`;
   const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(clean)}`;
+  const primaryUrl = (words.length <= 5 && ttsLang === 'en') ? youdaoUrl : googleUrl;
 
-  const isShort = words.length <= 6 && ttsLang === 'en';
-  const primaryUrl = isShort ? youdaoUrl : googleUrl;
-  const secondaryUrl = isShort ? googleUrl : youdaoUrl;
+  // ══════════════════════════════════════════════════════════
+  // 1. NATIVE ANDROID APK: Sử dụng Native MediaPlayer Bridge
+  // ══════════════════════════════════════════════════════════
+  if (window.AndroidTTS) {
+    try {
+      if (typeof window.AndroidTTS.unmuteMedia === 'function') {
+        window.AndroidTTS.unmuteMedia();
+      }
 
-  playAudioWithCascade(primaryUrl, secondaryUrl, clean, ttsLang, 1.0, onEnded);
+      window.__onNativeAudioEnded = () => {
+        window.__onNativeAudioEnded = null;
+        if (audioCleanupTimer) {
+          clearTimeout(audioCleanupTimer);
+          audioCleanupTimer = null;
+        }
+        if (onEnded) onEnded();
+      };
+
+      // Timer an toàn dự phòng (Safety Fallback)
+      const estDuration = Math.max(1600, words.length * 450 + 1200);
+      audioCleanupTimer = setTimeout(() => {
+        if (window.__onNativeAudioEnded) {
+          window.__onNativeAudioEnded = null;
+          if (onEnded) onEnded();
+        }
+      }, estDuration);
+
+      if (typeof window.AndroidTTS.playSpeaking === 'function') {
+        window.AndroidTTS.playSpeaking(clean, primaryUrl, 1.0, ttsLang);
+      } else if (typeof window.AndroidTTS.playAudio === 'function') {
+        window.AndroidTTS.playAudio(clean, primaryUrl, 1.0);
+      } else if (typeof window.AndroidTTS.speak === 'function') {
+        window.AndroidTTS.speak(clean);
+      }
+      return;
+    } catch (err) {
+      console.warn('[AudioService] AndroidTTS playWordAudio error, falling back to Web:', err);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 2. WEB / DESKTOP BROWSER: HTML5 Audio Cascade
+  // ══════════════════════════════════════════════════════════
+  playViaWebAudio(primaryUrl, clean, ttsLang, onEnded);
 }
 
 /**
- * Phát âm câu hội thoại trong phòng luyện nói Speaking Studio với chất lượng cao:
+ * Phát âm câu hội thoại trong phòng luyện nói Speaking Studio:
  * - Hỗ trợ accent giọng Anh - Mỹ (US) hoặc Anh - Anh (GB)
- * - Tự động kích hoạt callback onStart và onEnded chuẩn xác theo độ dài âm thanh
- * - Hỗ trợ điều chỉnh tốc độ đọc (playbackRate / speechRate)
- * - Tự động un-mute media volume trên Android
+ * - Tự động kích hoạt callback onStart và onEnded đồng bộ hoàn hảo với âm thanh
+ * - Hỗ trợ điều chỉnh tốc độ đọc (speechRate)
  */
 export function playSpeakingAudio(text, {
   lang = 'en-US',
@@ -117,129 +152,188 @@ export function playSpeakingAudio(text, {
     return;
   }
 
-  if (onStart) onStart();
-
-  // Đảm bảo âm lượng Android Media được bật
-  if (window.AndroidTTS && typeof window.AndroidTTS.unmuteMedia === 'function') {
-    try {
-      window.AndroidTTS.unmuteMedia();
-    } catch {}
-  }
-
   const isGB = accent === 'GB' || lang.toLowerCase().includes('gb') || lang.toLowerCase().includes('uk');
   const targetLang = isGB ? 'en-GB' : 'en-US';
   const speechRate = Number(rate) || 1.0;
+  const words = clean.split(/\s+/).filter(Boolean);
 
-  // Với câu hội thoại (<= 220 ký tự):
-  // Ưu tiên Google TTS chuẩn giọng (US/GB), dự phòng Youdao (Type 1=UK, Type 2=US)
-  if (clean.length <= 220) {
-    const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${targetLang}&client=tw-ob&q=${encodeURIComponent(clean)}`;
-    const youdaoType = isGB ? '1' : '2';
-    const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(clean)}&type=${youdaoType}`;
-
-    playAudioWithCascade(googleUrl, youdaoUrl, clean, targetLang, speechRate, onEnded);
-  } else {
-    // Với đoạn văn dài hơn (> 220 ký tự): phát qua Native TTS hoặc SpeechSynthesis nâng cao
-    playTtsDirect(clean, targetLang, speechRate, onEnded);
-  }
-}
-
-/**
- * Điều phối phát âm thanh với cơ chế chuyển tiếp đa tầng:
- * Primary CDN -> Secondary CDN -> Native Android TTS -> Web SpeechSynthesis
- */
-function playAudioWithCascade(primaryUrl, secondaryUrl, cleanText, lang, rate, onEnded) {
-  let hasHandledEnd = false;
-
-  const handleFinish = () => {
-    if (!hasHandledEnd) {
-      hasHandledEnd = true;
-      currentAudio = null;
-      if (typeof window !== 'undefined') {
-        window.__currentAudioElement = null;
-      }
-      if (onEnded) onEnded();
-    }
-  };
-
-  const trySpeechFallback = () => {
-    playTtsDirect(cleanText, lang, rate, handleFinish);
-  };
-
-  const tryPlayUrl = (url, onFail) => {
+  // ══════════════════════════════════════════════════════════
+  // 1. NATIVE ANDROID APK: Native MediaPlayer & Hardware TTS
+  // ══════════════════════════════════════════════════════════
+  if (typeof window !== 'undefined' && window.AndroidTTS) {
     try {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      if (rate && rate !== 1.0) {
-        audio.playbackRate = rate;
-      }
-      audio.src = url;
-      currentAudio = audio;
-      if (typeof window !== 'undefined') {
-        window.__currentAudioElement = audio; // Giữ tham chiếu tránh V8 garbage collection
+      if (typeof window.AndroidTTS.unmuteMedia === 'function') {
+        window.AndroidTTS.unmuteMedia();
       }
 
-      audio.onended = handleFinish;
-
-      audio.onerror = (e) => {
-        console.warn(`[AudioService] Error loading ${url}, triggering fallback`, e);
-        if (currentAudio === audio) {
-          currentAudio = null;
-        }
-        onFail();
+      window.__onNativeAudioStarted = () => {
+        if (onStart) onStart();
       };
 
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn(`[AudioService] audio.play() rejected for ${url}:`, err);
-          if (currentAudio === audio) {
-            currentAudio = null;
-          }
-          onFail();
-        });
-      }
-    } catch (err) {
-      console.warn(`[AudioService] Audio construction exception for ${url}:`, err);
-      onFail();
-    }
-  };
-
-  // Bắt đầu với Primary URL -> Nếu lỗi thì thử Secondary URL -> Nếu lỗi thì phát TTS
-  tryPlayUrl(primaryUrl, () => {
-    if (secondaryUrl && secondaryUrl !== primaryUrl) {
-      tryPlayUrl(secondaryUrl, trySpeechFallback);
-    } else {
-      trySpeechFallback();
-    }
-  });
-}
-
-/**
- * Phát âm thanh trực tiếp bằng bộ đọc giọng nói (Native Android TTS hoặc Web SpeechSynthesis)
- */
-function playTtsDirect(cleanText, lang = 'en-US', rate = 1.0, onEnded) {
-  // 1. Ưu tiên trên Native Android APK: sử dụng AndroidTTS bridge trực tiếp
-  if (typeof window !== 'undefined' && window.AndroidTTS && typeof window.AndroidTTS.speak === 'function') {
-    try {
-      window.AndroidTTS.speak(cleanText);
-      const words = cleanText.split(/\s+/).filter(Boolean);
-      const estDuration = Math.max(900, (words.length * 360) / (rate || 1.0));
-      audioCleanupTimer = setTimeout(() => {
+      window.__onNativeAudioEnded = () => {
+        window.__onNativeAudioEnded = null;
+        window.__onNativeAudioStarted = null;
+        if (audioCleanupTimer) {
+          clearTimeout(audioCleanupTimer);
+          audioCleanupTimer = null;
+        }
         if (onEnded) onEnded();
+      };
+
+      // Safety timeout đề phòng thiết bị gặp vấn đề ngắt kết nối
+      const estDuration = Math.max(3000, Math.round((words.length * 520) / speechRate) + 2500);
+      audioCleanupTimer = setTimeout(() => {
+        if (window.__onNativeAudioEnded) {
+          window.__onNativeAudioEnded = null;
+          window.__onNativeAudioStarted = null;
+          if (onEnded) onEnded();
+        }
       }, estDuration);
+
+      const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${targetLang}&client=tw-ob&q=${encodeURIComponent(clean)}`;
+
+      // Câu <= 220 ký tự: phát qua Native MediaPlayer MP3 chuẩn phòng thu
+      // Câu > 220 ký tự: phát qua Native Android TextToSpeech engine
+      if (clean.length <= 220 && typeof window.AndroidTTS.playSpeaking === 'function') {
+        window.AndroidTTS.playSpeaking(clean, googleUrl, speechRate, targetLang);
+      } else if (clean.length <= 220 && typeof window.AndroidTTS.playAudio === 'function') {
+        window.AndroidTTS.playAudio(clean, googleUrl, speechRate);
+      } else if (typeof window.AndroidTTS.speakWithRate === 'function') {
+        window.AndroidTTS.speakWithRate(clean, speechRate, targetLang);
+      } else if (typeof window.AndroidTTS.speak === 'function') {
+        window.AndroidTTS.speak(clean);
+      }
       return;
     } catch (err) {
-      console.warn('[AudioService] Native AndroidTTS.speak failed, falling back to Web SpeechSynthesis:', err);
+      console.warn('[AudioService] Native Speaking playback error, falling back to Web:', err);
     }
   }
 
-  // 2. Trên Web/Desktop: sử dụng Web SpeechSynthesis API
-  fallbackSpeechSynthesisAdvanced(cleanText, lang, rate, onEnded);
+  // ══════════════════════════════════════════════════════════
+  // 2. WEB / DESKTOP BROWSER: Web SpeechSynthesis API
+  // ══════════════════════════════════════════════════════════
+  if (onStart) onStart();
+  fallbackSpeechSynthesisAdvanced(clean, targetLang, speechRate, onEnded);
 }
 
 /**
- * Web SpeechSynthesis API nâng cao
+ * Trình phát HTML5 Audio trên Web
+ */
+function playViaWebAudio(preferredUrl, cleanText, ttsLang, onEnded) {
+  try {
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = preferredUrl;
+    currentAudio = audio;
+    if (typeof window !== 'undefined') {
+      window.__currentAudioElement = audio;
+    }
+
+    let hasEnded = false;
+    const handleFinish = () => {
+      if (!hasEnded) {
+        hasEnded = true;
+        currentAudio = null;
+        if (typeof window !== 'undefined') {
+          window.__currentAudioElement = null;
+        }
+        if (onEnded) onEnded();
+      }
+    };
+
+    audio.onended = handleFinish;
+    audio.onerror = () => {
+      if (preferredUrl.includes('youdao.com')) {
+        const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+        playViaGoogleAudio(googleUrl, cleanText, ttsLang, onEnded);
+      } else {
+        fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+      }
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+      });
+    }
+  } catch (err) {
+    fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+  }
+}
+
+function playViaGoogleAudio(googleUrl, cleanText, ttsLang, onEnded) {
+  try {
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = googleUrl;
+    currentAudio = audio;
+    if (typeof window !== 'undefined') {
+      window.__currentAudioElement = audio;
+    }
+
+    let hasEnded = false;
+    const handleFinish = () => {
+      if (!hasEnded) {
+        hasEnded = true;
+        currentAudio = null;
+        if (typeof window !== 'undefined') {
+          window.__currentAudioElement = null;
+        }
+        if (onEnded) onEnded();
+      }
+    };
+
+    audio.onended = handleFinish;
+    audio.onerror = () => {
+      fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+      });
+    }
+  } catch (err) {
+    fallbackSpeechSynthesis(cleanText, ttsLang, onEnded);
+  }
+}
+
+function fallbackSpeechSynthesis(cleanText, lang = 'en-US', onEnded) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (onEnded) onEnded();
+    return;
+  }
+  try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = lang.startsWith('en') ? 'en-US' : lang;
+    utterance.rate = 0.95;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      const enVoice = voices.find((v) => v.lang === 'en-US' || v.lang.startsWith('en'));
+      if (enVoice) utterance.voice = enVoice;
+    }
+
+    if (onEnded) {
+      utterance.onend = onEnded;
+      utterance.onerror = onEnded;
+    }
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.error('[AudioService] SpeechSynthesis error:', e);
+    if (onEnded) onEnded();
+  }
+}
+
+/**
+ * Web SpeechSynthesis nâng cao cho Speaking Studio trên Web Desktop
  */
 function fallbackSpeechSynthesisAdvanced(text, lang = 'en-US', rate = 1.0, onEnded) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -257,7 +351,7 @@ function fallbackSpeechSynthesisAdvanced(text, lang = 'en-US', rate = 1.0, onEnd
     utterance.lang = lang;
     utterance.rate = rate;
 
-    // Giữ global reference để V8 garbage collection không hủy utterance giữa chừng
+    // Giữ tham chiếu global tránh V8 garbage collection
     window.__currentSpeakingUtterance = utterance;
 
     const voices = window.speechSynthesis.getVoices();
