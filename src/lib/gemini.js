@@ -218,7 +218,8 @@ INSTRUCTIONS:
 5. ENDING: If the scenario goal is successfully achieved, or the user explicitly says goodbye, naturally end the conversation (e.g., "Have a great day", "Goodbye", "See you later"). Do NOT ask any more questions.
 6. Use filler words occasionally if appropriate for the level ("Well,", "Hmm," for lower levels; "Indeed,", "Fascinating," for higher levels).
 7. NEVER say you are an AI, a language model, or a chatbot. NEVER use bullet points.
-8. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said. ${audioData ? 'Put the exact audio transcription ONLY into the userTranscript field.' : ''}
+8. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said.
+${audioData ? '9. AUDIO TRANSCRIPTION RULE: Transcribe EXACTLY and VERBATIM only what the user actually said into the "userTranscript" field. DO NOT autocomplete, DO NOT add missing words, and DO NOT correct grammar (e.g. if the user says 2 words, transcribe exactly those 2 words, do not expand it).' : ''}
 
 Also suggest exactly 3 short phrases or sentence starters (2-5 words each) that the user could naturally say next.
 
@@ -307,7 +308,8 @@ INSTRUCTIONS:
 3. CONTINUATION: If the goal is not yet reached, drive the conversation forward with a follow-up question or statement.
 4. ENDING: If the scenario goal is successfully achieved, or the user says goodbye, end the conversation naturally. Do NOT ask any more questions.
 5. NEVER reveal you are an AI. NEVER use bullet points.
-6. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said. ${audioData ? 'Put the exact audio transcription ONLY into the userTranscript field.' : ''}
+6. DO NOT echo or parrot the user. Your spoken reply must be a natural RESPONSE to what the user said.
+${audioData ? '7. AUDIO TRANSCRIPTION RULE: Transcribe EXACTLY and VERBATIM only the actual words the user spoke in the audio into the "userTranscript" field. DO NOT autocomplete, DO NOT add missing words, and DO NOT correct grammar (e.g. if the user says 2 words, transcribe exactly those 2 words, do not expand it).' : ''}
 
 Format your response EXACTLY as follows (no markdown, no code blocks):
 [Write your spoken reply here — plain English text only]
