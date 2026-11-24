@@ -300,7 +300,6 @@ const ISLANDS = [
   },
 ];
 
-// Speech with multi-engine audio
 function speakVoice(text, rate = 0.85) {
   if (!text) return;
   playSpeakingAudio(text, {

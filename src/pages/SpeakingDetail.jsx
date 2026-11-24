@@ -264,7 +264,7 @@ export default function SpeakingDetail() {
     if (isRecording) {
       stopRecording();
     } else {
-      stopAudio(); // Tắt âm thanh AI ngay lập tức khi người dùng bắt đầu nói
+      stopAudio();
       startRecording();
     }
   };

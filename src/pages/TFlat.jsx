@@ -198,7 +198,6 @@ export default function TFlat() {
     };
   }, [user?.id, selectedWord?.word]);
 
-  // Audio pronunciation via Shared Audio Service (US/UK accent)
   const playPronunciation = (accent = 'us') => {
     if (!selectedWord?.word) return;
     setIsSpeaking(accent);
@@ -216,7 +215,6 @@ export default function TFlat() {
     };
   }, []);
 
-  // Save or unsave from user_vocabulary
   const handleToggleSave = async () => {
     if (!user?.id) {
       showToast('Vui lòng đăng nhập để lưu vào sổ từ vựng!', 'error');
