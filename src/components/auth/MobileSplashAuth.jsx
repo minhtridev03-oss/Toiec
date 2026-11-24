@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
   KeyRound,
-  Sparkles,
-  ArrowRight,
   LockKeyhole,
   Mail,
   Eye,
@@ -23,14 +21,6 @@ import { signInWithEmail, signUpWithEmail, requestPasswordReset, signInWithGoogl
 import { supabase } from '../../lib/supabaseClient';
 import { parseAuthError } from '../../lib/security';
 import { removeAppBootSplashImmediate } from '../../utils/bootSplash';
-
-const QUOTES = [
-  '✨ 15 phút mỗi ngày, tự tin bứt phá TOEIC',
-  '🚀 Mỗi ngày một từ mới, một bước gần thành công',
-  '🌱 Học thông minh, tiến bộ vững chắc',
-  '🎯 Sẵn sàng chinh phục mục tiêu hôm nay nào!',
-  '💡 Luyện tập kiên trì, tự tin làm chủ tiếng Anh'
-];
 
 function GoogleIcon() {
   return (
@@ -59,9 +49,7 @@ export default function MobileSplashAuth({ onComplete }) {
   const { user } = useAuth();
   const { locale } = useLocale();
 
-  // Khởi tạo trạng thái
-  const [phase, setPhase] = useState('loading'); // 'loading' | 'actions'
-  const [quote] = useState(() => QUOTES[Math.floor(Math.random() * QUOTES.length)]);
+  const [phase, setPhase] = useState('loading');
   const [isDismissing, setIsDismissing] = useState(false);
 
   // Bottom Sheet States
@@ -301,7 +289,6 @@ export default function MobileSplashAuth({ onComplete }) {
               />
             </motion.div>
           ) : (
-            /* Phase 2: Cụm 2 nút Đăng nhập & Tạo tài khoản mở ra nhịp nhàng (NO Guest per instruction) */
             <motion.div
               key="action-buttons"
               initial={{ opacity: 0, y: 18, scale: 0.92 }}
@@ -309,26 +296,21 @@ export default function MobileSplashAuth({ onComplete }) {
               transition={{ type: 'spring', damping: 22, stiffness: 280 }}
               className="w-full flex flex-col gap-3"
             >
-              {/* Nút 1: Đăng nhập (Primary Gradient) */}
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => openSheet('login')}
-                className="relative group w-full h-[48px] rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 active:shadow-md transition-all cursor-pointer"
+                className="relative group w-full h-[48px] rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white font-extrabold text-sm flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 active:shadow-md transition-all cursor-pointer"
               >
-                <KeyRound size={17} className="transition-transform group-hover:rotate-12" />
                 <span>Đăng nhập</span>
-                <ArrowRight size={15} className="opacity-70 group-hover:translate-x-0.5 transition-transform" />
               </motion.button>
 
-              {/* Nút 2: Tạo tài khoản mới (Glassmorphism Luxury) */}
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => openSheet('signup')}
-                className="w-full h-[48px] rounded-2xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/90 dark:border-white/15 text-slate-800 dark:text-slate-100 font-extrabold text-sm flex items-center justify-center gap-2 backdrop-blur-xl shadow-xs active:shadow-none hover:bg-white dark:hover:bg-slate-900/80 transition-all cursor-pointer"
+                className="w-full h-[48px] rounded-2xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/90 dark:border-white/15 text-slate-800 dark:text-slate-100 font-extrabold text-sm flex items-center justify-center backdrop-blur-xl shadow-xs active:shadow-none hover:bg-white dark:hover:bg-slate-900/80 transition-all cursor-pointer"
               >
-                <Sparkles size={16} className="text-amber-500 dark:text-cyan-400" />
                 <span>Tạo tài khoản mới</span>
               </motion.button>
             </motion.div>
@@ -336,22 +318,9 @@ export default function MobileSplashAuth({ onComplete }) {
         </AnimatePresence>
       </div>
 
-      {/* Quote Chip ở đáy màn hình */}
-      <motion.div
-        animate={{ opacity: isSheetOpen ? 0 : 1 }}
-        transition={{ duration: 0.2 }}
-        className="splash-quote pointer-events-none"
-      >
-        <span>{quote}</span>
-      </motion.div>
-
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* LIQUID GLASS BOTTOM SHEET: Khung đăng nhập trượt êm ái từ dưới lên */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {isSheetOpen && (
           <>
-            {/* Backdrop làm mờ tinh tế */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -361,7 +330,6 @@ export default function MobileSplashAuth({ onComplete }) {
               className="fixed inset-0 z-[1000000] bg-slate-950/60 dark:bg-black/80 backdrop-blur-[3px]"
             />
 
-            {/* Bottom Sheet Drawer */}
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}

@@ -556,17 +556,6 @@ export default function Profile() {
               );
             })}
           </div>
-
-          {/* Quick hint for user to add new frames */}
-          <div className="p-4 rounded-2xl bg-indigo-500/10 dark:bg-cyan-500/10 border border-indigo-500/20 dark:border-cyan-500/20 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
-            <Sparkles size={18} className="text-indigo-600 dark:text-cyan-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Đồng bộ đám mây Supabase:</p>
-              <p className="mt-0.5 text-slate-600 dark:text-slate-400">
-                Toàn bộ khung avatar được lưu trữ tại Supabase Database & Storage. Quản trị viên có thể thêm mới khung, tải lên file ảnh hoặc thẻ GIF động và cập nhật điều kiện mở khóa tại trang Quản trị viên bất kỳ lúc nào!
-              </p>
-            </div>
-          </div>
         </section>
       )}
 

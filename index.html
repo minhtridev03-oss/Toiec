@@ -252,29 +252,10 @@
     <div class="splash-progress-track">
       <div class="splash-progress-bar"></div>
     </div>
-
-    <div class="splash-quote">
-      <span id="splash-quote-icon">✨</span>
-      <span id="splash-quote-text">15 phút mỗi ngày, tự tin làm chủ tiếng Anh</span>
-    </div>
   </div>
 
   <script>
     (function () {
-      try {
-        var tips = [
-          '✨ 15 phút mỗi ngày, tự tin bứt phá TOEIC',
-          '🚀 Mỗi ngày một từ mới, một bước gần thành công',
-          '🌱 Học thông minh, tiến bộ vững chắc',
-          '🎯 Sẵn sàng chinh phục mục tiêu hôm nay nào!',
-          '💡 Luyện tập kiên trì, tự tin làm chủ tiếng Anh'
-        ];
-        var chosen = tips[Math.floor(Math.random() * tips.length)];
-        var quoteEl = document.getElementById('splash-quote-text');
-        if (quoteEl) quoteEl.textContent = chosen;
-      } catch (e) {}
-
-      // Fallback tự động gỡ splash sau 5s nếu xảy ra sự cố ngoại cảnh
       setTimeout(function () {
         var splash = document.getElementById('app-boot-splash');
         if (splash && !splash.classList.contains('splash-fade-out')) {
