@@ -56,7 +56,12 @@ export default function QuickWordCard() {
     checkIfSaved(clean);
 
     try {
-      const result = await fetchQuickWord(clean);
+      const result = await fetchQuickWord(clean, (partial) => {
+        if (reqId === activeReqRef.current && partial && partial.meaning) {
+          setWordData((prev) => ({ ...prev, ...partial }));
+          setLoading(false);
+        }
+      });
       if (reqId === activeReqRef.current && result) {
         setWordData(result);
       }
@@ -210,18 +215,16 @@ export default function QuickWordCard() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-indigo-50/50 dark:bg-slate-800/50 border border-indigo-500/10 dark:border-white/5 p-3.5 text-xs sm:text-sm">
-              {loading ? (
-                <div className="space-y-2 py-1">
-                  <div className="h-4 bg-slate-200 dark:bg-slate-700/60 rounded-md w-3/4 animate-pulse" />
-                  <div className="h-3 bg-slate-200 dark:bg-slate-700/60 rounded-md w-1/2 animate-pulse" />
+            <div className="rounded-2xl bg-indigo-50/50 dark:bg-slate-800/50 border border-indigo-500/10 dark:border-white/5 p-3.5 text-xs sm:text-sm min-h-[64px] flex items-center">
+              {loading && !wordData?.meaning ? (
+                <div className="flex items-center gap-2.5 text-indigo-600 dark:text-cyan-400 font-bold py-1">
+                  <Loader2 size={16} className="animate-spin shrink-0" />
+                  <span>Đang tra cứu nghĩa...</span>
                 </div>
-              ) : (
-                <div className="space-y-1.5">
+              ) : wordData?.meaning && !wordData.meaning.startsWith('CQkJ') ? (
+                <div className="space-y-1.5 w-full">
                   <p className="font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                    {wordData?.meaning && !wordData.meaning.startsWith('CQkJ')
-                      ? wordData.meaning
-                      : 'Đang tra cứu nghĩa...'}
+                    {wordData.meaning}
                   </p>
                   {wordData?.example && (
                     <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 italic">
@@ -229,6 +232,10 @@ export default function QuickWordCard() {
                     </p>
                   )}
                 </div>
+              ) : (
+                <p className="text-slate-500 dark:text-slate-400 font-medium">
+                  Chưa có bản dịch nhanh. Bấm "Xem chi tiết" để tra AI đầy đủ.
+                </p>
               )}
             </div>
 

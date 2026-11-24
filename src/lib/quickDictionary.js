@@ -3,6 +3,7 @@ import { getShortMeaning } from '../utils/dictionaryParser';
 import { lookupDictionaryWord } from './gemini';
 
 const cache = new Map();
+const CACHE_PREFIX = 't_qw_v4:';
 
 function cleanPhoneticAndPos(rawPro) {
   if (!rawPro || typeof rawPro !== 'string') return { phonetic: '', pos: '' };
@@ -54,26 +55,36 @@ function getRootWord(mean) {
   return root.trim().replace(/#+$/g, '').replace(/_/g, ' ');
 }
 
-export async function fetchQuickWord(rawWord) {
+export async function fetchQuickWord(rawWord, onPartial) {
   if (!rawWord) return null;
   const word = String(rawWord).replace(/[^a-zA-Z\s'-]/g, '').trim();
   if (!word) return null;
   const lower = word.toLowerCase();
 
+  try {
+    sessionStorage.removeItem(`qw:${lower}`);
+    sessionStorage.removeItem(`t_qw_v3:${lower}`);
+  } catch {}
+
   if (cache.has(lower)) {
-    return cache.get(lower);
+    const cached = cache.get(lower);
+    if (cached && cached.meaning && !cached.meaning.startsWith('CQkJ')) {
+      return cached;
+    }
   }
 
   try {
-    const sessionItem = sessionStorage.getItem(`qw:${lower}`);
+    const sessionItem = sessionStorage.getItem(`${CACHE_PREFIX}${lower}`);
     if (sessionItem) {
       const parsed = JSON.parse(sessionItem);
-      cache.set(lower, parsed);
-      return parsed;
+      if (parsed && parsed.meaning && !parsed.meaning.startsWith('CQkJ')) {
+        cache.set(lower, parsed);
+        return parsed;
+      }
     }
   } catch {}
 
-  let foundData = null;
+  let finalResult = null;
 
   try {
     const { data, error } = await supabase
@@ -84,7 +95,7 @@ export async function fetchQuickWord(rawWord) {
       .maybeSingle();
 
     if (!error && data) {
-      foundData = data;
+      let foundData = data;
       const root = getRootWord(data.mean);
       if (root && !data.av) {
         const { data: rootData } = await supabase
@@ -103,67 +114,81 @@ export async function fetchQuickWord(rawWord) {
           };
         }
       }
+
+      const { phonetic, pos } = cleanPhoneticAndPos(foundData.pro);
+      let meaning = cleanMeaning(foundData.mean);
+      if (!meaning) {
+        meaning = getShortMeaning(foundData);
+        if (meaning && (meaning.startsWith('CQkJ') || /^[A-Za-z0-9+/=\s]{50,}$/.test(meaning.trim()))) {
+          meaning = '';
+        }
+      }
+
+      if (meaning) {
+        const fullMeaning = pos ? `[${pos}] ${meaning}` : meaning;
+        finalResult = {
+          word: foundData.word || word,
+          phonetic: phonetic,
+          meaning: fullMeaning,
+          source: 'database'
+        };
+        onPartial?.(finalResult);
+      }
     }
   } catch (err) {
     console.warn('DB lookup error:', err);
   }
 
-  let finalResult = null;
-
-  if (foundData) {
-    const { phonetic, pos } = cleanPhoneticAndPos(foundData.pro);
-    let meaning = cleanMeaning(foundData.mean);
-    if (!meaning) {
-      meaning = getShortMeaning(foundData);
-      if (meaning && (meaning.startsWith('CQkJ') || /^[A-Za-z0-9+/=\s]{50,}$/.test(meaning.trim()))) {
-        meaning = '';
-      }
-    }
-
-    if (meaning) {
-      const fullMeaning = pos ? `[${pos}] ${meaning}` : meaning;
-      finalResult = {
-        word: foundData.word || word,
-        phonetic: phonetic,
-        meaning: fullMeaning,
-        source: 'database'
-      };
-    }
-  }
-
-  if (!finalResult || !finalResult.meaning) {
-    try {
-      const aiData = await lookupDictionaryWord(word);
+  try {
+    const aiPromise = lookupDictionaryWord(word);
+    if (!finalResult || !finalResult.meaning) {
+      const aiData = await aiPromise;
       if (aiData && aiData.word && !aiData.error) {
         const primaryMeaning = aiData.partsOfSpeech?.[0]?.meanings?.[0]?.definition || '';
         const partType = aiData.partsOfSpeech?.[0]?.type || '';
         const fullMeaning = partType ? `[${partType}] ${primaryMeaning}` : primaryMeaning;
         finalResult = {
           word: aiData.word,
-          phonetic: aiData.phonetic || '',
-          meaning: fullMeaning || 'Đang cập nhật nghĩa...',
+          phonetic: aiData.phonetic || finalResult?.phonetic || '',
+          meaning: fullMeaning,
           example: aiData.partsOfSpeech?.[0]?.meanings?.[0]?.englishExample || '',
           source: 'ai'
         };
       }
-    } catch (aiErr) {
-      console.warn('AI lookup error:', aiErr);
+    } else {
+      aiPromise.then((aiData) => {
+        if (aiData && aiData.word && !aiData.error) {
+          const example = aiData.partsOfSpeech?.[0]?.meanings?.[0]?.englishExample || '';
+          if (example) {
+            const enriched = { ...finalResult, example };
+            cache.set(lower, enriched);
+            onPartial?.(enriched);
+            try {
+              sessionStorage.setItem(`${CACHE_PREFIX}${lower}`, JSON.stringify(enriched));
+            } catch {}
+          }
+        }
+      }).catch(() => {});
     }
+  } catch (aiErr) {
+    console.warn('AI lookup error:', aiErr);
   }
 
   if (!finalResult) {
     finalResult = {
       word: word,
       phonetic: '',
-      meaning: 'Chưa có bản dịch cho từ này',
+      meaning: '',
       source: 'fallback'
     };
   }
 
-  cache.set(lower, finalResult);
-  try {
-    sessionStorage.setItem(`qw:${lower}`, JSON.stringify(finalResult));
-  } catch {}
+  if (finalResult.meaning && !finalResult.meaning.startsWith('CQkJ')) {
+    cache.set(lower, finalResult);
+    try {
+      sessionStorage.setItem(`${CACHE_PREFIX}${lower}`, JSON.stringify(finalResult));
+    } catch {}
+  }
 
   return finalResult;
 }
