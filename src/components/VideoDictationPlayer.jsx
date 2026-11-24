@@ -957,9 +957,11 @@ export default function VideoDictationPlayer({ videoData, segments }) {
     [user?.id, videoData?.id]
   );
 
-  const handleWordTokenClick = (word, index, hasTypedWord) => {
+  const handleWordTokenClick = (word, index, hasTypedWord, isRevealed) => {
     speakWord(word);
-    if (!hasTypedWord) {
+    if (isRevealed) {
+      handleLookupWord(word);
+    } else if (!hasTypedWord) {
       setRevealedWordIndexes((previous) => {
         const next = new Set(previous);
         if (next.has(index)) next.delete(index);
@@ -969,11 +971,10 @@ export default function VideoDictationPlayer({ videoData, segments }) {
     }
   };
 
-  // Open Global Dictionary for specific word
   const handleLookupWord = (word) => {
     const clean = word.replace(/[^a-zA-Z]/g, '').trim();
     if (!clean) return;
-    window.dispatchEvent(new CustomEvent('global-dictionary:open', { detail: { word: clean } }));
+    window.dispatchEvent(new CustomEvent('quick-word:open', { detail: { word: clean } }));
   };
 
   const opts = {
@@ -1417,8 +1418,8 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                   <div key={`${word}-${index}`} className="relative group/token inline-block">
                     <button
                       type="button"
-                      onClick={() => handleWordTokenClick(word, index, hasTypedWord)}
-                      title={isRevealed ? `Bấm để nghe phát âm "${word}"` : 'Bấm để mở từ & nghe phát âm'}
+                      onClick={() => handleWordTokenClick(word, index, hasTypedWord, isRevealed)}
+                      title={isRevealed ? `Bấm để nghe & xem nghĩa "${word}"` : 'Bấm để mở từ & nghe phát âm'}
                       className={`rounded-xl border px-3.5 py-2 font-mono text-xs sm:text-sm font-black tracking-wide transition-all cursor-pointer ${
                         isCorrect
                           ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-md shadow-emerald-500/10 hover:bg-emerald-500/25'
@@ -1432,7 +1433,6 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                       {visibleWord}
                     </button>
 
-                    {/* Quick dictionary tooltip button when revealed */}
                     {isRevealed && (
                       <button
                         type="button"
@@ -1441,9 +1441,9 @@ export default function VideoDictationPlayer({ videoData, segments }) {
                           handleLookupWord(word);
                         }}
                         title={text.lookupDictionary}
-                        className="opacity-0 group-hover/token:opacity-100 transition-opacity absolute -top-2.5 -right-2 p-1 rounded-full bg-indigo-600 text-white shadow-md hover:scale-110 z-20 cursor-pointer"
+                        className="opacity-70 hover:opacity-100 transition-opacity absolute -top-2 -right-2 p-1 rounded-full bg-indigo-600 text-white shadow-md hover:scale-110 z-20 cursor-pointer"
                       >
-                        <BookOpen size={11} />
+                        <BookOpen size={10} />
                       </button>
                     )}
                   </div>

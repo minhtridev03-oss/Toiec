@@ -39,6 +39,7 @@ export default function GlobalDictionary({ showTrigger = true }) {
 
   const inputRef = useRef(null);
   const searchRequestRef = useRef(0);
+  const handleSearchRef = useRef(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('dictionary_recent');
@@ -52,12 +53,21 @@ export default function GlobalDictionary({ showTrigger = true }) {
   }, []);
 
   useEffect(() => {
-    const openDictionary = () => setIsOpen(true);
+    const openDictionary = (e) => {
+      setIsOpen(true);
+      const targetWord = e?.detail?.word;
+      if (targetWord && typeof targetWord === 'string') {
+        const clean = targetWord.trim();
+        if (clean) {
+          setQuery(clean);
+          handleSearchRef.current?.(clean);
+        }
+      }
+    };
     window.addEventListener('global-dictionary:open', openDictionary);
     return () => window.removeEventListener('global-dictionary:open', openDictionary);
   }, []);
 
-  // Shortcut Ctrl+K / Cmd+K to open dictionary anywhere
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -126,6 +136,7 @@ export default function GlobalDictionary({ showTrigger = true }) {
       if (requestId === searchRequestRef.current) setIsSearching(false);
     }
   };
+  handleSearchRef.current = handleSearch;
 
   const handleSaveWord = async () => {
     if (!result) return;

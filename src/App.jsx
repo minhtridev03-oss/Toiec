@@ -29,6 +29,7 @@ const PersonalVocabReview = React.lazy(() => import('./pages/PersonalVocabReview
 const TFlat = React.lazy(() => import('./pages/TFlat'));
 const WordList = React.lazy(() => import('./pages/WordList'));
 const GlobalDictionary = React.lazy(() => import('./components/GlobalDictionary'));
+const QuickWordCard = React.lazy(() => import('./components/QuickWordCard'));
 const GlobalFeedback = React.lazy(() => import('./components/GlobalFeedback'));
 const LearningBotDock = React.lazy(() => import('./components/layout/LearningBotDock'));
 const VocabularyDetail = React.lazy(() => import('./pages/VocabularyDetail'));
@@ -312,6 +313,7 @@ const MainLayout = () => {
       {isMobileWeb && <AppDownloadBanner />}
 
       <Suspense fallback={null}>
+        <QuickWordCard />
         {!isStudioMode && <LearningBotDock />}
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />

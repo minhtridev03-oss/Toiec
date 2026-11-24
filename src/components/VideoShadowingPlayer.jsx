@@ -83,7 +83,7 @@ const COPY = {
     retrySentence: 'Luyện lại câu này',
     sentence: 'Câu',
     browserUnsupported: 'Trình duyệt này chưa hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome hoặc Edge.',
-    clickToListenWord: 'Bấm vào từ để nghe phát âm mẫu chuẩn US',
+    clickToListenWord: 'Bấm vào từ để nghe phát âm & xem nghĩa nhanh',
     listenNative: 'Nghe câu gốc (Tab)',
     listenYourVoice: 'Nghe giọng bạn vừa nói (P)',
     scoreLabel: 'Điểm phát âm',
@@ -135,7 +135,7 @@ const COPY = {
     retrySentence: 'Retry this sentence',
     sentence: 'Sentence',
     browserUnsupported: 'Your browser does not support speech recognition. Please use Chrome or Edge.',
-    clickToListenWord: 'Click word to hear native US pronunciation',
+    clickToListenWord: 'Click word to hear pronunciation & quick meaning',
     listenNative: 'Listen to native (Tab)',
     listenYourVoice: 'Listen to your voice (P)',
     scoreLabel: 'Speech Score',
@@ -1254,8 +1254,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                   <button
                     key={`target-word-${wIdx}-${word}`}
                     type="button"
-                    onClick={() => speakWord(word)}
-                    title={`Click để nghe phát âm "${word}"`}
+                    onClick={() => {
+                      speakWord(word);
+                      const clean = word.replace(/[^a-zA-Z]/g, '').trim();
+                      if (clean) {
+                        window.dispatchEvent(new CustomEvent('quick-word:open', { detail: { word: clean } }));
+                      }
+                    }}
+                    title={`Click để nghe phát âm & tra nghĩa "${word}"`}
                     className="rounded-lg px-2 py-0.5 transition-all hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-300 hover:scale-105 active:scale-95 cursor-pointer"
                   >
                     {word}
