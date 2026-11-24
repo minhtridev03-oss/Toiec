@@ -174,7 +174,7 @@ export default function QuickWordCard() {
 
                 {wordData?.phonetic && (
                   <p className="text-xs font-mono font-bold text-indigo-600 dark:text-cyan-400 mt-0.5">
-                    {wordData.phonetic}
+                    {wordData.phonetic.replace(/#;#.*/g, '').replace(/[#;]+$/g, '').trim()}
                   </p>
                 )}
               </div>
@@ -219,7 +219,9 @@ export default function QuickWordCard() {
               ) : (
                 <div className="space-y-1.5">
                   <p className="font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                    {wordData?.meaning || 'Đang tra cứu nghĩa...'}
+                    {wordData?.meaning && !wordData.meaning.startsWith('CQkJ')
+                      ? wordData.meaning
+                      : 'Đang tra cứu nghĩa...'}
                   </p>
                   {wordData?.example && (
                     <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 italic">

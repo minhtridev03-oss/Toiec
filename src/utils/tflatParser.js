@@ -176,7 +176,7 @@ function addMeaning(part, text, isEnglish = false) {
 }
 
 function parseTabContent(content, entry) {
-  if (!content || content.length <= 3 || typeof window === 'undefined' || !window.DOMParser) {
+  if (!content || content.length <= 3 || typeof window === 'undefined' || !window.DOMParser || content.startsWith('CQkJ')) {
     return entry;
   }
 

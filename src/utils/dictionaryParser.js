@@ -6,20 +6,36 @@ import { parseTFlatHtml } from './tflatParser';
 export function getShortMeaning(word) {
   if (!word) return '';
 
-  if (word.av) {
+  if (word.mean && typeof word.mean === 'string') {
+    const rawMean = word.mean;
+    if (!rawMean.startsWith('CQkJ') && !(rawMean.length > 200 && /^[A-Za-z0-9+/=\s]+$/.test(rawMean.trim()))) {
+      let cleaned = rawMean
+        .replace(/#+$/g, '')
+        .replace(/#;#.*/g, '')
+        .replace(/^@.*?\s+/g, '')
+        .replace(/^-\s*/g, '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (cleaned) return cleaned;
+    }
+  }
+
+  if (word.av && typeof word.av === 'string' && !word.av.startsWith('CQkJ')) {
     try {
       const parts = word.av.split('##');
       const sections = parseTFlatHtml(parts[0]);
       if (sections && sections.length > 0) {
-        // Tìm nghĩa đầu tiên (bỏ qua [EN])
         for (const sec of sections) {
           for (const m of sec.meanings) {
-            if (!m.text.startsWith('[EN]')) {
+            if (!m.text.startsWith('[EN]') && !m.text.startsWith('CQkJ')) {
               return m.text;
             }
           }
         }
-        return sections[0].meanings[0].text;
+        if (!sections[0].meanings[0].text.startsWith('CQkJ')) {
+          return sections[0].meanings[0].text;
+        }
       }
     } catch (e) { }
   }

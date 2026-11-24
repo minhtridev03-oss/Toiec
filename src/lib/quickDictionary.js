@@ -4,6 +4,45 @@ import { lookupDictionaryWord } from './gemini';
 
 const cache = new Map();
 
+function cleanPhoneticAndPos(rawPro) {
+  if (!rawPro || typeof rawPro !== 'string') return { phonetic: '', pos: '' };
+  const parts = rawPro.split('#;#');
+  let phonetic = (parts[0] || '').replace(/[#;]+$/g, '').trim();
+  let posRaw = parts[1] || '';
+
+  const posMap = {
+    n: 'danh từ',
+    v: 'động từ',
+    adj: 'tính từ',
+    adv: 'trạng từ',
+    prep: 'giới từ',
+    conj: 'liên từ',
+    pron: 'đại từ',
+    int: 'thán từ'
+  };
+
+  const posList = posRaw.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
+  const posVi = posList.map((p) => posMap[p] || p).join(', ');
+
+  return { phonetic, pos: posVi };
+}
+
+function cleanMeaning(rawMean) {
+  if (!rawMean || typeof rawMean !== 'string') return '';
+  if (rawMean.startsWith('CQkJ') || (rawMean.length > 200 && /^[A-Za-z0-9+/=\s]+$/.test(rawMean.trim()))) {
+    return '';
+  }
+  let cleaned = rawMean
+    .replace(/#+$/g, '')
+    .replace(/#;#.*/g, '')
+    .replace(/^@.*?\s+/g, '')
+    .replace(/^-\s*/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned;
+}
+
 function getRootWord(mean) {
   if (!mean || typeof mean !== 'string') return '';
   let root = '';
@@ -72,18 +111,27 @@ export async function fetchQuickWord(rawWord) {
   let finalResult = null;
 
   if (foundData) {
-    const meaning = getShortMeaning(foundData);
-    if (meaning && meaning.trim()) {
+    const { phonetic, pos } = cleanPhoneticAndPos(foundData.pro);
+    let meaning = cleanMeaning(foundData.mean);
+    if (!meaning) {
+      meaning = getShortMeaning(foundData);
+      if (meaning && (meaning.startsWith('CQkJ') || /^[A-Za-z0-9+/=\s]{50,}$/.test(meaning.trim()))) {
+        meaning = '';
+      }
+    }
+
+    if (meaning) {
+      const fullMeaning = pos ? `[${pos}] ${meaning}` : meaning;
       finalResult = {
         word: foundData.word || word,
-        phonetic: foundData.pro || '',
-        meaning: meaning.trim(),
+        phonetic: phonetic,
+        meaning: fullMeaning,
         source: 'database'
       };
     }
   }
 
-  if (!finalResult) {
+  if (!finalResult || !finalResult.meaning) {
     try {
       const aiData = await lookupDictionaryWord(word);
       if (aiData && aiData.word && !aiData.error) {
