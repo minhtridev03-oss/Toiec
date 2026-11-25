@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core';
 import { supabase } from './supabaseClient';
 
 export const CURRENT_APP_VERSION = '1.0.0';
@@ -6,11 +5,8 @@ export const CURRENT_VERSION_CODE = 1;
 
 const DISMISSED_KEY = 'tenglish_dismissed_update_version';
 
-/**
- * Kiểm tra xem môi trường hiện tại có phải là Native App (Android/iOS) hay không
- */
 export function isNativeApp() {
-  return typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+  return false;
 }
 
 /**

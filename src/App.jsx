@@ -1,7 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
 import { useAuth } from './contexts/AuthContext';
 import { useLocale } from './contexts/LocaleContext';
 import { useTheme } from './contexts/ThemeContext';
@@ -15,13 +13,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/layout/Footer';
 import { usePlatform } from './hooks/usePlatform';
 import { dismissAppBootSplash } from './utils/bootSplash';
-import { fetchLatestUpdateInfo, isUpdateDismissed, CURRENT_APP_VERSION } from './lib/appUpdateService';
-import MobileSplashAuth from './components/auth/MobileSplashAuth';
-import { handleOAuthDeepLink } from './lib/authApi';
 
 const Dashboard = React.lazy(() => import('./components/dashboard/Dashboard'));
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal'));
-const AppUpdateModal = React.lazy(() => import('./components/layout/AppUpdateModal'));
 const Categories = React.lazy(() => import('./pages/Categories'));
 const SubCategories = React.lazy(() => import('./pages/SubCategories'));
 const PersonalVocabulary = React.lazy(() => import('./pages/PersonalVocabulary'));
@@ -110,38 +104,6 @@ const MainLayout = () => {
   const isStudioMode = /^\/(dictation|shadowing|speaking|writing|reading|tenses|vocabularies|mock-tests)\/[^/]+$/.test(location.pathname) ||
     /^\/my-vocabulary\/review/.test(location.pathname);
 
-  // Native Android Capacitor Lifecycle & Hardware Back Button Handling
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const backListenerPromise = CapApp.addListener('backButton', ({ canGoBack }) => {
-      if (isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      } else if (authModalOpen) {
-        closeAuthModal?.();
-      } else if (canGoBack && location.pathname !== '/dashboard' && location.pathname !== '/') {
-        navigate(-1);
-      } else {
-        CapApp.exitApp();
-      }
-    });
-
-    const stateListenerPromise = CapApp.addListener('appStateChange', ({ isActive }) => {
-      const video = videoRef.current;
-      if (!video) return;
-      if (!isActive) {
-        video.pause();
-      } else if (videoEnabled && isVideoPlaying) {
-        video.play().catch(() => {});
-      }
-    });
-
-    return () => {
-      backListenerPromise.then((handle) => handle.remove()).catch(() => {});
-      stateListenerPromise.then((handle) => handle.remove()).catch(() => {});
-    };
-  }, [isMobileMenuOpen, authModalOpen, closeAuthModal, location.pathname, navigate, videoEnabled, isVideoPlaying]);
-
   // Auto-open Auth modal when guest visits /login, /register, or /forgot-password
   useEffect(() => {
     if (!user) {
@@ -194,46 +156,6 @@ const MainLayout = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [videoEnabled, isVideoPlaying]);
-
-  // Quản lý kiểm tra bản cập nhật ứng dụng (Chỉ kích hoạt trên Native Mobile App)
-  const [updateInfo, setUpdateInfo] = useState(null);
-
-  useEffect(() => {
-    // Chỉ kiểm tra và hiển thị popup cập nhật khi đang chạy trên Native App (Android/Capacitor), tuyệt đối bỏ qua trên Web
-    if (!isNative) return;
-
-    let timer = null;
-
-    const performCheck = async (forcePrompt = false) => {
-      try {
-        const info = await fetchLatestUpdateInfo();
-        if (info && info.hasUpdate) {
-          if (forcePrompt || !isUpdateDismissed(info.version)) {
-            setUpdateInfo(info);
-          }
-        } else if (forcePrompt) {
-          alert(`Bạn đang sử dụng phiên bản T-English mới nhất (v${CURRENT_APP_VERSION}) 🎉`);
-        }
-      } catch (err) {
-        console.warn('Lỗi kiểm tra cập nhật:', err);
-      }
-    };
-
-    // Tự động kiểm tra sau khi app load 2.5s
-    timer = setTimeout(() => {
-      performCheck(false);
-    }, 2500);
-
-    const handleManualCheck = () => {
-      performCheck(true);
-    };
-
-    window.addEventListener('tenglish:check-update', handleManualCheck);
-    return () => {
-      if (timer) clearTimeout(timer);
-      window.removeEventListener('tenglish:check-update', handleManualCheck);
-    };
-  }, [isNative]);
 
   return (
     <div className={`relative flex min-h-screen text-slate-900 dark:text-slate-100 font-sans ${
@@ -318,63 +240,17 @@ const MainLayout = () => {
         <GlobalDictionary showTrigger={false} />
         <GlobalFeedback showTrigger={false} />
         <AuthModal />
-        {isNative && updateInfo && (
-          <AppUpdateModal
-            updateInfo={updateInfo}
-            onClose={() => setUpdateInfo(null)}
-          />
-        )}
       </Suspense>
     </div>
   );
 };
 
 export default function App() {
-  const { isNative } = usePlatform();
-  const { user, loading: authLoading } = useAuth();
-  const isMobileApp = isNative || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mobile_splash'));
-  const [mobileSplashDone, setMobileSplashDone] = useState(false);
-
   useEffect(() => {
-    // Trên Web (Laptop/Desktop hoặc Mobile Web): Giữ nguyên 100% trải nghiệm cũ
-    if (!isMobileApp) {
-      dismissAppBootSplash();
-      return;
-    }
-
-    // Trên Native Mobile App (Android APK): Nếu người dùng đã có phiên đăng nhập, cho phép splash mờ dần vào Dashboard
-    if (!authLoading && user) {
-      dismissAppBootSplash(1500);
-      setMobileSplashDone(true);
-    }
-  }, [isMobileApp, authLoading, user]);
-
-  // Reset trạng thái splash khi đăng xuất trên Mobile App
-  useEffect(() => {
-    if (isMobileApp && !authLoading && !user) {
-      setMobileSplashDone(false);
-    }
-  }, [isMobileApp, authLoading, user]);
-
-  // Lắng nghe sự kiện Deep Link OAuth trả về từ Google trên Native App (com.tenglish.app://google-auth)
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const urlListenerPromise = CapApp.addListener('appUrlOpen', async ({ url }) => {
-      try {
-        await handleOAuthDeepLink(url);
-      } catch (err) {
-        console.error('Lỗi tiếp nhận Deep Link OAuth:', err);
-      }
-    });
-
-    return () => {
-      urlListenerPromise.then((handle) => handle.remove()).catch(() => {});
-    };
+    dismissAppBootSplash();
   }, []);
 
   useEffect(() => {
-    // Idle Route Prefetching: Tải ngầm các trang cốt lõi để chuyển tab tức thì 0ms
     const prefetchRoutes = () => {
       try {
         import('./pages/Categories');
@@ -396,10 +272,6 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {/* Màn hình khởi động tương tác chuyển hóa Đăng nhập/Đăng ký dành riêng cho Mobile App */}
-      {isMobileApp && !user && !mobileSplashDone && (
-        <MobileSplashAuth onComplete={() => setMobileSplashDone(true)} />
-      )}
       <Suspense fallback={<GlobalSkeletonLoader />}>
       <Routes>
         <Route 

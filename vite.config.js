@@ -44,6 +44,9 @@ export default defineConfig({
             if (id.includes('framer-motion')) {
               return 'vendor-framer-motion';
             }
+            if (id.includes('pdfjs-dist')) {
+              return 'vendor-pdf';
+            }
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
             }
