@@ -508,7 +508,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
     }
   }, []);
 
-  const { isRecording, startRecording, stopRecording, recordingTime } = useAudioRecorder({
+  const { isRecording, startRecording, stopRecording } = useAudioRecorder({
     onStop: handleStopRecording,
   });
 
@@ -1293,25 +1293,6 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 <Mic size={36} />
               )}
             </button>
-
-            {/* Dynamic Audio Waves when recording */}
-            {isRecording && (
-              <div className="flex items-center gap-1 mt-3">
-                {[12, 24, 38, 16, 42, 28, 50, 20, 46, 32, 18, 28].map((h, i) => (
-                  <span
-                    key={i}
-                    className="w-1 rounded-full bg-gradient-to-t from-rose-500 to-pink-400 animate-pulse"
-                    style={{
-                      height: `${h}px`,
-                      animationDuration: `${0.4 + (i % 5) * 0.15}s`,
-                    }}
-                  />
-                ))}
-                <span className="ml-2 font-mono text-xs font-black text-rose-500 tabular-nums">
-                  {formatTime(recordingTime)}
-                </span>
-              </div>
-            )}
 
             <p className="mt-2 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 text-center">
               {isTranscribing
