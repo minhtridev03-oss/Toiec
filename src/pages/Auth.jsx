@@ -21,11 +21,10 @@ import {
   Send,
   AlertCircle,
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { signInWithEmail, signUpWithEmail, requestPasswordReset } from '../lib/authApi';
+import { signInWithEmail, signUpWithEmail, requestPasswordReset, signInWithGoogle } from '../lib/authApi';
 import { parseAuthError } from '../lib/security';
 import appLogo from '../assets/logo.png';
 import chatbotImage from '../assets/chatbot-transparent.png';
@@ -336,11 +335,8 @@ export default function Auth({ initialMode }) {
     setNotice('');
     setIsGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard` },
-      });
-      if (error) throw error;
+      await signInWithGoogle();
+      setTimeout(() => setIsGoogleLoading(false), 2500);
     } catch (error) {
       console.error('Google sign-in failed:', error);
       setErrorState(parseAuthError(error, locale));

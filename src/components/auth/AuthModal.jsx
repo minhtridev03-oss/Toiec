@@ -147,7 +147,7 @@ function GoogleMark() {
 }
 
 export default function AuthModal() {
-  const { authModalOpen, authModalMode, closeAuthModal } = useAuth();
+  const { user, authModalOpen, authModalMode, closeAuthModal } = useAuth();
   const { locale } = useLocale();
   const text = COPY[locale] || COPY.vi;
 
@@ -184,6 +184,12 @@ export default function AuthModal() {
     }
     closeAuthModal();
   }, [closeAuthModal]);
+
+  useEffect(() => {
+    if (user && authModalOpen) {
+      handleClose();
+    }
+  }, [user, authModalOpen, handleClose]);
 
   // Handle ESC key to close
   useEffect(() => {
