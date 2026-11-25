@@ -1281,14 +1281,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 isTranscribing
                   ? 'bg-slate-400 dark:bg-slate-700 cursor-wait'
                   : isRecording
-                  ? 'scale-110 bg-gradient-to-tr from-rose-600 to-red-500 shadow-2xl shadow-rose-600/60 ring-8 ring-rose-500/25'
+                  ? 'bg-gradient-to-tr from-rose-600 to-red-500 shadow-xl shadow-rose-600/40'
                   : 'bg-gradient-to-tr from-rose-500 via-rose-600 to-pink-500 shadow-xl shadow-rose-500/35 hover:scale-105 hover:shadow-2xl hover:shadow-rose-500/50'
               }`}
             >
               {isTranscribing ? (
                 <Loader2 size={36} className="animate-spin" />
               ) : isRecording ? (
-                <MicOff size={36} className="animate-pulse" />
+                <MicOff size={36} />
               ) : (
                 <Mic size={36} />
               )}

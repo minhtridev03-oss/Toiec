@@ -1087,20 +1087,13 @@ export default function SpeakingDetail() {
           <div className="flex flex-col items-center justify-center gap-2">
             {/* Dynamic Waveform & Mic Button */}
             <div className="relative flex items-center justify-center">
-              {isRecording && (
-                <>
-                  <span className="absolute w-28 h-28 rounded-full bg-red-500/20 animate-ping pointer-events-none" style={{ animationDuration: '1.8s' }} />
-                  <span className="absolute w-24 h-24 rounded-full bg-red-500/30 animate-pulse pointer-events-none" />
-                </>
-              )}
-
               <button
                 type="button"
                 onClick={toggleRecording}
                 disabled={isAIThinking}
                 className={`relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center text-white transition-all duration-300 shadow-xl cursor-pointer ${
                   isRecording
-                    ? 'scale-110 bg-gradient-to-tr from-red-600 to-rose-500 shadow-red-500/50 ring-4 ring-red-500/30'
+                    ? 'bg-gradient-to-tr from-red-600 to-rose-500 shadow-red-500/40'
                     : isAIThinking
                     ? 'bg-slate-400 dark:bg-slate-700 opacity-60 cursor-wait'
                     : 'bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 shadow-indigo-600/35 hover:scale-105 active:scale-95'
@@ -1108,7 +1101,7 @@ export default function SpeakingDetail() {
                 title="Bấm hoặc nhấn Space để nói"
               >
                 {isRecording ? (
-                  <Square size={24} className="fill-current animate-pulse" />
+                  <Square size={24} className="fill-current" />
                 ) : (
                   <Mic size={28} />
                 )}
