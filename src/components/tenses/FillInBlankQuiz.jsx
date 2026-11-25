@@ -224,7 +224,7 @@ export default function FillInBlankQuiz({
   if (!currentExercise && !showSummary) {
     return (
       <div className="p-12 text-center rounded-3xl backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border border-white/20">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Đang chuẩn bị câu hỏi...</p>
       </div>
     );

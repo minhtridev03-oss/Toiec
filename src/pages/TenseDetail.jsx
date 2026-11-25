@@ -1001,9 +1001,9 @@ export default function TenseDetail() {
   if (loading || !tense) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[500px]">
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white/30 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/35 dark:border-white/10 shadow-xl text-center">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Đang tải chi tiết thì...</p>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Đang chuẩn bị bài học ngữ pháp...</p>
         </div>
       </div>
     );

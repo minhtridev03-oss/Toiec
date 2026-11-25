@@ -63,7 +63,7 @@ const COPY = {
     autoNext: 'Tự chuyển câu',
     startRecording: 'Chạm mic để bắt đầu nói',
     stopRecording: 'Chạm để dừng thu âm',
-    listening: 'Đang lắng nghe... Nói nhại theo câu mẫu',
+    listening: 'Đang lắng nghe... Nói theo câu mẫu',
     transcribing: 'Đang phân tích phát âm với AI...',
     spoken: 'Kết quả nhận diện',
     correct: 'Chuẩn xác',
@@ -929,7 +929,7 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
   }, [segment?.answer]);
 
   return (
-    <div 
+    <div
       className="flex flex-1 min-h-0 w-full flex-col overflow-y-auto bg-transparent text-slate-800 dark:text-white lg:flex-row lg:h-full lg:overflow-hidden p-2 sm:p-4 lg:p-5 gap-3.5 lg:gap-5 max-w-[1700px] mx-auto pb-24 lg:pb-5 relative"
       style={{
         paddingTop: isNative ? 'max(env(safe-area-inset-top, 0px), 52px)' : 'max(env(safe-area-inset-top, 0px), 16px)',
@@ -1028,11 +1028,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                         key={option}
                         type="button"
                         onClick={() => changeQuality(option)}
-                        className={`rounded-xl px-2 py-2 text-xs font-bold transition-all cursor-pointer ${
-                          quality === option
+                        className={`rounded-xl px-2 py-2 text-xs font-bold transition-all cursor-pointer ${quality === option
                             ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
                             : 'bg-white/40 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-700/50'
-                        }`}
+                          }`}
                       >
                         {option === 'default' ? text.auto : QUALITY_LABELS[option] || option}
                       </button>
@@ -1076,16 +1075,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 >
                   <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{text.autoNext}:</span>
                   <span
-                    className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${
-                      autoNext
+                    className={`flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${autoNext
                         ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-sm shadow-rose-500/30'
                         : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                        autoNext ? 'translate-x-3' : 'translate-x-0'
-                      }`}
+                      className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${autoNext ? 'translate-x-3' : 'translate-x-0'
+                        }`}
                     />
                   </span>
                 </button>
@@ -1127,11 +1124,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 type="button"
                 onClick={() => setIsLooping((looping) => !looping)}
                 title={text.loopSentence}
-                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
-                  isLooping
+                className={`p-2 rounded-xl transition-all cursor-pointer active:scale-95 ${isLooping
                     ? 'bg-rose-500/20 border border-rose-500/40 text-rose-500 shadow-md shadow-rose-500/10'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/50 hover:text-rose-500'
-                }`}
+                  }`}
               >
                 <Repeat size={20} />
               </button>
@@ -1157,16 +1153,14 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               >
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{text.autoNext}:</span>
                 <span
-                  className={`flex h-5 w-8 items-center rounded-full p-0.5 transition-colors ${
-                    autoNext
+                  className={`flex h-5 w-8 items-center rounded-full p-0.5 transition-colors ${autoNext
                       ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-sm shadow-rose-500/30'
                       : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                      autoNext ? 'translate-x-3.5' : 'translate-x-0'
-                    }`}
+                    className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${autoNext ? 'translate-x-3.5' : 'translate-x-0'
+                      }`}
                   />
                 </span>
               </button>
@@ -1222,11 +1216,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                   key={speed}
                   type="button"
                   onClick={() => changeSpeed(speed)}
-                  className={`rounded-lg px-1.5 sm:px-2.5 py-1 text-[11px] sm:text-xs transition-all cursor-pointer ${
-                    playbackRate === speed
+                  className={`rounded-lg px-1.5 sm:px-2.5 py-1 text-[11px] sm:text-xs transition-all cursor-pointer ${playbackRate === speed
                       ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30'
                       : 'text-slate-600 dark:text-slate-300 hover:text-rose-500 hover:bg-white/40 dark:hover:bg-slate-700/40'
-                  }`}
+                    }`}
                 >
                   {speed}x
                 </button>
@@ -1244,11 +1237,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               <span>{text.clickToListenWord}</span>
             </p>
 
-            <div className={`p-4 rounded-2xl border transition-all ${
-              isCurrentSegmentCompleted
+            <div className={`p-4 rounded-2xl border transition-all ${isCurrentSegmentCompleted
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-100'
                 : 'bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-white/5 text-slate-900 dark:text-white'
-            }`}>
+              }`}>
               <div className="flex flex-wrap items-center justify-center gap-1.5 text-lg sm:text-xl md:text-2xl font-bold leading-relaxed">
                 {sentenceWords.map((word, wIdx) => (
                   <button
@@ -1277,13 +1269,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               type="button"
               onClick={toggleRecording}
               disabled={isTranscribing}
-              className={`relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white transition-all cursor-pointer ${
-                isTranscribing
+              className={`relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white transition-all cursor-pointer ${isTranscribing
                   ? 'bg-slate-400 dark:bg-slate-700 cursor-wait'
                   : isRecording
-                  ? 'bg-gradient-to-tr from-rose-600 to-red-500 shadow-xl shadow-rose-600/40'
-                  : 'bg-gradient-to-tr from-rose-500 via-rose-600 to-pink-500 shadow-xl shadow-rose-500/35 hover:scale-105 hover:shadow-2xl hover:shadow-rose-500/50'
-              }`}
+                    ? 'bg-gradient-to-tr from-rose-600 to-red-500 shadow-xl shadow-rose-600/40'
+                    : 'bg-gradient-to-tr from-rose-500 via-rose-600 to-pink-500 shadow-xl shadow-rose-500/35 hover:scale-105 hover:shadow-2xl hover:shadow-rose-500/50'
+                }`}
             >
               {isTranscribing ? (
                 <Loader2 size={36} className="animate-spin" />
@@ -1298,10 +1289,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               {isTranscribing
                 ? text.transcribing
                 : isRecording
-                ? text.listening
-                : (isNative || isMobile)
-                ? (locale === 'en' ? 'Tap mic to start speaking' : 'Chạm mic để bắt đầu nói')
-                : text.startRecording}
+                  ? text.listening
+                  : (isNative || isMobile)
+                    ? (locale === 'en' ? 'Tap mic to start speaking' : 'Chạm mic để bắt đầu nói')
+                    : text.startRecording}
             </p>
           </div>
 
@@ -1320,11 +1311,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
               <button
                 type="button"
                 onClick={playUserVoice}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                  isUserAudioPlaying
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${isUserAudioPlaying
                     ? 'bg-rose-500 text-white border-rose-500 ring-2 ring-rose-500/20 shadow-md'
                     : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-500/20'
-                }`}
+                  }`}
               >
                 {isUserAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                 <span>{(isNative || isMobile) ? (locale === 'en' ? 'Your voice' : 'Nghe giọng bạn') : text.listenYourVoice}</span>
@@ -1335,13 +1325,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
           {/* FUZZY SPEECH COMPARISON & SCORE METER */}
           <div className="w-full max-w-3xl mt-1">
             <div
-              className={`rounded-2xl border p-4 transition-all ${
-                isSpeechPanelSuccess
+              className={`rounded-2xl border p-4 transition-all ${isSpeechPanelSuccess
                   ? 'border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5'
                   : hasSpeechTranscript
-                  ? 'border-rose-500/20 bg-white/50 dark:bg-slate-800/50'
-                  : 'border-white/30 dark:border-white/10 bg-white/20 dark:bg-slate-800/20'
-              }`}
+                    ? 'border-rose-500/20 bg-white/50 dark:bg-slate-800/50'
+                    : 'border-white/30 dark:border-white/10 bg-white/20 dark:bg-slate-800/20'
+                }`}
             >
               {/* Score & Status Header */}
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/20 dark:border-white/10 pb-2.5">
@@ -1357,13 +1346,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                 </div>
 
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-black flex items-center gap-1.5 ${
-                    isSpeechPanelSuccess
+                  className={`rounded-full px-3 py-1 text-xs font-black flex items-center gap-1.5 ${isSpeechPanelSuccess
                       ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
                       : hasSpeechTranscript
-                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30'
-                      : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'
-                  }`}
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                        : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                    }`}
                 >
                   {isSpeechPanelSuccess ? (
                     <>
@@ -1386,13 +1374,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                       <span
                         key={row.key}
                         title={row.spoken ? text.said(row.spoken) : text.notRecognized}
-                        className={`rounded-lg px-2.5 py-1 transition-all flex items-center gap-1 ${
-                          row.status === 'correct'
+                        className={`rounded-lg px-2.5 py-1 transition-all flex items-center gap-1 ${row.status === 'correct'
                             ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30'
                             : row.status === 'near'
-                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30'
-                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/25 line-through opacity-75'
-                        }`}
+                              ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30'
+                              : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/25 line-through opacity-75'
+                          }`}
                       >
                         <span>{row.spoken || row.target}</span>
                       </span>
@@ -1414,8 +1401,8 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                     {isTranscribing
                       ? text.transcribing
                       : isRecording
-                      ? text.listening
-                      : text.recordToCheck}
+                        ? text.listening
+                        : text.recordToCheck}
                   </span>
                 )}
               </div>
@@ -1471,11 +1458,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
           <button
             type="button"
             onClick={() => setSidebarTab('transcript')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              sidebarTab === 'transcript'
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${sidebarTab === 'transcript'
                 ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/25'
                 : 'text-slate-600 dark:text-slate-300 hover:text-rose-500 hover:bg-white/40 dark:hover:bg-slate-800/40'
-            }`}
+              }`}
           >
             <List size={16} />
             <span>{text.transcript} ({completedSegments.size}/{segments.length})</span>
@@ -1483,11 +1469,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
           <button
             type="button"
             onClick={() => setSidebarTab('hints')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              sidebarTab === 'hints'
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${sidebarTab === 'hints'
                 ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/25'
                 : 'text-slate-600 dark:text-slate-300 hover:text-rose-500 hover:bg-white/40 dark:hover:bg-slate-800/40'
-            }`}
+              }`}
           >
             <Lightbulb size={16} />
             <span>{text.lessonHints}</span>
@@ -1525,13 +1510,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                   <div
                     key={item.id}
                     ref={isActive ? activeSentenceRef : null}
-                    className={`group relative rounded-2xl border transition-all ${
-                      isActive
+                    className={`group relative rounded-2xl border transition-all ${isActive
                         ? 'border-rose-500/40 bg-rose-500/15 shadow-md shadow-rose-500/10 ring-2 ring-rose-500/20'
                         : isCompleted
-                        ? 'border-white/20 dark:border-white/5 bg-white/20 dark:bg-slate-800/20 hover:bg-white/40 dark:hover:bg-slate-800/40'
-                        : 'border-transparent hover:bg-white/30 dark:hover:bg-slate-800/30'
-                    }`}
+                          ? 'border-white/20 dark:border-white/5 bg-white/20 dark:bg-slate-800/20 hover:bg-white/40 dark:hover:bg-slate-800/40'
+                          : 'border-transparent hover:bg-white/30 dark:hover:bg-slate-800/30'
+                      }`}
                   >
                     <button
                       type="button"
@@ -1539,13 +1523,12 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                       className="flex w-full items-start gap-3 p-3 pr-16 text-left cursor-pointer"
                     >
                       <span
-                        className={`mt-0.5 shrink-0 ${
-                          isCompleted
+                        className={`mt-0.5 shrink-0 ${isCompleted
                             ? 'text-emerald-500'
                             : isActive
-                            ? 'text-rose-500'
-                            : 'text-slate-300 dark:text-slate-600'
-                        }`}
+                              ? 'text-rose-500'
+                              : 'text-slate-300 dark:text-slate-600'
+                          }`}
                       >
                         {isCompleted ? (
                           <CheckCircle2 size={18} />
@@ -1563,11 +1546,10 @@ export default function VideoShadowingPlayer({ videoData, segments }) {
                           </span>
                         </span>
                         <span
-                          className={`block text-xs sm:text-sm font-medium leading-relaxed ${
-                            isCompleted
+                          className={`block text-xs sm:text-sm font-medium leading-relaxed ${isCompleted
                               ? 'text-slate-700 dark:text-slate-200'
                               : 'text-slate-600 dark:text-slate-400'
-                          }`}
+                            }`}
                         >
                           {item.answer}
                         </span>

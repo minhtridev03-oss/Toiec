@@ -345,16 +345,11 @@ export default function TenseList() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] gap-4">
-        <div className="relative">
-          <div className="w-14 h-14 rounded-full border-4 border-fuchsia-500/30 border-t-fuchsia-500 animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Sparkles className="text-fuchsia-500 animate-pulse" size={20} />
-          </div>
+      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Đang chuẩn bị kho bài ngữ pháp...</p>
         </div>
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-          Đang tải dữ liệu 12 Thì Tiếng Anh...
-        </p>
       </div>
     );
   }
