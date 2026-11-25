@@ -3,8 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.110.7'
 export const MAX_PAYLOAD_BYTES = 1_000_000
 
 const DEFAULT_ALLOWED_ORIGINS = [
+  'https://t-english-rouge.vercel.app',
   'http://localhost:5173',
   'http://localhost:4173',
+  'http://localhost:3000',
   'http://localhost:5179',
   'http://localhost:5174',
   'http://localhost:5175',
